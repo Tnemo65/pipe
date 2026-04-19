@@ -1,0 +1,141 @@
+# Prometheus alerting rules for StreamDQ pipeline
+# Place in /etc/prometheus/ or load via prometheus.yml rule_files
+groups:
+  - name: streamdq_violations
+    interval: 30s
+    rules:
+      # ── Violation rate alerts ──────────────────────────────────────────
+      - alert: StreamDQViolationRateSpike
+        expr: |
+          (rate(streamdq_violations_total[5m])
+           / rate(streamdq_events_total[5m]))
+          > 0.15
+        for: 5m
+        labels:
+          severity: warning
+          team: data-quality
+        annotations:
+          summary: "StreamDQ violation rate spike"
+          description: |
+            Violation rate is {{ $value | humanizePercentage }} (threshold: 15%).
+            This may indicate a data quality degradation or upstream data source issue.
+            Rule most affected: {{ $labels.rule_id }}
+
+      - alert: StreamDQViolationRateCritical
+        expr: |
+          (rate(streamdq_violations_total[5m])
+           / rate(streamdq_events_total[5m]))
+          > 0.25
+        for: 2m
+        labels:
+          severity: critical
+          team: data-quality
+        annotations:
+          summary: "StreamDQ critical violation rate"
+          description: |
+            Violation rate is {{ $value | humanizePercentage }} (threshold: 25%).
+            Immediate investigation required.
+
+      - alert: StreamDQNoEventsReceived
+        expr: rate(streamdq_events_total[5m]) == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: data-quality
+        annotations:
+          summary: "StreamDQ pipeline receiving no events"
+          description: |
+            No events received in the last 2 minutes. Pipeline may be
+            disconnected from Kafka or upstream source is down.
+
+  - name: streamdq_latency
+    interval: 30s
+    rules:
+      # ── Latency alerts ─────────────────────────────────────────────────
+      - alert: StreamDQHighLatencyP99
+        expr: streamdq_batch_latency_seconds{p99="true"} > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: data-quality
+        annotations:
+          summary: "StreamDQ P99 latency above 2 seconds"
+          description: |
+            P99 batch latency is {{ $value | humanizeDuration }}.
+            Rule evaluation may be bottlenecking.
+
+      - alert: StreamDQLatencyCritical
+        expr: streamdq_batch_latency_seconds{p99="true"} > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: data-quality
+        annotations:
+          summary: "StreamDQ P99 latency critically high (>5s)"
+          description: |
+            P99 batch latency is {{ $value | humanizeDuration }}.
+            Immediate investigation required.
+
+  - name: streamdq_errors
+    interval: 30s
+    rules:
+      # ── Error alerts ──────────────────────────────────────────────────
+      - alert: StreamDQHighErrorRate
+        expr: rate(streamdq_processing_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: data-quality
+        annotations:
+          summary: "StreamDQ error rate elevated"
+          description: |
+            Error rate is {{ $value | humanizePercentage }} over 5 minutes.
+            Errors: {{ $labels.error_type }}
+
+      - alert: StreamDQProcessingErrors
+        expr: increase(streamdq_processing_errors_total[5m]) > 50
+        for: 1m
+        labels:
+          severity: warning
+          team: data-quality
+        annotations:
+          summary: "StreamDQ processing errors increasing"
+          description: |
+            {{ $value }} processing errors in the last 5 minutes.
+            Error type: {{ $labels.error_type }}
+
+  - name: streamdq_thresholds
+    interval: 60s
+    rules:
+      # ── Adaptive threshold alerts ──────────────────────────────────────
+      - alert: StreamDQAdaptiveThresholdUnstable
+        expr: |
+          (streamdq_threshold_p90 - streamdq_threshold_p10)
+          / (streamdq_threshold_p10 + 0.001) > 10
+        for: 10m
+        labels:
+          severity: info
+          team: data-quality
+        annotations:
+          summary: "StreamDQ adaptive threshold range unusually wide"
+          description: |
+            Adaptive threshold range (P10-P90) has exceeded 10x the P10 value.
+            This may indicate concept drift or anomalous data distribution.
+
+  - name: streamdq_rule_coverage
+    interval: 60s
+    rules:
+      # ── Rule firing rate alerts ────────────────────────────────────────
+      - alert: StreamDQNoRuleFiring
+        expr: rate(streamdq_violations_total[10m]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          team: data-quality
+        annotations:
+          summary: "StreamDQ no violations detected for 30 minutes"
+          description: |
+            No violations detected in 30 minutes. This may indicate:
+            - All rules are passing (good)
+            - Rule evaluation is disabled
+            - Data pipeline is stalled

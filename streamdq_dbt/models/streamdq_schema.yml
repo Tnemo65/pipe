@@ -1,0 +1,61 @@
+version: 2
+
+sources:
+  - name: streamdq
+    description: StreamDQ violation store
+    database: "{{ target.database }}"
+    schema: streamdq
+    freshness:
+      warn_after: {count: 10, period: minute}
+      error_after: {count: 30, period: minute}
+
+    tables:
+      - name: violations
+        identifier: violations
+        description: All detected data quality violations
+        columns:
+          - name: id
+            description: Unique violation identifier
+            tests:
+              - unique
+              - not_null
+          - name: rule_id
+            description: Rule that detected the violation
+            tests:
+              - not_null
+          - name: entity_id
+            description: Entity that triggered the violation
+            tests:
+              - not_null
+          - name: entity_type
+            description: Type of entity (nyc_taxi, gtfs_vehicle)
+          - name: severity
+            description: Violation severity (HIGH, MEDIUM, LOW, CRITICAL)
+            tests:
+              - accepted_values:
+                  values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+          - name: violation_type
+            description: Rule layer (SYNTACTIC, SEMANTIC, CROSS_RECORD)
+            tests:
+              - accepted_values:
+                  values: ['SYNTACTIC', 'SEMANTIC', 'CROSS_RECORD']
+          - name: detected_at
+            description: Timestamp when violation was detected
+            tests:
+              - not_null
+          - name: processing_latency_ms
+            description: Processing latency in milliseconds
+            tests:
+              - dbt_utils.accepted_range:
+                  min_value: 0
+                  max_value: 60000  # 60s max
+          - name: details
+            description: JSON with violation-specific details
+          - name: record_snapshot
+            description: JSON snapshot of the triggering record
+
+      - name: violation_metrics
+        identifier: streamdq_violation_metrics
+        description: Aggregated violation metrics
+        freshness:
+          warn_after: {count: 60, period: minute}

@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dockerfile for StreamDQ Spark Streaming Pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+FROM eclipse-temurin:17-jdk-alpine AS builder
+
+WORKDIR /app
+
+# Install Python via packages (Alpine)
+RUN apk add --no-cache python3 py3-pip
+
+# Copy only requirements first for caching
+COPY requirements.txt .
+
+# Install Java dependencies (for Spark)
+RUN apk add --no-cache bash
+
+# Install Python packages
+RUN pip3 install --no-cache-dir --break-system-packages \
+    pyspark==3.5.0 \
+    pyarrow==14.0.2 \
+    pandas==2.1.4
+
+# ── Runtime stage ────────────────────────────────────────────────────────────
+FROM eclipse-temurin:17-jre-alpine
+
+RUN apk add --no-cache bash python3 py3-pip
+
+# StreamDQ source
+COPY --from=builder /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Python packages (same versions as builder)
+RUN pip3 install --no-cache-dir --break-system-packages \
+    pyspark==3.5.0 \
+    pyarrow==14.0.2 \
+    pandas==2.1.4 \
+    kafka-python==2.0.2 \
+    prometheus-client==0.19.0 \
+    requests==2.31.0 \
+    gtfs-realtime-bindings==1.0.0 \
+    psycopg2-binary==2.9.9 \
+    click==8.1.7
+
+# Copy application source
+COPY streamdq /app/streamdq
+COPY config /app/config
+WORKDIR /app
+
+# Prometheus metrics are exposed via the built-in metrics thread on port 9090
+# Run the Spark pipeline
+CMD ["python3", "-m", "streamdq.pipeline.spark_pipeline"]

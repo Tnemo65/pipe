@@ -1,0 +1,32 @@
+# Prometheus configuration for StreamDQ monitoring stack
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Load StreamDQ alerting rules
+rule_files:
+  - "prometheus_alerts.yml"
+
+scrape_configs:
+  # ── Prometheus self-monitoring ───────────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ── StreamDQ Spark pipeline ────────────────────────────────────────────────
+  # Requires: StreamDQ pipeline started with metrics_port=9091
+  - job_name: 'streamdq'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['spark-streaming:9091']
+    metrics_path: '/metrics'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'streamdq-spark'

@@ -1,0 +1,148 @@
+# docker-compose.yml
+# StreamDQ local development environment
+
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: streamdq-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: streamdq-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: streamdq-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  # ── StreamDQ Spark Pipeline ──────────────────────────────────────────────
+  # Requires: Dockerfile.spark to be built
+  # Usage: docker compose build spark-streaming && docker compose up -d spark-streaming
+  spark-streaming:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: streamdq-spark
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    environment:
+      # Spark configuration
+      SPARK_MASTER: spark://spark-master:7077
+      # Kafka configuration
+      KAFKA_BOOTSTRAP: kafka:29092
+      KAFKA_TOPIC: nyc-taxi-events
+      VIOLATION_TOPIC: quality-violations
+      # Storage
+      VIOLATION_STORE_BACKEND: sqlite
+      VIOLATION_STORE_PATH: /data/violations.db
+      # Checkpointing
+      CHECKPOINT_DIR: /data/spark-checkpoint
+      STATE_CHECKPOINT_PATH: /data/cross_record_state.json
+      # Monitoring
+      METRICS_PORT: 9091
+    ports:
+      - "9091:9091"  # Prometheus metrics
+    volumes:
+      - streamdq-data:/data
+    command: >
+      python3 -m streamdq.pipeline.spark_pipeline
+      --kafka-bootstrap $KAFKA_BOOTSTRAP
+      --kafka-topic $KAFKA_TOPIC
+      --violation-topic $VIOLATION_TOPIC
+      --violation-store-backend sqlite
+      --violation-store-path /data/violations.db
+      --checkpoint-dir /data/spark-checkpoint
+      --state-checkpoint /data/cross_record_state.json
+      --metrics-port 9091
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: streamdq-postgres
+    environment:
+      POSTGRES_DB: streamdq
+      POSTGRES_USER: streamdq
+      POSTGRES_PASSWORD: streamdq
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: streamdq-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus_alerts.yml:/etc/prometheus/prometheus_alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: streamdq-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  pgdata:
+  prometheus_data:
+  grafana_data:
+  streamdq-data:
