@@ -135,3 +135,13 @@ scripts/fix_ng33*.py
 *.scratch.py
 temp_*.py
 .claude/
+
+.codex_read/
+codex_read/
+gpt_read/
+papers/
+research/
+skills/
+diagrams/
+docs/
+scripts/

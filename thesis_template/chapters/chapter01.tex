@@ -1,0 +1,89 @@
+% =============================================================================
+% CHAPTER 1: FUNDAMENTAL THEORIES
+% Chương 1: CƠ SỞ LÝ THUYẾT VÀ TỔNG QUAN
+% =============================================================================
+
+\section{Giới thiệu}
+\label{sec:ch1_intro}
+
+% PLACEHOLDER: Write your chapter introduction here
+Chương này trình bày các cơ sở lý thuyết và tổng quan về các công nghệ được sử dụng trong luận văn. Nội dung bao gồm giới thiệu về Knowledge Graph, Data Fabric, Data Lakehouse, và các thành phần của nền tảng dữ liệu hiện đại.
+
+\section{Knowledge Graph}
+\label{sec:knowledge_graph}
+
+\subsection{Khái niệm Knowledge Graph}
+\label{sec:kg_concept}
+
+% PLACEHOLDER: Define Knowledge Graph
+Knowledge Graph (Đồ thị Tri thức) là một cách biểu diễn tri thức dưới dạng đồ thị, trong đó các nút (nodes) đại diện cho các thực thể và các cạnh (edges) đại diện cho các quan hệ giữa chúng~\citep{paulheim2017knowledge}.
+
+\begin{definition}[Knowledge Graph]
+Knowledge Graph là một cấu trúc dữ liệu dạng đồ thị có hướng bao gồm tập hợp các thực thể, các thuộc tính của thực thể, và các quan hệ giữa các thực thể.
+\end{definition}
+
+\subsection{Ứng dụng của Knowledge Graph}
+\label{sec:kg_applications}
+
+Knowledge Graph được ứng dụng rộng rãi trong nhiều lĩnh vực:
+
+\begin{itemize}
+    \item \textbf{Tìm kiếm thông minh:} Google Knowledge Graph, Bing Satori
+    \item \textbf{Hệ thống khuyến nghị:} Amazon, Netflix sử dụng knowledge graph để đề xuất sản phẩm
+    \item \textbf{Quản lý dữ liệu doanh nghiệp:} Metadata management và data lineage
+    \item \textbf{Hỏi đáp tự động:} Chatbots và virtual assistants
+\end{itemize}
+
+\section{Data Fabric và Data Lakehouse}
+\label{sec:data_fabric_lakehouse}
+
+\subsection{Data Fabric Architecture}
+\label{sec:data_fabric}
+
+% PLACEHOLDER: Describe Data Fabric
+Data Fabric là một kiến trúc dữ liệu tổng hợp, cung cấp khả năng truy cập dữ liệu thống nhất từ nhiều nguồn khác nhau thông qua các layer trừu tượng~\citep{van_der_vliet_2021_datafabric}.
+
+\begin{figure}[tbp]
+\centering
+\fbox{\parbox{0.8\textwidth}{\centering
+\vspace{2cm}
+[Data Fabric Architecture Diagram]
+\vspace{2cm}
+}}
+\caption{Kiến trúc Data Fabric tổng quan}
+\label{fig:data_fabric}
+\end{figure}
+
+\subsection{Data Lakehouse}
+\label{sec:data_lakehouse}
+
+% PLACEHOLDER: Describe Data Lakehouse
+Data Lakehouse là mô hình kiến trúc kết hợp ưu điểm của Data Lake và Data Warehouse truyền thống~\citep{armbrust2021lakehouse}.
+
+\begin{itemize}
+    \item \textbf{Scalability:} Lưu trữ dữ liệu lớn với chi phí thấp
+    \item \textbf{Flexibility:} Hỗ trợ nhiều định dạng dữ liệu (structured, semi-structured, unstructured)
+    \item \textbf{Performance:} Truy vấn nhanh với data skipping và caching
+    \item \textbf{Governance:} Quản lý truy cập và lineage dữ liệu
+\end{itemize}
+
+\section{Các thành phần của Nền tảng Dữ liệu}
+\label{sec:platform_components}
+
+% PLACEHOLDER: Describe platform components
+Một nền tảng dữ liệu hiện đại bao gồm các thành phần chính sau:
+
+\begin{enumerate}
+    \item \textbf{Data Source Layer:} Nguồn dữ liệu từ nhiều hệ thống operational (MySQL, PostgreSQL, MongoDB)
+    \item \textbf{Data Ingestion Layer:} Thu nạp dữ liệu thời gian thực và batch (Apache Kafka, Debezium, Airbyte)
+    \item \textbf{Storage Layer:} Lưu trữ dữ liệu thô (MinIO, HDFS, S3)
+    \item \textbf{Transformation Layer:} Xử lý và biến đổi dữ liệu (Apache Spark, dbt)
+    \item \textbf{Metadata Layer:} Quản lý metadata và knowledge graph (Apache Atlas, DataHub)
+    \item \textbf{Analytics Layer:} Phân tích và trực quan hóa (Trino, Metabase, Superset)
+\end{enumerate}
+
+\section{Tổng kết chương}
+\label{sec:ch1_summary}
+
+% PLACEHOLDER: Write chapter summary
+Chương này đã trình bày các cơ sở lý thuyết về Knowledge Graph, Data Fabric và Data Lakehouse. Các khái niệm và công nghệ được giới thiệu trong chương này sẽ là nền tảng cho việc thiết kế và triển khai hệ thống ở các chương tiếp theo.

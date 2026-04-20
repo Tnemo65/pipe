@@ -1,0 +1,362 @@
+\documentclass[12pt,a4paper,oneside]{book}
+
+%==============================================================================
+% ENCODING AND FONTS
+%==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{newpxtext}
+\usepackage{newpxmath}
+\usepackage[vietnamese,english]{babel}
+\usepackage[scaled=0.95]{inconsolata}
+
+%==============================================================================
+% PAGE LAYOUT AND TYPOGRAPHY
+%==============================================================================
+\usepackage[a4paper, margin=1in, bindingoffset=0.5cm]{geometry}
+\usepackage[final,protrusion=true,expansion=true]{microtype}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{emptypage}
+
+%==============================================================================
+% MATH
+%==============================================================================
+\usepackage{mathtools}
+\usepackage{amssymb}
+
+%==============================================================================
+% GRAPHICS AND FIGURES
+%==============================================================================
+\usepackage{graphicx}
+\usepackage[font=small,labelfont=bf,format=hang]{caption}
+\usepackage{subcaption}
+
+%==============================================================================
+% TABLES
+%==============================================================================
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+
+%==============================================================================
+% LISTS
+%==============================================================================
+\usepackage{enumitem}
+
+%==============================================================================
+% COLORS
+%==============================================================================
+\usepackage{xcolor}
+\definecolor{chaptercolor}{RGB}{0, 70, 140}
+\definecolor{linkblue}{RGB}{0,51,153}
+
+%==============================================================================
+% HEADER/FOOTER
+%==============================================================================
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small\thepage}
+\makeatletter
+\let\headrule\@headrule
+\makeatother
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyfoot[C]{\small\thepage}
+}
+
+%==============================================================================
+% CHAPTER TITLE STYLING
+%==============================================================================
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{chaptercolor}}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-20pt}{40pt}
+
+%==============================================================================
+% ALGORITHMS
+%==============================================================================
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+%==============================================================================
+% THEOREMS
+%==============================================================================
+\usepackage{amsthm}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+%==============================================================================
+% UNITS AND NUMBERS
+%==============================================================================
+\usepackage{siunitx}
+\sisetup{detect-all}
+
+%==============================================================================
+% QUOTATIONS
+%==============================================================================
+\usepackage[autostyle]{csquotes}
+
+%==============================================================================
+% CITATIONS (BibTeX / natbib)
+%==============================================================================
+\usepackage{natbib}
+\setcitestyle{square,numbers,sort&compress}
+
+%==============================================================================
+% APPENDICES
+%==============================================================================
+\usepackage{appendix}
+
+%==============================================================================
+% HYPERLINKS
+%==============================================================================
+\usepackage{bookmark}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=chaptercolor,
+    citecolor=linkblue,
+    urlcolor=linkblue,
+    pdfauthor={Author Name},
+    pdftitle={Thesis Title},
+    pdfsubject={Information Systems},
+    pdfkeywords={data platform, knowledge graph, intelligent analytics},
+    bookmarks=true,
+    bookmarksnumbered=true,
+    bookmarksopen=true,
+}
+
+%==============================================================================
+% SMART CROSS-REFERENCES
+%==============================================================================
+\usepackage{cleveref}
+
+%==============================================================================
+% TABLE OF CONTENTS / LISTING PACKAGES
+%==============================================================================
+\usepackage{tocbibind}
+\usepackage{minitoc}
+
+%==============================================================================
+% CUSTOM COMMANDS
+%==============================================================================
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+
+%==============================================================================
+% CUSTOM TITLE PAGE (VNU / UET FORMAT)
+%==============================================================================
+\usepackage{ifthen}
+\newboolean{isDoctoral}
+\setboolean{isDoctoral}{false} % Set to true for Doctoral, false for Master's
+
+%==============================================================================
+\begin{document}
+
+% ============================================================
+% FRONT MATTER — Roman numerals, no chapter numbering
+% ============================================================
+\frontmatter
+\dominitoc
+
+% --- TITLE PAGE ---
+\begin{titlepage}
+\begin{center}
+
+% University Name
+\vspace*{1.5cm}
+{\Large\textbf{VIETNAM NATIONAL UNIVERSITY HANOI}}\\[0.3cm]
+{\Large\textbf{UNIVERSITY OF ENGINEERING AND TECHNOLOGY}}\\[2cm]
+
+% Author name
+{\LARGE\bfseries AUTHOR NAME}\\[2cm]
+
+% Thesis title
+{\LARGE\bfseries\color{chaptercolor}
+THESIS TITLE\\
+Building a Modern Data Platform\\
+Based on Data Fabric Architecture}\\[2cm]
+
+% Degree / Major
+{\large Major: Information Systems}\\[1.5cm]
+
+% Supervisor
+{\large Supervisor:}\\
+{\large Associate Professor NAME}\\[2cm]
+
+% Year / Location
+{\large Ha Noi -- YEAR}
+
+\vfill
+
+\end{center}
+\end{titlepage}
+
+% --- BLANK PAGE ---
+\clearpage\thispagestyle{empty}\null\clearpage
+
+% --- ACKNOWLEDGEMENTS ---
+\chapter*{Acknowledgements}
+\addcontentsline{toc}{chapter}{Acknowledgements}
+
+% PLACEHOLDER: Replace with your acknowledgements
+I would like to express my sincere gratitude to the professors at the University of Engineering and Technology, Vietnam National University Hanoi, for their dedicated guidance and teaching throughout my studies and research at the university. I would like to extend my deep appreciation to my supervisor and all the esteemed faculty members of the Information Systems Department. They have provided me with valuable guidance and direction in completing this thesis.
+
+Despite my best efforts to complete the thesis to the best of my ability, there are still some shortcomings. I sincerely hope to receive feedback and suggestions from my professors, colleagues, and friends to improve the thesis.
+
+Thank you very much!
+
+\vspace{1cm}
+\hfill Ha Noi, Month YEAR
+
+\clearpage
+
+% --- AUTHORSHIP DECLARATION ---
+\chapter*{Authorship}
+\addcontentsline{toc}{chapter}{Authorship}
+
+I hereby declare that all the results reported in this thesis are the outcome of my own work under the guidance of my supervisor.
+
+All references to related studies have been clearly cited and listed in the reference section of the thesis. No part of this thesis has been copied from any other work without clear acknowledgment of the source. All experimental results reported in this thesis have been conducted and statistically analyzed based on the actual experimental data.
+
+\vspace{2cm}
+\hfill Author Name
+
+\clearpage
+
+% --- ABSTRACT (English) ---
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+% PLACEHOLDER: Replace with your abstract (150-300 words)
+In today's digital age, organizations are generating and collecting more data than ever before. This data comes from a variety of sources and is stored in different formats and locations. Managing this vast amount of data and making it accessible to the right people at the right time is becoming increasingly challenging. A modern data platform based on data fabric or knowledge graph architecture provides a unified, flexible, and scalable view of all enterprise data.
+
+This thesis aims to design and implement a metadata knowledge graph-based data platform that can be easily integrated in modern platforms. This research also develops intelligent analytics features, which is an LLM module supporting querying and generating visualizations.
+
+The main contributions of this thesis include: (1) introducing the definition of metadata knowledge graph, intelligent analytics and benefits of integrating it into an intelligent data platform; (2) designing the system architecture and technology stacks; (3) implementing and installing the platform; (4) evaluating the platform's effectiveness with a specific use case.
+
+% PLACEHOLDER: Keywords
+\noindent\textbf{Keywords:} Data Platform, Knowledge Graph, Intelligent Analytics, Data Fabric, Metadata Management
+
+\clearpage
+
+% --- TÓM TẮT (Vietnamese) ---
+\chapter*{Tóm tắt}
+\addcontentsline{toc}{chapter}{Tóm tắt}
+
+% PLACEHOLDER: Replace with your Vietnamese abstract
+Trong thời đại số ngày nay, các tổ chức đang tạo ra và thu thập lượng dữ liệu ngày càng lớn từ nhiều nguồn khác nhau. Việc quản lý lượng dữ liệu khổng lồ này và làm cho nó có thể truy cập được bởi đúng người vào đúng thời điểm đang trở nên thách thức hơn bao giờ hết. Một nền tảng dữ liệu hiện đại dựa trên kiến trúc data fabric hoặc knowledge graph cung cấp một cái nhìn thống nhất, linh hoạt và có thể mở rộng cho tất cả dữ liệu doanh nghiệp.
+
+Luận văn này nhằm thiết kế và triển khai một nền tảng dữ liệu dựa trên knowledge graph và metadata, có thể dễ dàng tích hợp vào các nền tảng hiện đại. Nghiên cứu này cũng phát triển các tính năng phân tích thông minh, là mô-đun LLM hỗ trợ truy vấn và tạo trực quan hóa.
+
+Các đóng góp chính của luận văn bao gồm: (1) giới thiệu định nghĩa về knowledge graph dựa trên metadata, phân tích thông minh và lợi ích của việc tích hợp vào nền tảng dữ liệu thông minh; (2) thiết kế kiến trúc hệ thống và các ngăn xếp công nghệ; (3) triển khai và cài đặt nền tảng; (4) đánh giá hiệu quả của nền tảng với một kịch bản cụ thể.
+
+% PLACEHOLDER: Keywords Vietnamese
+\noindent\textbf{Từ khóa:} Nền tảng dữ liệu, Knowledge Graph, Phân tích thông minh, Data Fabric, Quản lý Metadata
+
+\clearpage
+
+% --- TABLE OF CONTENTS ---
+\tableofcontents
+\clearpage
+
+% --- LIST OF FIGURES ---
+\listoffigures
+\clearpage
+
+% --- LIST OF TABLES ---
+\listoftables
+\clearpage
+
+% --- LIST OF ABBREVIATIONS ---
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\begin{acronym}[Trino]
+  \acro{ACID}{Atomicity, Consistency, Isolation, Durability}
+  \acro{API}{Application Programming Interface}
+  \acro{CDC}{Change Data Capture}
+  \acro{DAG}{Directed Acyclic Graph}
+  \acro{ETL}{Extract, Transform, Load}
+  \acro{IoT}{Internet of Things}
+  \acro{KG}{Knowledge Graph}
+  \acro{LLM}{Large Language Model}
+  \acro{MDM}{Master Data Management}
+  \acro{ML}{Machine Learning}
+  \acro{NoSQL}{Not Only SQL}
+  \acro{PII}{Personally Identifiable Information}
+  \acro{SQL}{Structured Query Language}
+\end{acronym}
+\clearpage
+
+% ============================================================
+% MAIN MATTER — Arabic numerals, chapter numbering
+% ============================================================
+\mainmatter
+
+% --- INTRODUCTION (thesis-level, not a chapter) ---
+\chapter*{Introduction}
+\label{ch:introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+\input{chapters/introduction.tex}
+\clearpage
+
+% --- CHAPTER 1 ---
+\chapter{Fundamental Theories}
+\label{ch:fundamentals}
+\input{chapters/chapter01.tex}
+\clearpage
+
+% --- CHAPTER 2 ---
+\chapter{Proposed System Architecture}
+\label{ch:architecture}
+\input{chapters/chapter02.tex}
+\clearpage
+
+% --- CHAPTER 3 ---
+\chapter{Experiments and Evaluation}
+\label{ch:experiments}
+\input{chapters/chapter03.tex}
+\clearpage
+
+% ============================================================
+% CONCLUSION AND PERSPECTIVES
+% ============================================================
+\chapter*{Conclusion and Perspectives}
+\label{ch:conclusion}
+\addcontentsline{toc}{chapter}{Conclusion and Perspectives}
+\input{chapters/conclusion.tex}
+\clearpage
+
+% ============================================================
+% REFERENCES
+% ============================================================
+\backmatter
+\bibliographystyle{plainnat}
+\bibliography{references}
+\clearpage
+
+% ============================================================
+% APPENDICES
+% ============================================================
+\begin{appendices}
+\chapter{Additional Experimental Results}
+\label{app:results}
+\input{chapters/appendix_results.tex}
+
+\chapter{Configuration Files}
+\label{app:config}
+\input{chapters/appendix_config.tex}
+\end{appendices}
+
+\end{document}
