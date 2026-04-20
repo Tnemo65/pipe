@@ -1,0 +1,87 @@
+############################
+# Python
+############################
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+############################
+# Virtual env
+############################
+.venv/
+venv/
+env/
+
+############################
+# Local config / tools
+############################
+.claude/
+*.nfs*
+
+############################
+# Data (rất quan trọng)
+############################
+data/
+*.parquet
+*.csv
+
+############################
+# Logs / temp
+############################
+*.log
+tmp/
+temp/
+*.tmp
+
+############################
+# OS
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# IDE
+############################
+.vscode/
+.idea/
+
+############################
+# Spark / Big data artifacts
+############################
+spark-warehouse/
+metastore_db/
+
+############################
+# Airflow
+############################
+airflow.db
+logs/
+
+############################
+# Model / ML artifacts
+############################
+*.pkl
+*.joblib
+*.model
+
+############################
+# Backup
+############################
+pipe_backup/
+skills/
+research/
+papers/
+data/
+docs/
+.env
+.claude/
+.cursor/
+.claude/settings.local.json
+diagrams/
+.claude
