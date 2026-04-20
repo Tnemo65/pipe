@@ -44,7 +44,9 @@ class TestCRS003LineageAwareness:
 
     def test_live_duplicate_detected(self):
         """Duplicate from live stream DOES trigger violation."""
+        from streamdq.rules.adjudicator import ContextAwareDuplicateAdjudicator
         state = CrossRecordState()
+        adjudicator = ContextAwareDuplicateAdjudicator()  # Fresh instance per test
 
         event1 = {
             "trip_id": "trip_002",
@@ -64,17 +66,19 @@ class TestCRS003LineageAwareness:
         t1 = datetime(2024, 1, 15, 10, 0, 0)
         t2 = t1 + timedelta(seconds=30)
 
-        violation1 = evaluate_duplicate_event(event1, t1, dedup_state=state)
+        violation1 = evaluate_duplicate_event(event1, t1, dedup_state=state, adjudicator=adjudicator)
         assert violation1 is None
 
-        violation2 = evaluate_duplicate_event(event2, t2, dedup_state=state)
+        violation2 = evaluate_duplicate_event(event2, t2, dedup_state=state, adjudicator=adjudicator)
         assert violation2 is not None
         assert violation2.rule_id == "CRS003"
         assert "DUPLICATE_RECORD" in violation2.details["type"]
 
     def test_no_lineage_treated_as_live(self):
         """Events without _lineage are treated as live (backward compat)."""
+        from streamdq.rules.adjudicator import ContextAwareDuplicateAdjudicator
         state = CrossRecordState()
+        adjudicator = ContextAwareDuplicateAdjudicator()  # Fresh instance per test
 
         event1 = {
             "trip_id": "trip_003",
@@ -89,9 +93,9 @@ class TestCRS003LineageAwareness:
         t1 = datetime(2024, 1, 15, 10, 0, 0)
         t2 = t1 + timedelta(seconds=30)
 
-        violation1 = evaluate_duplicate_event(event1, t1, dedup_state=state)
+        violation1 = evaluate_duplicate_event(event1, t1, dedup_state=state, adjudicator=adjudicator)
         assert violation1 is None
 
-        violation2 = evaluate_duplicate_event(event2, t2, dedup_state=state)
+        violation2 = evaluate_duplicate_event(event2, t2, dedup_state=state, adjudicator=adjudicator)
         assert violation2 is not None
         assert violation2.rule_id == "CRS003"
