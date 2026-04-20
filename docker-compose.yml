@@ -62,7 +62,7 @@ services:
   spark-streaming:
     build:
       context: .
-      dockerfile: Dockerfile.spark
+      dockerfile: Dockerfile.spark.v2
     container_name: streamdq-spark
     depends_on:
       kafka:
@@ -88,16 +88,26 @@ services:
       - "9091:9091"  # Prometheus metrics
     volumes:
       - streamdq-data:/data
-    command: >
-      python3 -m streamdq.pipeline.spark_pipeline
-      --kafka-bootstrap $KAFKA_BOOTSTRAP
-      --kafka-topic $KAFKA_TOPIC
-      --violation-topic $VIOLATION_TOPIC
-      --violation-store-backend sqlite
-      --violation-store-path /data/violations.db
-      --checkpoint-dir /data/spark-checkpoint
-      --state-checkpoint /data/cross_record_state.json
-      --metrics-port 9091
+    command:
+      - python3
+      - -m
+      - streamdq.pipeline.spark_pipeline
+      - --kafka-bootstrap
+      - kafka:29092
+      - --kafka-topic
+      - nyc-taxi-events
+      - --violation-topic
+      - quality-violations
+      - --violation-store-backend
+      - sqlite
+      - --violation-store-path
+      - /data/violations.db
+      - --checkpoint-dir
+      - /data/spark-checkpoint
+      - --state-checkpoint
+      - /data/cross_record_state.json
+      - --metrics-port
+      - "9091"
 
   postgres:
     image: postgres:15-alpine
@@ -107,7 +117,7 @@ services:
       POSTGRES_USER: streamdq
       POSTGRES_PASSWORD: streamdq
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -115,7 +125,7 @@ services:
     image: prom/prometheus:v2.47.0
     container_name: streamdq-prometheus
     ports:
-      - "9091:9090"
+      - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus_alerts.yml:/etc/prometheus/prometheus_alerts.yml:ro

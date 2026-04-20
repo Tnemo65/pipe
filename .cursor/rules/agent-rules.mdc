@@ -1,0 +1,150 @@
+---
+description: Master agent rules — read before every task, always apply
+alwaysApply: true
+---
+
+# WAVES Research Agent Rules
+
+## Work
+
+- **Prototype First**: Minimal version → validate → professionalize. Never skip prototype.
+- **Fail Fast**: Research → try 1-2 approaches → still stuck after 10-15 min? **STOP** (problem + what was tried + options). No blind iteration.
+- **Research Before Asking**: Use `research-lookup`, `paper-lookup`, `literature-review`, `scientific-critical-thinking` first.
+- **No Lite**: Scope must fully cover the feature. If hard → ask user immediately.
+- **No Over-Engineering**: `dict`/`list`/`set` first. Complex classes only when truly needed. Only generalize when 2+ reuse cases.
+- **Incremental**: Implement → test → report. No 500-line commits before showing results.
+
+## Anti-Patterns (Strictly Forbidden)
+
+- **No Auto-Delete**: NEVER delete any file without user permission.
+- **No Hardcode**: Constants must come from config, env var, function parameter, or adaptive engine. No source → ask user.
+- **No Temp Leak**: Delete temp files immediately. Use `pytest` fixtures. Don't litter `examples/` or `scripts/`.
+- **No Silent Fallback**: Data fails (403, timeout, missing) → **STOP and notify user**. Build/test fails → ask user. Never substitute fake data or skip tests.
+- **No Scope Creep**: User asks A → do only A. Want more → ask first.
+- **No Silent Edits**: Want to modify code → read it → ask "I plan to change X to Y, OK?" Only proceed when approved.
+
+## Research
+
+- Every claim needs citation (DOI/URL). Every result needs code + data.
+- "Uncertain about X, reason Y, suggest verification." Never hallucinate.
+- Verify with research skills first. Found nothing → say "no prior work on X." No invented "novel" solutions.
+
+## Code
+
+- Every deliverable: implementation + tests + reproducibility doc.
+- Pinned versions for all libs (e.g., `pyspark==3.5.0`). Missing dep → report + install instructions.
+- No magic numbers. `THRESHOLD = 0.05 # from experiment`, not `if value > 0.05`. Before asking user for a constant: (1) run 3+ prototype experiments, (2) test 2-3 values, (3) document results, (4) then ask user with options + trade-offs.
+- Professional quality: error handling, logging, type hints, config. No "prototype-only" shortcuts.
+
+## Security
+
+- Zero secrets: API keys (sk-, AKIA-, ghp_), DB creds, JWT tokens, .pem/.key, .env → tell user **IMMEDIATELY**.
+- Need credentials: ask user → (a) env var, (b) session-only input, or (c) placeholder. Never create .env or hardcode.
+- Every new project needs `.gitignore`: `.env`, `credentials.json`, `*.key`, `*.pem`, `__pycache__`, `.venv`, `node_modules/`, `*.log`, `data/raw/*`, `*.parquet`, `duckdb`.
+
+## MCP & Skills
+
+### MCP Servers
+
+| Task | Server ID | Tools Available |
+|------|-----------|----------------|
+| Browser/web/canvas | `cursor-ide-browser` | navigate, snapshot, tabs, click, fill, type, scroll, hover, screenshot, drag, profile, wait, search, lock/unlock, dialog, console, network, resize, reload, navigate back/forward, canvas |
+| Kafka streaming | `user-kafka` | produce/consume topics, manage offsets, inspect schema, query consumer groups |
+| DuckDB analytics | `user-duckdb` | query, attach DB, read/write tables, export |
+
+**Tool calling convention:**
+
+```
+CallMcpTool({ "server": "server-id", "toolName": "tool-name", "arguments": { ... } })
+```
+
+Always read the tool's schema descriptor file (`mcps/<server>/tools/<tool>.json`) before calling. For browser: tabs → navigate → lock → snapshot → interact → unlock.
+
+### Plugins
+
+| Plugin | Skills / Capabilities |
+|--------|----------------------|
+| `astronomer-data` | Warehouse exploration, Airflow DAG authoring, Astro SDK, data lineage, "analyzing-data" skill via Jupyter kernel |
+| `paper-desktop` | Canvas-based design collaboration — Cursor reads/writes Paper canvases |
+| `dbt` | Data modeling, semantic layer metrics, unit testing, job troubleshooting, dbt MCP server |
+| `parallel` | Web search, content extraction, deep research, data enrichment via parallel-cli |
+| `superpowers` | TDD patterns, debugging, collaboration patterns, architectural diagrams, codebase summarization |
+| `grafana-assistant` | Dashboard JSON authoring, PromQL, alerting rules |
+| `compound-engineering` | Multi-file refactoring, cross-module dependency analysis, architecture patterns |
+| `elastic` | Elasticsearch/Opensearch query authoring, Kibana Saved Search, ES\|QL, OpenTelemetry docs |
+| `tldraw` | Collaborative infinite canvas for diagrams, flowcharts, system architecture sketches |
+| `prisma` | ORM schema authoring, Prisma Client generation, migration management |
+| `miro` | Secure board access, diagram/mind map creation, sprint boards |
+| `docs-canvas` | Render docs as navigable Cursor Canvas with TOC, diagrams, ADR authoring |
+
+### Skills
+
+| Task | Skill ID | Description |
+|------|----------|-------------|
+| Research | `research-lookup` | Semantic Scholar, arXiv, OpenAlex, CrossRef search |
+| Research | `paper-lookup` | Retrieve papers by DOI/keyword from PubMed, arXiv, bioRxiv, CORE |
+| Research | `literature-review` | Systematic literature reviews across academic databases |
+| Writing | `scientific-writing` | Draft/refine paper sections (abstract, intro, methodology, results, etc.) |
+| Writing | `peer-review` | Academic peer review: novelty, correctness, experimental validity |
+| Writing | `scientific-critical-thinking` | Evaluate claims, identify fallacies, expose methodological weaknesses |
+| Stats | `statistical-analysis` | Hypothesis testing, CIs, effect sizes, bootstrap resampling |
+| Stats | `matplotlib` | Publication-quality plots: PNG/PDF/SVG export |
+| Stats | `scikit-learn` | ML: classification, regression, clustering, preprocessing, pipelines |
+| Hypothesis | `hypothesis-generation` | Structured hypothesis with predictions, mechanisms, experiment design |
+| Hypothesis | `scientific-brainstorming` | Open-ended ideation, interdisciplinary connections, identifying gaps |
+| Company | `company-research` | Company research briefs with executive quotes, product strategy |
+| Company | `discovery-process` | Full discovery cycle: problem framing, interviews, synthesis |
+| Company | `proto-persona` | Proto-persona from research, market signals, team knowledge |
+
+### Execution Order by Task Type
+
+```
+Research task → Research Pipeline (see below)
+Code task → Prototype → Validate → Professional
+Writing task → scientific-writing → peer-review → scientific-critical-thinking
+Analysis task → statistical-analysis → matplotlib → scikit-learn
+Hypothesis task → hypothesis-generation → scientific-brainstorming
+Browser task → cursor-ide-browser MCP
+Kafka task → user-kafka MCP
+DuckDB task → user-duckdb MCP
+Company/proto-persona → company-research / proto-persona / discovery-process
+
+WHEN BLOCKED: Research → try 1-2 approaches → still stuck → TELL USER NOW
+WHEN SECURITY ISSUE: TELL USER IMMEDIATELY
+WHEN EXPAND SCOPE: ASK USER FIRST
+```
+
+### Research Pipeline
+
+For research tasks, follow this 8-step pipeline:
+
+```
+1. problem-definition
+       ↓
+2. research-question
+       ↓
+3. literature-review
+       ↓
+4. paper-lookup ↔ research-lookup   (bidirectional, iterate)
+       ↓
+5. gap-identification
+       ↓
+6. scientific-critical-thinking
+       ↓
+7. hypothesis / insight generation
+       ↓
+8. argument construction
+```
+
+1. **problem-definition** — Define the specific gap/question and why it matters.
+2. **research-question** — Derive 1-3 focused, answerable, testable questions.
+3. **literature-review** — Systematic search across academic databases. Summarize existing work.
+4. **paper-lookup ↔ research-lookup** — Iterate bidirectionally. Don't stop at the first batch.
+5. **gap-identification** — What is NOT covered? Be specific — "no prior work on X" is valid if verified.
+6. **scientific-critical-thinking** — Stress-test gaps. Are they real? Could existing methods be adapted? What's the strongest counter-argument?
+7. **hypothesis / insight generation** — Each hypothesis: independent variable, measurable dependent variable, proposed mechanism, predicted outcomes.
+8. **argument construction** — Structure: claim → evidence (citations) → reasoning → limitations → contribution. Distinguish verified findings, estimated results (need benchmark), and known limitations.
+
+## Bug Reporting
+
+Classify: **CRITICAL / MAJOR / MINOR**. Describe: what, where, impact. Propose: fix or document as known limitation.

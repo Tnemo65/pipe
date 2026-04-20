@@ -1,0 +1,192 @@
+---
+description: Master rules for StreamDQ — always apply
+alwaysApply: true
+---
+
+# StreamDQ Master Rules
+
+## Project Identity
+
+**StreamDQ** = "A Context-Aware Framework for Streaming Data Quality Monitoring"
+- Validates streaming data quality in real-time with context-aware thresholds and full explainability.
+- Not a batch tool. Not a ML anomaly detection system. Not a production-grade product.
+- Research & education platform.
+
+**Tech stack**: Python 3.10+, Apache Spark Structured Streaming, Kafka, SQLite/PostgreSQL, Prometheus, Grafana, dbt.
+**Data sources**: NYC TLC Yellow Taxi (replayed), GTFS Malaysia Realtime (live).
+**Rule taxonomy**: SYN (syntactic), SEM (semantic), CRS (cross-record).
+**9 rules**: SYN001, SYN002, SYN003, SEM001, SEM002, SEM003, CRS001, CRS002, CRS003.
+
+## Work Principles
+
+### WP1 — Prototype First, Validate, Then Productionize
+Write minimal working version first. Validate it works (unit test or manual check). Then refactor to production quality. **Never** write production-quality code without validating the concept first.
+
+### WP2 — Fail Fast, Diagnose Before Iterating
+When blocked: (1) use research skills to investigate, (2) try 1-2 approaches, (3) if still stuck after 10-15 minutes — STOP and tell the user with: the specific problem, what was tried, remaining options. **Do NOT** blindly iterate without diagnosing.
+
+### WP3 — Incremental Milestones
+Deliver small milestones: implement → test → report. **Do NOT** write 500+ lines before showing results.
+
+### WP4 — Research First, Then Ask
+Before asking the user a research question, use available skills (`research-lookup`, `paper-lookup`, `literature-review`, `scientific-critical-thinking`, `statistical-analysis`). Only ask when you have a clear problem statement and options.
+
+## Scientific Honesty
+
+### SH1 — Every Claim Needs a Citation
+Every factual claim needs a citation (DOI/URL). Every result needs implementation + tests + reproducibility doc. **Do NOT** write "X%" without noting it needs measurement or citing a source.
+
+### SH2 — Acknowledge Uncertainty
+Say "uncertain about X, reason: Y, suggest verification." **Do NOT** hallucinate data or results.
+
+### SH3 — Know the Known Blockers
+The codebase has documented issues that must not be re-researched or re-flagged as new discoveries:
+
+| ID | Blocker | Status |
+|----|---------|--------|
+| B1 | SYN001 NaN silent pass-through (no `math.isnan()` guard) | Fixed in code |
+| B2 | Duplicate injection no-op (CRS003 recall unmeasurable) | Needs proper fix |
+| B3 | CRS002 speed range gap (2-20 km/h moderate spoofing) | Known limitation |
+| B4 | `foreachBatch` driver bottleneck (no Pandas UDF) | Known limitation |
+| B5 | SQLite no WAL mode (per-commit fsync overhead) | Known limitation |
+| B6 | `processing_latency_ms` hardcoded to 0 | Known limitation |
+
+### SH4 — Verified Claims vs. Estimates
+Distinguish between:
+- **Verified**: SYN001-003 on synthetic data with known ground truth
+- **Estimated**: 82% recall, 85% precision, P99=890ms — all need real benchmark runs
+- **Unmeasurable**: CRS003 recall — duplicate injection is broken
+
+## Code Quality
+
+### CQ1 — Test + Reproducibility for Every Deliverable
+Every rule, pipeline component, and evaluation script must include: implementation + unit tests + reproducibility doc (how to run). **Do NOT** deliver "works on my machine."
+
+### CQ2 — Dependencies Must Be Pinned
+All libraries need pinned versions (e.g., `pyspark==3.5.0`). If user lacks a dependency, report it and provide install instructions.
+
+### CQ3 — No Magic Numbers
+Config = constants with explanatory comment. `THRESHOLD = 0.05  # from experiment`, not `if value > 0.05`. Thresholds must come from config, adaptive engine, or cited sources.
+
+### CQ4 — Full Error Handling, No "Lite"
+Full error handling, logging, type hints, config management. No "prototype-only", "demo-only", or "lite" shortcuts. Every Python file needs `from __future__ import annotations` and proper type hints.
+
+### CQ5 — Dataclass-First for Data Models
+Use `@dataclass` for `RuleContext`, `Violation`, `AnomalyRecord`, `DetectedViolation`, `FieldStats`. No raw dicts for structured data. Typed fields only.
+
+## Rule Authoring Standards
+
+### RA1 — Rule Structure
+Every rule must:
+1. Subclass `DataQualityRule` (syntactic/semantic) or follow the stateful pattern in `cross_record.py`
+2. Set `violation_type` class attribute
+3. Implement `evaluate(ctx: RuleContext) -> Optional[Violation]`
+4. Return `Violation` on failure, `None` on pass
+5. Handle ALL edge cases: `None`, NaN, wrong type, parse error — before the main check
+6. Include unit tests covering all failure modes
+
+### RA2 — Violation Object Completeness
+Every `Violation` must include:
+- `rule_id`, `rule_name`, `entity_id`, `entity_type`, `severity`, `violation_type`
+- `details` dict with: field name, actual value, reason code, and any relevant computed values
+- `expected` dict with: what was expected
+- `record_snapshot`: the full event dict
+- `detected_at`: timestamp
+- `processing_latency_ms`: latency (not hardcoded 0 — compute it)
+
+### RA3 — No Silent Pass-Through
+Every field access in a rule must have explicit guards:
+- `None` → return Violation (NULL reason)
+- NaN → return Violation (NAN reason) using `math.isnan()` or equivalent
+- Wrong type → return Violation (TYPE_MISMATCH reason)
+- Parse error → return Violation (PARSE_ERROR reason)
+**Do NOT** let invalid values silently pass through.
+
+## Evaluation Standards
+
+### EV1 — Ground Truth Must Be Tracked
+Every evaluation run must:
+- Track every injected anomaly with its `anomaly_type` and `entity_index`
+- Track every detected violation with its `rule_id` and matched `entity_index`
+- Compute precision, recall, F1 per anomaly type
+- Measure latency from event arrival to violation stored (not internal-only timing)
+
+### EV2 — Anomaly Injection Must Be Correct
+The `duplicate` anomaly type must emit TWO records (original + duplicate), not just one. CRS003 requires seeing both records to detect the duplicate.
+
+### EV3 — Report CI, Not Point Estimates
+Report 95% confidence intervals via bootstrap resampling (1,000 iterations minimum) for all metrics. **Do NOT** report single numbers without uncertainty bounds.
+
+### EV4 — Local vs. Distributed Benchmark Distinction
+LocalPipeline (in-process) and SparkPipeline (distributed) have different characteristics. Report which was used. Do not claim Spark-level latency/throughput from LocalPipeline results.
+
+## Paper Writing Standards
+
+### PW1 — Supported vs. Unsupported Claims
+Clearly separate:
+- **Claims supported by evidence**: taxonomy structure, Haversine validation, rule engine design, evaluation methodology
+- **Claims requiring benchmarks**: 82% recall, 85% precision, P99=890ms, 5,000+ events/sec throughput
+- **Known limitations**: no drift detection, no distributed adaptive thresholds, Layer 2 state not checkpointed
+
+### PW2 — Positioning vs. Competitors
+- StreamDQ is a **research and education platform**, not a production competitor to Stream DaQ or Great Expectations
+- Do NOT claim production-readiness, fault tolerance, or scalability
+- StreamDQ's differentiation: domain-specific GTFS GPS validation, NYC taxi domain rules, three-layer rule taxonomy, evaluation framework
+
+### PW3 — Compare Frameworks Transparently
+When comparing StreamDQ to Stream DaQ, GE, Soda, dbt: use a structured comparison table covering architecture, adaptive thresholds, cross-record detection, latency, and maturity.
+
+### PW4 — Section Completeness
+Every paper section must include: (1) clear problem statement, (2) approach description, (3) implementation details, (4) evaluation results (with CI), (5) limitations, (6) related work. **Do NOT** skip the limitations section.
+
+## Security
+
+### SEC1 — Zero Secrets
+Never commit: API keys, DB credentials, JWT tokens, .pem/.key files, .env files. If detected → tell user immediately.
+
+### SEC2 — Credential Protocol
+Need credentials: ask user to choose: (a) env var, (b) direct input (session only), (c) placeholder for user to replace later. Never create .env or hardcode secrets.
+
+### SEC3 — .gitignore Required
+Every new project needs .gitignore covering: `.env`, `credentials.json`, `*.key`, `*.pem`, `__pycache__`, `.venv`, `node_modules/`, `*.log`, `data/raw/*`, `*.parquet`, `duckdb`.
+
+## File Organization
+
+Follow this structure:
+```
+streamdq/
+  rules/        base.py, syntactic.py, semantic.py, cross_record.py, adaptive.py, registry.py
+  pipeline/     spark_pipeline.py, local_pipeline.py
+  producers/    nyc_taxi_replay.py, gtfs_live.py
+  evaluation/   metrics.py, comparison.py, case_study.py, run_evaluation.py
+  storage/      violation_store.py
+tests/          test_*.py (one file per rule category)
+scripts/        download_nyc_taxi.py, run_demo.sh
+PAPER_SECTIONS/ Introduction.md, RelatedWork.md, Evaluation.md, Limitations.md
+```
+
+## Execution Order
+
+```
+BEFORE EVERY TASK:
+  1. These rules auto-apply
+  2. Research task → use skills (research-lookup, paper-lookup, literature-review)
+  3. Code task → Prototype → Validate → Professional
+  4. Paper task → Follow PW1-PW4
+
+WHEN BLOCKED:
+  1. Research (use skills)
+  2. Try 1-2 approaches
+  3. Still stuck > 10-15 min → TELL USER NOW
+
+WHEN FINDING A NEW BUG:
+  → Classify: CRITICAL / MAJOR / MINOR
+  → Describe: what, where, impact
+  → Propose: fix or document as known limitation
+
+WHEN FINDING SECURITY ISSUE:
+  → TELL USER IMMEDIATELY
+
+WHEN EXPANDING SCOPE:
+  → ASK USER FIRST
+```

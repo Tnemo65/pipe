@@ -1,0 +1,162 @@
+---
+description: dbt SQL model standards for StreamDQ violation analysis
+globs: **/*.sql, **/*.yml
+alwaysApply: false
+---
+
+# SQL & dbt Standards — StreamDQ
+
+## General SQL
+
+### SQL1 — CTEs Before Joins
+Use CTE-based queries. Break complex logic into named CTEs. Final SELECT should be readable at a glance.
+
+```sql
+-- GOOD
+WITH violation_base AS (
+    SELECT * FROM {{ ref('stg_violations') }}
+),
+hourly_metrics AS (
+    SELECT
+        rule_id,
+        hour_bucket,
+        COUNT(*) AS violation_count
+    FROM violation_base
+    GROUP BY rule_id, hour_bucket
+)
+SELECT * FROM hourly_metrics
+
+-- BAD
+SELECT
+    v.rule_id,
+    COUNT(*) AS violation_count,
+    -- 200 more lines of direct query
+FROM {{ ref('stg_violations') }} v
+-- ...
+```
+
+### SQL2 — dbt Jinja Best Practices
+- Always use `ref()` for model references, never hardcode schema names
+- Use `config()` blocks at the top of models
+- Use `is_incremental()` guard for incremental models
+- Use `target.type` checks for warehouse-specific logic
+
+### SQL3 — Incremental Model Pattern
+Every incremental model must:
+1. Have `materialized='incremental'` in config
+2. Use `{% if is_incremental() %}` guard with `max()` filter
+3. Have a `unique_key` for deduplication
+
+```sql
+{{
+  config(
+    materialized='incremental',
+    schema='streamdq',
+    unique_key='rule_id || hour_bucket',
+    on_schema_change='sync_all_columns',
+  )
+}}
+
+WITH source AS (
+    SELECT * FROM {{ ref('stg_violations') }}
+)
+SELECT
+    rule_id,
+    hour_bucket,
+    COUNT(*) AS violation_count
+FROM source
+{% if is_incremental() %}
+WHERE hour_bucket > (SELECT MAX(hour_bucket) FROM {{ this }})
+{% endif %}
+GROUP BY rule_id, hour_bucket
+```
+
+## Schema & Tests
+
+### SC1 — Schema.yml Required for All Sources
+Every source must have a `schema.yml` entry with:
+- Description for source and each table
+- Column descriptions
+- Tests: `unique`, `not_null` on primary keys; `accepted_values` for enums
+
+```yaml
+- name: violations
+  description: All detected data quality violations
+  columns:
+    - name: id
+      tests: [unique, not_null]
+    - name: severity
+      tests:
+        - accepted_values:
+            values: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+```
+
+### SC2 — Numeric Bounds Tests
+Use `dbt_utils.accepted_range` for latency and numeric fields:
+```yaml
+- name: processing_latency_ms
+  tests:
+    - dbt_utils.accepted_range:
+        min_value: 0
+        max_value: 60000  -- 60s max
+```
+
+## Metrics Models
+
+### MT1 — Latency Aggregation Pattern
+For latency metrics, always compute: count, sum, avg, min, max, P50, P95, P99.
+
+```sql
+SELECT
+    rule_id,
+    COUNT(*) AS violation_count,
+    AVG(processing_latency_ms) AS avg_latency_ms,
+    MIN(processing_latency_ms) AS min_latency_ms,
+    MAX(processing_latency_ms) AS max_latency_ms,
+    -- Use percentile_cont for percentiles
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY processing_latency_ms) AS p50_latency_ms,
+    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY processing_latency_ms) AS p99_latency_ms
+FROM violations
+GROUP BY rule_id
+```
+
+### MT2 — Violation Rate Is Dimension, Not Just Count
+Always include violation rate (violations / total events) alongside absolute counts:
+```sql
+violation_count * 1.0 / NULLIF(event_count, 0) AS violation_rate
+```
+
+### MT3 — Severity Order Is Stable
+Use the `severity_order()` macro for consistent ordering in reports:
+```sql
+ORDER BY {{ severity_order('severity') }}
+```
+
+## Naming Conventions
+
+### NC1 — Consistent Naming
+- Models: `snake_case` (e.g., `stg_violations.sql`, `metrics_hourly.sql`)
+- Columns: `snake_case` (e.g., `violation_count`, `avg_latency_ms`, `hour_bucket`)
+- Sources: singular noun (e.g., `violations`, not `violation_records`)
+- Metrics: include unit in name (e.g., `latency_ms`, `count`, `rate`)
+
+## Macros
+
+### MC1 — Threshold Constants via Macros
+Hardcoded threshold values must be in macros:
+```sql
+{% macro violation_rate_threshold() %}
+    {{ return(0.05) }}  {# 5% violation rate threshold #}
+{% endmacro %}
+```
+Then use: `WHERE violation_rate > {{ violation_rate_threshold() }}`
+
+### MC2 — Warehouse-Agnostic Logic
+Use `target.type` checks for warehouse-specific functions:
+```sql
+{% if target.type == 'postgres' %}
+    PERCENTILE_CONT(0.99) WITHIN GROUP (...)
+{% elif target.type == 'duckdb' %}
+    QUANTILE_CONT(processing_latency_ms, 0.99)
+{% endif %}
+```

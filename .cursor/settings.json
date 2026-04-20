@@ -1,0 +1,92 @@
+{
+  "plugins": {
+    "astronomer-data": {
+      "enabled": true,
+      "description": "Astronomer data platform — Airflow DAG authoring, Astro SDK, data lineage, task orchestration"
+    },
+    "paper-desktop": {
+      "enabled": true,
+      "description": "Paper Desktop — Research paper reading, annotation, and organization with citation management"
+    },
+    "dbt": {
+      "enabled": true,
+      "description": "dbt (data build tool) — SQL model authoring, lineage graphs, tests, documentation, manifest parsing"
+    },
+    "parallel": {
+      "enabled": true,
+      "description": "Parallel — Subagent orchestration for running multiple tasks concurrently, result aggregation"
+    },
+    "superpowers": {
+      "enabled": true,
+      "description": "Superpowers — Advanced code intelligence, refactoring suggestions, architectural diagrams, codebase summarization"
+    },
+    "grafana-assistant": {
+      "enabled": true,
+      "description": "Grafana Assistant — Dashboard JSON authoring, Prometheus/Grafana query language (PromQL), alerting rules"
+    },
+    "compound-engineering": {
+      "enabled": true,
+      "description": "Compound Engineering — Multi-file refactoring, cross-module dependency analysis, architecture patterns"
+    },
+    "elastic": {
+      "enabled": true,
+      "description": "Elastic — Elasticsearch/Opensearch query authoring, index management, Kibana Saved Search import"
+    },
+    "tldraw": {
+      "enabled": true,
+      "description": "tldraw — Collaborative infinite canvas for diagrams, flowcharts, system architecture sketches"
+    },
+    "prisma": {
+      "enabled": true,
+      "description": "Prisma — ORM schema authoring, Prisma Client generation, migration management, TypeScript types"
+    },
+    "miro": {
+      "enabled": true,
+      "description": "Miro — Interactive whiteboard API for diagrams, mind maps, sprint boards, ideation frameworks"
+    },
+    "docs-canvas": {
+      "enabled": true,
+      "description": "Docs Canvas — Structured documentation authoring, architecture decision records (ADR), API reference docs"
+    }
+  },
+  "mcpServers": {
+    "kafka": {
+      "command": "mcp-kafka"
+    },
+    "duckdb": {
+      "command": "duckdb-mcp-server",
+      "args": ["--db-path", "d:\\dtl\\pipeline_real\\data\\streamdq_violations.duckdb"]
+    }
+  },
+  "_metadata": {
+    "workspace": "StreamDQ — Context-Aware Streaming Data Quality Monitoring",
+    "skills_directory": "d:\\dtl\\pipeline_real\\.cursor\\skills",
+    "skills": {
+      "research": {
+        "research-lookup": "Semantic Scholar, arXiv, OpenAlex, CrossRef search for papers and scientific info verification",
+        "paper-lookup": "Retrieve papers from PubMed, arXiv, Semantic Scholar, bioRxiv, medRxiv, OpenAlex, Crossref, CORE with DOI/abstract",
+        "literature-review": "Systematic literature reviews across academic databases with markdown output"
+      },
+      "writing": {
+        "scientific-writing": "Draft and refine paper sections: abstract, intro, related work, methodology, results, discussion, conclusion",
+        "peer-review": "Simulate academic peer review: novelty, correctness, experimental validity, writing quality, related work coverage",
+        "scientific-critical-thinking": "Evaluate research claims, identify logical fallacies, expose methodological weaknesses, stress-test arguments"
+      },
+      "stats": {
+        "statistical-analysis": "Hypothesis testing, confidence intervals, effect sizes, power analysis, significance testing, bootstrap CIs",
+        "matplotlib": "Low-level plotting for full customization, export to PNG/PDF/SVG for publication",
+        "scikit-learn": "ML with scikit-learn: classification, regression, clustering, dimensionality reduction, preprocessing, pipelines"
+      },
+      "hypothesis": {
+        "hypothesis-generation": "Structured hypothesis formulation from observations with predictions, mechanisms, and experiment design",
+        "scientific-brainstorming": "Open-ended ideation, interdisciplinary connections, challenging assumptions, identifying research gaps"
+      },
+      "company": {
+        "company-research": "Create company research briefs with executive quotes, product strategy, and org context",
+        "discovery-process": "Run full discovery cycle: problem framing, interviews, synthesis, and experiments",
+        "proto-persona": "Create proto-persona from research, market signals, and team knowledge"
+      }
+    },
+    "note": "Skills are defined as individual SKILL.md files under .cursor/skills/ — read via the Read tool when its task type is detected. MCP tool schemas live under .cursor/projects/<project>/mcps/<server>/tools/"
+  }
+}

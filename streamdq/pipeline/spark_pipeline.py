@@ -26,7 +26,7 @@ from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType,
     IntegerType, TimestampType,
 )
-from pyspark.sql.streaming import GroupStateTimeout
+from pyspark.sql.streaming.state import GroupStateTimeout
 from pyspark.sql import Row
 
 try:
@@ -253,6 +253,131 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     a = (math.sin(dphi / 2) ** 2
          + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
     return 2 * R * math.asin(math.sqrt(a))
+
+
+def _pandas_vehicle_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
+    """
+    Standalone Pandas UDF with state for per-vehicle GPS tracking (CRS001/CRS002).
+
+    Called per vehicle_id partition. Maintains state across events for
+    the same vehicle. Uses pandas for vectorized operations within partition.
+    """
+    import math
+    import json
+    from datetime import datetime
+
+    results = []
+    pdf = pdf.sort_values("timestamp_sec")
+
+    for _, row in pdf.iterrows():
+        lat = float(row.latitude)
+        lon = float(row.longitude)
+        ts = float(row.timestamp_sec)
+        seq = int(row.seq or 0)
+
+        record = row.to_dict()
+
+        if state.exists:
+            prev = state.get
+            prev_lat = float(prev.latitude)
+            prev_lon = float(prev.longitude)
+            prev_ts = float(prev.timestamp_sec)
+
+            time_diff = ts - prev_ts
+            if time_diff > 0:
+                dist = _haversine_m(prev_lat, prev_lon, lat, lon)
+                speed = (dist / 1000.0) / (time_diff / 3600.0)
+
+                if speed > _MAX_SPEED_KMH:
+                    results.append({
+                        "rule_id": "CRS001",
+                        "rule_name": "Trajectory anomaly (impossible speed)",
+                        "entity_id": str(row.vehicle_id),
+                        "entity_type": "gtfs_vehicle",
+                        "severity": "CRITICAL",
+                        "violation_type": "CROSS_RECORD",
+                        "record_snapshot": json.dumps(record, default=str),
+                        "detected_at": datetime.now(),
+                        "processing_latency_ms": 0.0,
+                    })
+
+                if dist > _MAX_STATIONARY_JUMP_M:
+                    if speed < 40.0:
+                        sev = "CRITICAL" if speed < 1.0 else ("HIGH" if speed < 20.0 else "MEDIUM")
+                        results.append({
+                            "rule_id": "CRS002",
+                            "rule_name": "GPS spoofing (stationary vehicle jump)",
+                            "entity_id": str(row.vehicle_id),
+                            "entity_type": "gtfs_vehicle",
+                            "severity": sev,
+                            "violation_type": "CROSS_RECORD",
+                            "record_snapshot": json.dumps(record, default=str),
+                            "detected_at": datetime.now(),
+                            "processing_latency_ms": 0.0,
+                        })
+
+        state.update({
+            "vehicle_id": str(row.vehicle_id),
+            "latitude": lat,
+            "longitude": lon,
+            "timestamp_sec": ts,
+            "seq": seq,
+        })
+        state.setTimeoutDuration(600)
+
+    if results:
+        import pandas as pd
+        return pd.DataFrame(results)
+    import pandas as pd
+    return pd.DataFrame(columns=[
+        "rule_id", "rule_name", "entity_id", "entity_type", "severity",
+        "violation_type", "record_snapshot", "detected_at", "processing_latency_ms"
+    ])
+
+
+def _pandas_dedup_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
+    """
+    Standalone Pandas UDF with state for per-hash deduplication (CRS003).
+
+    Called per event_hash partition. Detects duplicates within 300-second window.
+    """
+    import json
+    import time
+    from datetime import datetime
+
+    results = []
+    now = time.time()
+
+    if state.exists:
+        first_seen = float(state.get["first_seen_time"])
+        if now - first_seen <= _DEDUP_WINDOW_SEC:
+            results.append({
+                "rule_id": "CRS003",
+                "rule_name": "Duplicate event detected",
+                "entity_id": str(pdf.iloc[0]["trip_id"]) if "trip_id" in pdf else "",
+                "entity_type": "nyc_taxi",
+                "severity": "HIGH",
+                "violation_type": "CROSS_RECORD",
+                "record_snapshot": json.dumps(pdf.iloc[0].to_dict(), default=str),
+                "detected_at": datetime.now(),
+                "processing_latency_ms": 0.0,
+            })
+            state.remove()
+            import pandas as pd
+            return pd.DataFrame(results)
+
+    state.update({
+        "event_hash": str(pdf.iloc[0]["event_hash"]),
+        "first_seen_time": now,
+        "trip_id": str(pdf.iloc[0]["trip_id"]) if "trip_id" in pdf else "",
+    })
+    state.setTimeoutDuration(int(_DEDUP_WINDOW_SEC) + 10)
+
+    import pandas as pd
+    return pd.DataFrame(columns=[
+        "rule_id", "rule_name", "entity_id", "entity_type", "severity",
+        "violation_type", "record_snapshot", "detected_at", "processing_latency_ms"
+    ])
 
 
 def _make_violation_row(
@@ -552,6 +677,7 @@ class StreamDQPipeline:
             .config("spark.sql.streaming.checkpointLocation",
                     self.config.get("checkpoint_dir", "/tmp/streamdq-checkpoint"))
             .config("spark.sql.shuffle.partitions", "8")
+            # Kafka connector JARs pre-installed in pyspark/jars directory
         )
         if self.config.get("spark_master"):
             builder = builder.master(self.config["spark_master"])
@@ -835,13 +961,53 @@ class StreamDQPipeline:
             .load()
         )
 
+        # Parse JSON from Kafka value column
+        from pyspark.sql.types import StringType
+        schema = StructType([
+            StructField("VendorID", IntegerType(), True),
+            StructField("tpep_pickup_datetime", StringType(), True),
+            StructField("tpep_dropoff_datetime", StringType(), True),
+            StructField("passenger_count", DoubleType(), True),
+            StructField("trip_distance", DoubleType(), True),
+            StructField("RatecodeID", DoubleType(), True),
+            StructField("store_and_fwd_flag", StringType(), True),
+            StructField("PULocationID", IntegerType(), True),
+            StructField("DOLocationID", IntegerType(), True),
+            StructField("payment_type", IntegerType(), True),
+            StructField("fare_amount", DoubleType(), True),
+            StructField("extra", DoubleType(), True),
+            StructField("mta_tax", DoubleType(), True),
+            StructField("tip_amount", DoubleType(), True),
+            StructField("tolls_amount", DoubleType(), True),
+            StructField("improvement_surcharge", DoubleType(), True),
+            StructField("total_amount", DoubleType(), True),
+            StructField("congestion_surcharge", DoubleType(), True),
+            StructField("airport_fee", DoubleType(), True),
+            StructField("kafka_arrival_ms", DoubleType(), True),
+        ])
+
+        parsed_df = kafka_df.select(
+            F.col("key"),
+            F.col("topic"),
+            F.col("partition"),
+            F.col("offset"),
+            F.col("timestamp"),
+            F.from_json(F.col("value").cast("string"), schema).alias("data")
+        ).select("key", "topic", "partition", "offset", "timestamp", "data.*")
+
+        # Add trip_id for tracking (use offset as unique identifier)
+        parsed_with_id = parsed_df.withColumn(
+            "trip_id",
+            F.concat(F.col("partition"), F.lit("-"), F.col("offset"))
+        )
+
         if gtfs_topic:
-            events_df = kafka_df.withColumn(
+            events_df = parsed_with_id.withColumn(
                 "entity_type",
                 F.when(F.col("topic") == gtfs_topic, "gtfs_vehicle").otherwise("nyc_taxi")
             )
         else:
-            events_df = kafka_df.withColumn("entity_type", F.lit("nyc_taxi"))
+            events_df = parsed_with_id.withColumn("entity_type", F.lit("nyc_taxi"))
 
         # F3-b: DataFrame-level stateless rule filtering
         # Push SYN001/SYN002/SYN003 checks into Spark SQL — runs on workers in parallel
@@ -883,7 +1049,7 @@ class StreamDQPipeline:
                 gtfs_parsed
                 .groupBy("vehicle_id")
                 .applyInPandasWithState(
-                    lambda pdf, pdf_state: self._pandas_vehicle_state(pdf, pdf_state),
+                    _pandas_vehicle_state_func,
                     outputStructType=StructType([
                         StructField("rule_id", StringType(), True),
                         StructField("rule_name", StringType(), True),
@@ -897,7 +1063,7 @@ class StreamDQPipeline:
                     ]),
                     stateStructType=_VEHICLE_STATE_SCHEMA,
                     outputMode="append",
-                    timeoutConf=GroupStateTimeout.ProcessingTimeTimeout("10 minutes"),
+                    timeoutConf=GroupStateTimeout.ProcessingTimeTimeout,
                 )
             )
         else:
@@ -929,7 +1095,7 @@ class StreamDQPipeline:
             dedup_df
             .groupBy("event_hash")
             .applyInPandasWithState(
-                lambda pdf, pdf_state: self._pandas_dedup_state(pdf, pdf_state),
+                _pandas_dedup_state_func,
                 outputStructType=StructType([
                     StructField("rule_id", StringType(), True),
                     StructField("rule_name", StringType(), True),
@@ -947,12 +1113,14 @@ class StreamDQPipeline:
                     StructField("trip_id", StringType(), True),
                 ]),
                 outputMode="append",
-                timeoutConf=GroupStateTimeout.ProcessingTimeTimeout("6 minutes"),
+                timeoutConf=GroupStateTimeout.ProcessingTimeTimeout,
             )
         )
 
         # Union all violations
-        all_violations = violations_df.unionByName(crs_violations_df, allowMissingColumns=True)
+        all_violations = violations_df
+        if gtfs_topic:
+            all_violations = all_violations.unionByName(crs_violations_df, allowMissingColumns=True)
         all_violations = all_violations.unionByName(crs003_violations_df, allowMissingColumns=True)
 
         # Write violations to Kafka
@@ -1113,3 +1281,47 @@ class StreamDQPipeline:
             self.spark.stop()
         self.violation_store.close()
         print("StreamDQ pipeline stopped.")
+
+if __name__ == "__main__":
+    import click
+    
+    @click.command()
+    @click.option('--kafka-bootstrap', required=True, help='Kafka bootstrap servers')
+    @click.option('--kafka-topic', required=True, help='Kafka input topic')
+    @click.option('--violation-topic', required=True, help='Kafka violations output topic')
+    @click.option('--violation-store-backend', default='sqlite', help='Violation store backend (sqlite/postgres)')
+    @click.option('--violation-store-path', default='/tmp/violations.db', help='SQLite path or postgres connection string')
+    @click.option('--checkpoint-dir', default='/tmp/spark-checkpoint', help='Spark checkpoint directory')
+    @click.option('--state-checkpoint', default='/tmp/cross_record_state.json', help='State checkpoint path')
+    @click.option('--metrics-port', default=9091, type=int, help='Prometheus metrics port')
+    def main(kafka_bootstrap, kafka_topic, violation_topic, violation_store_backend, 
+             violation_store_path, checkpoint_dir, state_checkpoint, metrics_port):
+        """Run StreamDQ Spark Streaming Pipeline"""
+        
+        config = {
+            "kafka_bootstrap": kafka_bootstrap,
+            "kafka_topic": kafka_topic,
+            "violation_topic": violation_topic,
+            "violation_store_backend": violation_store_backend,
+            "violation_store_path": violation_store_path,
+            "checkpoint_dir": checkpoint_dir,
+            "state_checkpoint": state_checkpoint,
+            "metrics_port": metrics_port,
+        }
+        
+        print(f"[StreamDQ] Starting pipeline with config: {config}")
+        
+        pipeline = StreamDQPipeline(config)
+        query = pipeline.run_distributed(
+            kafka_bootstrap=kafka_bootstrap,
+            kafka_topic=kafka_topic,
+            violation_topic=violation_topic
+        )
+        
+        try:
+            query.awaitTermination()
+        except KeyboardInterrupt:
+            print("\n[StreamDQ] Stopping pipeline...")
+            pipeline.stop()
+    
+    main()
