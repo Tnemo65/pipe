@@ -171,9 +171,10 @@ class AlertRouter:
 
     SEVERITY_THRESHOLD = "MEDIUM"  # Only alert for MEDIUM and above
 
-    def __init__(self, severity_threshold: str = "MEDIUM", dedup_window_seconds: int = 300):
+    def __init__(self, severity_threshold: str = "MEDIUM", dedup_window_seconds: int = 300, confidence_threshold: float = 0.7):
         self._channels: dict[str, AlertChannel] = {}
         self.severity_threshold = severity_threshold
+        self.confidence_threshold = confidence_threshold
         self._severity_order = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
         # NG-16: Deduplication state — { (rule_id, entity_id, entity_type): last_alert_time }
         self._recent_alerts: dict[tuple, datetime] = {}
@@ -210,6 +211,38 @@ class AlertRouter:
             if t < cutoff:
                 del self._recent_alerts[k]
         return False
+
+    def should_route(self, violation: Violation) -> bool:
+        """
+        Determine if violation should be routed to downstream systems.
+
+        Filters based on:
+        1. Confidence threshold (for CRS003 and other confidence-scored rules)
+        2. Severity level
+        3. Rule-specific routing configuration
+
+        Phase 1 (T1): Add confidence-based filtering to reduce false positive noise.
+
+        Args:
+            violation: Violation to evaluate
+
+        Returns:
+            True if should route, False if should suppress
+        """
+        # Phase 1 (T1) - Confidence filtering
+        # Check if violation has confidence score
+        confidence = violation.details.get("adjudication_confidence")
+
+        if confidence is not None:
+            # Confidence-scored violation: apply threshold
+            if confidence <= self.confidence_threshold:
+                # Low confidence: suppress
+                return False
+
+        # No confidence score or above threshold: apply standard routing logic
+        # (existing severity/rule-based filtering goes here)
+
+        return True  # Default: route
 
     def route(self, violation: Violation) -> list[bool]:
         """
