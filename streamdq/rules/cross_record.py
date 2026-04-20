@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Optional
 
 from streamdq.rules.base import Violation
+from streamdq.rules.adjudicator import ContextAwareDuplicateAdjudicator
 
 
 # ────────────────────────────────────────────────────────────────
@@ -94,6 +95,9 @@ class CrossRecordState:
 # Production code should create CrossRecordState instances per pipeline.
 _VEHICLE_STATES: dict = {}
 _DEDUP_STATES: dict = {}
+
+# Module-level adjudicator (convenience fallback)
+_ADJUDICATOR = ContextAwareDuplicateAdjudicator()
 
 
 # ────────────────────────────────────────────────────────────────
@@ -258,6 +262,7 @@ def evaluate_duplicate_event(
     start_time: float = 0.0,
     dedup_window_seconds: int = 300,
     dedup_state: dict | None = None,
+    adjudicator: ContextAwareDuplicateAdjudicator | None = None,
 ) -> Optional[Violation]:
     """
     Detect duplicate events: same key fields within a time window.
@@ -284,6 +289,11 @@ def evaluate_duplicate_event(
         # Expected impact: +5-8 precision points (22.9% → 28-31%)
         return None
 
+    # Phase 1 (T1) - Context-aware confidence scoring
+    # Use adjudicator if provided, else use module-level instance
+    if adjudicator is None:
+        adjudicator = _ADJUDICATOR
+
     # NG-10: Accept CrossRecordState as dedup_state for explicit isolation
     if isinstance(dedup_state, CrossRecordState):
         ds = dedup_state
@@ -304,47 +314,112 @@ def evaluate_duplicate_event(
         "trip_distance",
     ]
     values = [str(event.get(f, "")) for f in key_fields]
-    h = hashlib.md5("|".join(values).encode()).hexdigest()
+    fingerprint = hashlib.md5("|".join(values).encode()).hexdigest()
 
     trip_id = str(event.get("trip_id", "unknown"))
 
-    if _get(h):
-        first_seen, first_record = _get(h)
-        age_seconds = (event_time - first_seen).total_seconds()
+    # Extract source metadata from lineage
+    source_id = lineage.get("source_id", "unknown")
+    batch_id = lineage.get("batch_id")
+    kafka_offset = lineage.get("kafka_offset")
 
-        violation_details = {
-            "type": "DUPLICATE_RECORD",
-            "event_hash": h,
-            "first_seen_at": first_seen.isoformat(),
-            "duplicate_at": event_time.isoformat(),
-            "age_seconds": round(age_seconds, 1),
-            "first_record": first_record,
-            "lineage": lineage,  # NEW: Include lineage for debugging
-        }
+    # Compute confidence using adjudicator
+    confidence = adjudicator.compute_confidence(
+        fingerprint=fingerprint,
+        timestamp=event_time,
+        source_id=source_id,
+        batch_id=batch_id,
+        is_replay=False,  # Already filtered out above
+        kafka_offset=kafka_offset
+    )
 
-        return Violation(
-            rule_id="CRS003",
-            rule_name="Duplicate event detection",
-            entity_id=trip_id,
-            entity_type=event.get("entity_type", "nyc_taxi"),
-            severity="HIGH",
-            violation_type="CROSS_RECORD",
-            details=violation_details,
-            expected={"event_hash": {"unique": True}},
-            record_snapshot=event,
-            detected_at=event_time,
-            processing_latency_ms=(time.perf_counter() - start_time) * 1000,
-        )
+    # Confidence thresholds:
+    # - confidence > 0.7: HIGH severity (true duplicate)
+    # - 0.4 < confidence ≤ 0.7: MEDIUM advisory (suspicious)
+    # - confidence ≤ 0.4: suppress (likely false positive)
 
-    _set(h, (event_time, event))
+    if confidence <= 0.4:
+        # Low confidence: suppress
+        # Update state but don't emit violation
+        _set(fingerprint, (event_time, event))
+
+        # Evict old entries
+        _evict_old_dedup_entries(event_time, dedup_window_seconds, dedup_state, ds if isinstance(dedup_state, CrossRecordState) else None)
+
+        return None
+
+    # Confidence > 0.4: emit violation
+    # Determine severity based on confidence
+    if confidence > 0.7:
+        severity = "HIGH"
+    else:
+        severity = "MEDIUM"
+
+    # Get first occurrence for violation details
+    first_seen_data = _get(fingerprint)
+    if first_seen_data:
+        first_seen, first_record = first_seen_data
+    else:
+        # Shouldn't happen (confidence > 0 means seen before), but handle gracefully
+        first_seen = event_time
+        first_record = event
+
+    age_seconds = (event_time - first_seen).total_seconds()
+
+    # Build detailed violation with adjudication metadata
+    violation_details = {
+        "type": "DUPLICATE_RECORD",
+        "event_hash": fingerprint,
+        "first_seen_at": first_seen.isoformat(),
+        "duplicate_at": event_time.isoformat(),
+        "age_seconds": round(age_seconds, 1),
+        "first_record": first_record,
+        "lineage": lineage,
+        # Phase 1 (T1) - Adjudication metadata
+        "adjudication_confidence": round(confidence, 4),
+        "confidence_threshold": "HIGH" if confidence > 0.7 else "MEDIUM",
+        # Breakdown for debugging (these would be computed within adjudicator)
+        "temporal_similarity": "immediate" if age_seconds <= 5 else f"{age_seconds}s_ago",
+        "source_diversity": "same_batch" if batch_id else "same_source" if source_id else "different",
+        "fingerprint_stability": f"seen_{adjudicator.get_history_count(fingerprint)}x",
+    }
+
+    violation = Violation(
+        rule_id="CRS003",
+        rule_name="Duplicate event detection (confidence-scored)",
+        entity_id=trip_id,
+        entity_type=event.get("entity_type", "nyc_taxi"),
+        severity=severity,
+        violation_type="CROSS_RECORD",
+        details=violation_details,
+        expected={"event_hash": {"unique": True}, "min_confidence": 0.4},
+        record_snapshot=event,
+        detected_at=event_time,
+        processing_latency_ms=(time.perf_counter() - start_time) * 1000,
+    )
+
+    # Update state
+    _set(fingerprint, (event_time, event))
 
     # Evict old entries
-    if isinstance(dedup_state, CrossRecordState):
-        current = dict(dedup_state._dedup_states)
-        for k, v in list(dedup_state._dedup_states.items()):
+    _evict_old_dedup_entries(event_time, dedup_window_seconds, dedup_state, ds if isinstance(dedup_state, CrossRecordState) else None)
+
+    return violation
+
+
+def _evict_old_dedup_entries(
+    event_time: datetime,
+    dedup_window_seconds: int,
+    dedup_state: dict | None,
+    cross_record_state: CrossRecordState | None
+):
+    """Helper function to evict old duplicate detection entries."""
+    if cross_record_state is not None:
+        current = dict(cross_record_state._dedup_states)
+        for k, v in list(cross_record_state._dedup_states.items()):
             if (event_time - v[0]).total_seconds() <= dedup_window_seconds:
                 current[k] = v
-        dedup_state._dedup_states = current
+        cross_record_state._dedup_states = current
     else:
         current = dict(_DEDUP_STATES if dedup_state is None else dedup_state)
         current.update({
@@ -357,7 +432,6 @@ def evaluate_duplicate_event(
         else:
             dedup_state.clear()
             dedup_state.update(current)
-    return None
 
 
 # ────────────────────────────────────────────────────────────────
