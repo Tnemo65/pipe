@@ -275,6 +275,15 @@ def evaluate_duplicate_event(
     Returns:
         Violation if duplicate, None otherwise.
     """
+    # Phase 0 (T3) - Suppress replay duplicates
+    # Check if this is a replay stream before duplicate detection
+    lineage = event.get("_lineage", {})
+    if lineage.get("is_replay", False):
+        # Replay streams are known to have duplicates (historical data replayed)
+        # Suppress duplicate detection to avoid false positives
+        # Expected impact: +5-8 precision points (22.9% → 28-31%)
+        return None
+
     # NG-10: Accept CrossRecordState as dedup_state for explicit isolation
     if isinstance(dedup_state, CrossRecordState):
         ds = dedup_state
@@ -302,6 +311,17 @@ def evaluate_duplicate_event(
     if _get(h):
         first_seen, first_record = _get(h)
         age_seconds = (event_time - first_seen).total_seconds()
+
+        violation_details = {
+            "type": "DUPLICATE_RECORD",
+            "event_hash": h,
+            "first_seen_at": first_seen.isoformat(),
+            "duplicate_at": event_time.isoformat(),
+            "age_seconds": round(age_seconds, 1),
+            "first_record": first_record,
+            "lineage": lineage,  # NEW: Include lineage for debugging
+        }
+
         return Violation(
             rule_id="CRS003",
             rule_name="Duplicate event detection",
@@ -309,14 +329,7 @@ def evaluate_duplicate_event(
             entity_type=event.get("entity_type", "nyc_taxi"),
             severity="HIGH",
             violation_type="CROSS_RECORD",
-            details={
-                "type": "DUPLICATE_RECORD",
-                "event_hash": h,
-                "first_seen_at": first_seen.isoformat(),
-                "duplicate_at": event_time.isoformat(),
-                "age_seconds": round(age_seconds, 1),
-                "first_record": first_record,
-            },
+            details=violation_details,
             expected={"event_hash": {"unique": True}},
             record_snapshot=event,
             detected_at=event_time,
@@ -326,13 +339,14 @@ def evaluate_duplicate_event(
     _set(h, (event_time, event))
 
     # Evict old entries
-    current = dict(_DEDUP_STATES if dedup_state is None else dedup_state)
     if isinstance(dedup_state, CrossRecordState):
+        current = dict(dedup_state._dedup_states)
         for k, v in list(dedup_state._dedup_states.items()):
             if (event_time - v[0]).total_seconds() <= dedup_window_seconds:
                 current[k] = v
         dedup_state._dedup_states = current
     else:
+        current = dict(_DEDUP_STATES if dedup_state is None else dedup_state)
         current.update({
             k: v for k, v in current.items()
             if (event_time - v[0]).total_seconds() <= dedup_window_seconds
