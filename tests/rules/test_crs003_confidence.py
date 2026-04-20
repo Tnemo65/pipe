@@ -157,3 +157,61 @@ class TestCRS003ConfidenceScoring:
 
         violation2 = evaluate_duplicate_event(event, t2, dedup_state=state)
         assert violation2 is None  # Suppressed by is_replay check
+
+
+class TestTemporalClustering:
+    """Test temporal clustering of near-duplicates."""
+
+    def test_near_duplicate_burst_single_violation(self):
+        """
+        5 identical events within 10 seconds → single violation (not 5).
+
+        Phase 1 T2: Temporal clustering reduces over-counting.
+        """
+        state = CrossRecordState()
+
+        event = {
+            "trip_id": "trip_cluster_001",
+            "PULocationID": 161,
+            "DOLocationID": 237,
+            "passenger_count": 1,
+            "trip_distance": 2.5,
+            "_lineage": {
+                "source_id": "gtfs_api_ktmb",
+                "source_type": "api_poll",
+                "is_replay": False
+            }
+        }
+
+        t_start = datetime(2024, 1, 15, 10, 0, 0)
+
+        violations = []
+
+        for i in range(5):
+            t = t_start + timedelta(seconds=i * 2)  # T, T+2s, T+4s, T+6s, T+8s
+
+            violation = evaluate_duplicate_event(
+                event,
+                t,
+                dedup_state=state,
+                enable_clustering=True,  # NEW parameter
+                cluster_window_seconds=10
+            )
+
+            if violation is not None:
+                violations.append(violation)
+
+        # Without clustering: 4 violations (first event not a duplicate)
+        # With clustering: 1 violation (first duplicate triggers, rest clustered)
+        assert len(violations) == 1, \
+            f"Expected 1 clustered violation, got {len(violations)}"
+
+        # Check cluster metadata in details
+        cluster_info = violations[0].details.get("cluster_info")
+        assert cluster_info is not None
+        assert cluster_info["cluster_size"] == 1  # First violation in cluster
+        assert "cluster_first_seen" in cluster_info
+
+        # Verify subsequent duplicates were suppressed (cluster grew but no new violations)
+        # The cluster size in violation is captured at emission time (size=1)
+        # Subsequent duplicates increment internal cluster state but don't emit violations

@@ -263,6 +263,8 @@ def evaluate_duplicate_event(
     dedup_window_seconds: int = 300,
     dedup_state: dict | None = None,
     adjudicator: ContextAwareDuplicateAdjudicator | None = None,
+    enable_clustering: bool = True,
+    cluster_window_seconds: int = 10,
 ) -> Optional[Violation]:
     """
     Detect duplicate events: same key fields within a time window.
@@ -349,6 +351,38 @@ def evaluate_duplicate_event(
         return None
 
     # Confidence > 0.4: emit violation
+
+    # Phase 1 (T2) - Temporal clustering
+    # Group near-duplicates within cluster window to avoid over-counting
+    cluster_info = None
+    if enable_clustering:
+        # Check if this is part of an ongoing cluster
+        cluster_key = f"{fingerprint}_cluster"
+        cluster_data = _get(cluster_key)
+
+        if cluster_data:
+            cluster_first_seen, cluster_count = cluster_data
+            time_since_cluster = (event_time - cluster_first_seen).total_seconds()
+
+            if time_since_cluster < cluster_window_seconds:
+                # Still within cluster window: increment count, suppress violation
+                _set(cluster_key, (cluster_first_seen, cluster_count + 1))
+                return None  # Clustered, no violation emitted
+            else:
+                # Cluster window expired: start new cluster
+                _set(cluster_key, (event_time, 1))
+        else:
+            # First duplicate: start cluster
+            _set(cluster_key, (event_time, 1))
+
+        # Get cluster info for violation metadata
+        cluster_data = _get(cluster_key)
+        if cluster_data:
+            cluster_info = {
+                "cluster_first_seen": cluster_data[0].isoformat(),
+                "cluster_size": cluster_data[1]
+            }
+
     # Determine severity based on confidence
     if confidence > 0.7:
         severity = "HIGH"
@@ -383,6 +417,10 @@ def evaluate_duplicate_event(
         "source_diversity": "same_batch" if batch_id else "same_source" if source_id else "different",
         "fingerprint_stability": f"seen_{adjudicator.get_history_count(fingerprint)}x",
     }
+
+    # Phase 1 (T2) - Add cluster metadata if available
+    if cluster_info is not None:
+        violation_details["cluster_info"] = cluster_info
 
     violation = Violation(
         rule_id="CRS003",
