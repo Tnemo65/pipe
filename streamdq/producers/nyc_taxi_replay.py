@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from streamdq.models.lineage import LineageMetadata
 
 # Optional Kafka import
 try:
@@ -71,6 +72,10 @@ class NYCTaxiReplayProducer:
         self.random_seed = random_seed
         self.direct_mode = direct_mode
         self._pending_duplicate: dict | None = None  # NG-15: for duplicate anomaly injection
+
+        # Lineage metadata for this producer instance
+        self._source_id = f"nyc_taxi_replay_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self._batch_id = f"batch_{random_seed}_{int(time.time())}"
 
         random.seed(random_seed)
 
@@ -168,18 +173,46 @@ class NYCTaxiReplayProducer:
                 # NaN guards in rules (e.g. math.isnan checks) can detect it.
                 # Previously pd.isna was converted to None, bypassing NaN detection.
                 event[k] = "NaN"
-            elif isinstance(v, (str, int, float, bool, type(None))):
+            elif isinstance(v, (str, int, float, bool, type(None), dict, list)):
                 event[k] = v
             else:
                 event[k] = str(v)
         return event
 
+    def _enrich_with_lineage(self, event: dict) -> dict:
+        """
+        Attach lineage metadata to event.
+
+        Adds _lineage field with source tracking info for replay detection.
+        Part of Phase 0 (T3: Source Lineage Awareness).
+
+        Args:
+            event: Event dict to enrich
+
+        Returns:
+            Event dict with _lineage field added
+        """
+        lineage = LineageMetadata(
+            source_id=self._source_id,
+            source_type="batch_replay",
+            is_replay=True,
+            batch_id=self._batch_id,
+            producer_timestamp=datetime.now().isoformat(),
+            hop_count=0
+        )
+
+        enriched = dict(event)
+        enriched["_lineage"] = lineage.to_dict()
+        return enriched
+
     def _emit(self, event: dict):
         """Emit event to Kafka or stdout."""
-        # NG-2a: Attach Kafka produce timestamp for E2E latency measurement.
-        # Must be added AFTER _serialize_event since that creates a fresh dict.
         kafka_ts_ms = time.time() * 1000
-        serialized = self._serialize_event(event)
+
+        # NEW: Enrich with lineage metadata before serialization
+        enriched = self._enrich_with_lineage(event)
+        serialized = self._serialize_event(enriched)
+
         serialized["kafka_arrival_ms"] = kafka_ts_ms
         if self.direct_mode:
             print(json.dumps(serialized))

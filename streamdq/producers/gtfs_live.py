@@ -23,6 +23,7 @@ import threading
 import time
 from datetime import datetime
 from typing import Optional
+from streamdq.models.lineage import LineageMetadata
 
 # Optional imports
 try:
@@ -145,6 +146,33 @@ class GTFSLiveConsumer:
         }
         return result
 
+    def _enrich_with_lineage(self, vehicle: dict, agency: str) -> dict:
+        """
+        Attach lineage metadata to vehicle position event.
+
+        Adds _lineage field with source tracking info.
+        Part of Phase 0 (T3: Source Lineage Awareness).
+
+        Args:
+            vehicle: Vehicle position dict
+            agency: Agency name (ktmb, prasaranabus, etc.)
+
+        Returns:
+            Vehicle dict with _lineage field added
+        """
+        lineage = LineageMetadata(
+            source_id=f"gtfs_api_{agency}",
+            source_type="api_poll",
+            is_replay=False,
+            batch_id=None,
+            producer_timestamp=datetime.now().isoformat(),
+            hop_count=0
+        )
+
+        enriched = dict(vehicle)
+        enriched["_lineage"] = lineage.to_dict()
+        return enriched
+
     def _poll_agency(self, agency: str) -> list[dict]:
         """Poll a single agency and return parsed vehicle positions."""
         url = AGENCIES.get(agency)
@@ -160,7 +188,9 @@ class GTFSLiveConsumer:
             parsed = self._parse_vehicle(entity)
             if parsed:
                 parsed["_agency"] = agency
-                vehicles.append(parsed)
+                # NEW: Enrich with lineage metadata
+                enriched = self._enrich_with_lineage(parsed, agency)
+                vehicles.append(enriched)
 
         return vehicles
 
