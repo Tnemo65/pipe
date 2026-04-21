@@ -43,7 +43,7 @@ class RuleRegistry:
 
     def __init__(self):
         self._stateless_rules: list[DataQualityRule] = []
-        self._stateful_evaluators: list[callable] = []
+        self._stateful_evaluators: dict[str, callable] = {}
 
     def register(self, rule: DataQualityRule):
         """Register a stateless rule (evaluates single event)."""
@@ -56,7 +56,8 @@ class RuleRegistry:
         The evaluator must have signature:
             evaluate(event: dict, event_time: datetime) -> list[Violation]
         """
-        self._stateful_evaluators.append(evaluator)
+        # Store by function name for filtering
+        self._stateful_evaluators[evaluator.__name__] = evaluator
 
     def evaluate_all(self, ctx: RuleContext) -> list[Violation]:
         """
@@ -82,7 +83,7 @@ class RuleRegistry:
             List of Violations (0 or more).
         """
         violations = []
-        for evaluator in self._stateful_evaluators:
+        for evaluator in self._stateful_evaluators.values():
             result = evaluator(event, event_time, start_time)
             if result:
                 if isinstance(result, list):
@@ -91,9 +92,35 @@ class RuleRegistry:
                     violations.append(result)
         return violations
 
-    def get_all_rules(self) -> list[DataQualityRule]:
-        """Get all registered stateless rules."""
-        return self._stateless_rules
+    def get_all_rules(self) -> list:
+        """
+        Get all rules (stateless + stateful) for testing/inspection.
+
+        Returns:
+            List of all Rule objects and stateful evaluator proxies
+        """
+        # Return copy of stateless Rule objects
+        result = list(self._stateless_rules)
+
+        # Map function names to rule IDs
+        func_name_to_rule_id = {
+            "evaluate_trajectory_anomaly": "CRS001",
+            "evaluate_duplicate_event": "CRS003",
+            "evaluate_gtfs_trajectory_anomaly": "GTFSCRS001",
+            "evaluate_gtfs_duplicate_event": "GTFSCRS002",
+        }
+
+        # Create proxy objects for stateful evaluators
+        class StatefulRuleProxy:
+            def __init__(self, rule_id):
+                self.rule_id = rule_id
+
+        for func_name in self._stateful_evaluators.keys():
+            rule_id = func_name_to_rule_id.get(func_name)
+            if rule_id:
+                result.append(StatefulRuleProxy(rule_id))
+
+        return result
 
     def get_summary(self) -> dict:
         """Get a summary of all registered rules."""
@@ -112,7 +139,7 @@ class RuleRegistry:
         }
 
     @classmethod
-    def from_contract(cls, contract: DataContract) -> "RuleRegistry":
+    def from_contract(cls, contract: DataContract, entity_type: str = "nyc_taxi") -> "RuleRegistry":
         """
         Build rule registry filtered by contract specification.
 
@@ -123,24 +150,57 @@ class RuleRegistry:
 
         If contract specifies no rules, fall back to tier-based defaults.
 
+        Precedence: suppressed_rules > required/optional (suppression wins)
+
         Args:
             contract: DataContract with rule specifications
+            entity_type: "nyc_taxi" or "gtfs_vehicle" for entity-specific rules
 
         Returns:
             RuleRegistry with contract-filtered rules
         """
-        # Start with default registry
-        registry = build_default_registry()
+        # Start with default registry for entity type
+        registry = build_default_registry(entity_type=entity_type)
 
-        # If contract specifies suppressed rules, remove them
+        # Map rule IDs to stateful evaluator function names
+        rule_id_to_func_name = {
+            "CRS001": "evaluate_trajectory_anomaly",
+            "CRS003": "evaluate_duplicate_event",
+            "GTFSCRS001": "evaluate_gtfs_trajectory_anomaly",
+            "GTFSCRS002": "evaluate_gtfs_duplicate_event",
+        }
+
+        # If contract specifies suppressed rules, remove them from BOTH stateless and stateful
         if contract.suppressed_rules:
-            for rule_id in contract.suppressed_rules:
-                registry._stateless_rules = [r for r in registry._stateless_rules if r.rule_id != rule_id]
+            suppressed_set = set(contract.suppressed_rules)
+
+            # Filter stateless rules
+            registry._stateless_rules = [r for r in registry._stateless_rules if r.rule_id not in suppressed_set]
+
+            # Filter stateful evaluators
+            for rule_id in suppressed_set:
+                func_name = rule_id_to_func_name.get(rule_id)
+                if func_name and func_name in registry._stateful_evaluators:
+                    del registry._stateful_evaluators[func_name]
 
         # If contract specifies required/optional rules, filter to those only
         if contract.required_rules or contract.optional_rules:
             allowed_rules = set(contract.required_rules) | set(contract.optional_rules)
+
+            # Filter stateless rules
             registry._stateless_rules = [r for r in registry._stateless_rules if r.rule_id in allowed_rules]
+
+            # Filter stateful evaluators
+            allowed_func_names = set()
+            for rule_id in allowed_rules:
+                func_name = rule_id_to_func_name.get(rule_id)
+                if func_name:
+                    allowed_func_names.add(func_name)
+
+            registry._stateful_evaluators = {
+                k: v for k, v in registry._stateful_evaluators.items()
+                if k in allowed_func_names
+            }
 
         return registry
 

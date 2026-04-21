@@ -14,6 +14,13 @@ class TestRuleRegistryFromContract:
 
     def test_from_contract_suppresses_rules(self):
         """Registry built from contract suppresses specified rules."""
+        # First verify CRS003 is in default registry
+        from streamdq.rules.registry import build_default_registry
+        default_registry = build_default_registry()
+        default_rule_ids = [r.rule_id for r in default_registry.get_all_rules()]
+        assert "CRS003" in default_rule_ids, "CRS003 should be in default registry"
+
+        # Now build with contract that suppresses CRS003
         contract = DataContract(
             name="test_replay",
             version="1.0.0",
