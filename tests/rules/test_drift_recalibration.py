@@ -80,3 +80,73 @@ class TestContextAwareDrift:
 
         assert result_morning is not None
         assert result_morning.drift_detected is False
+
+
+class TestDriftCallback:
+    """Test drift detection triggers threshold reset."""
+
+    def test_drift_detector_calls_callback(self):
+        """Drift detector calls registered callback on drift detection."""
+        callback_invoked = []
+
+        def on_drift(field, context_key, psi):
+            callback_invoked.append((field, context_key, psi))
+
+        detector = ConceptDriftDetector(psi_threshold=0.2, check_interval=100)
+        detector.register_drift_callback(on_drift)
+
+        # Set baseline
+        detector.set_baseline_for_context(
+            field="fare_amount",
+            context_key="morning",
+            stats={"p10": 10.0, "p90": 30.0, "mean": 18.0, "count": 1000},
+            event_count=1000,
+        )
+
+        # Inject drift
+        result = detector.check_drift_for_context(
+            field="fare_amount",
+            context_key="morning",
+            current_stats={"p10": 25.0, "p90": 80.0, "mean": 50.0},
+            event_count=1200,
+        )
+
+        assert result.drift_detected is True
+        assert len(callback_invoked) == 1
+        assert callback_invoked[0][0] == "fare_amount"
+        assert callback_invoked[0][1] == "morning"
+        assert callback_invoked[0][2] >= 0.2
+
+    def test_multiple_callbacks_registered(self):
+        """Multiple callbacks can be registered."""
+        callback1_invoked = []
+        callback2_invoked = []
+
+        def callback1(field, context_key, psi):
+            callback1_invoked.append(field)
+
+        def callback2(field, context_key, psi):
+            callback2_invoked.append(context_key)
+
+        detector = ConceptDriftDetector(psi_threshold=0.2, check_interval=100)
+        detector.register_drift_callback(callback1)
+        detector.register_drift_callback(callback2)
+
+        detector.set_baseline_for_context(
+            field="fare_amount",
+            context_key="evening",
+            stats={"p10": 15.0, "p90": 50.0, "mean": 28.0, "count": 1000},
+            event_count=1000,
+        )
+
+        detector.check_drift_for_context(
+            field="fare_amount",
+            context_key="evening",
+            current_stats={"p10": 30.0, "p90": 90.0, "mean": 55.0},
+            event_count=1200,
+        )
+
+        assert len(callback1_invoked) == 1
+        assert len(callback2_invoked) == 1
+        assert callback1_invoked[0] == "fare_amount"
+        assert callback2_invoked[0] == "evening"

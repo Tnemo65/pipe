@@ -94,6 +94,10 @@ class ConceptDriftDetector:
         self._context_states: dict[str, ConceptDriftState] = {}
         self._context_baseline_buckets: dict[str, list[float]] = {}
 
+        # Phase 3 T8: Drift callbacks for threshold reset
+        # Callbacks invoked when drift detected: callback(field, context_key, psi)
+        self._drift_callbacks: list = []
+
     def set_baseline(
         self,
         field: str,
@@ -290,6 +294,19 @@ class ConceptDriftDetector:
         composite_key = self._make_context_composite_key(field, context_key)
         return self._context_states.get(composite_key)
 
+    def register_drift_callback(self, callback):
+        """
+        Register callback to invoke when drift detected.
+
+        Callback signature: callback(field: str, context_key: str, psi: float)
+
+        Use case: Reset context-aware thresholds when drift detected in specific context.
+
+        Args:
+            callback: Callable invoked on drift detection
+        """
+        self._drift_callbacks.append(callback)
+
     def check_drift_for_context(
         self,
         field: str,
@@ -354,6 +371,15 @@ class ConceptDriftDetector:
 
         if drift_detected:
             state.n_psi_alerts += 1
+
+            # Phase 3 T8: Invoke drift callbacks
+            for callback in self._drift_callbacks:
+                try:
+                    callback(field, context_key, psi)
+                except Exception as e:
+                    # Log error but don't fail drift detection
+                    import sys
+                    print(f"Drift callback error: {e}", file=sys.stderr)
 
         # Generate recommendation
         if psi >= self.PSI_VERY_HIGH:
