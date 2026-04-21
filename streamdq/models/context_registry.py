@@ -16,6 +16,85 @@ import yaml
 
 
 @dataclass
+class ContextKey:
+    """
+    Hierarchical context key for threshold lookup.
+
+    Hierarchy levels (for fallback):
+    - Level 0: (hour, zone, weekend) — most specific
+    - Level 1: (hour_bucket, zone, weekend)
+    - Level 2: (hour_bucket, borough, weekend)
+    - Level 3: (time_category)
+    - Level 4: global
+    """
+    key_string: str
+    level: int
+    confidence: float  # 1.0 at level 0, decreases with fallback
+
+    @classmethod
+    def from_dict(cls, context: dict, level: int = 0) -> "ContextKey":
+        """
+        Generate context key at specified hierarchy level.
+
+        Args:
+            context: Context dict with dimensions
+            level: Hierarchy level (0-4)
+
+        Returns:
+            ContextKey with key_string at specified level
+        """
+        if level == 4:
+            # Global fallback
+            return cls(key_string="global", level=4, confidence=0.5)
+
+        parts = []
+
+        # Temporal dimension
+        hour = context.get("hour_of_day", 12)
+        is_weekend = context.get("is_weekend", False)
+
+        if level == 0:
+            # Level 0: exact hour
+            parts.append(f"hour_{hour}")
+        elif level in (1, 2, 3):
+            # Level 1+: hour bucket
+            if 6 <= hour < 12:
+                parts.append("morning")
+            elif 12 <= hour < 18:
+                parts.append("afternoon")
+            elif 18 <= hour < 22:
+                parts.append("evening")
+            else:
+                parts.append("night")
+
+        # Spatial dimension
+        if level == 0:
+            # Level 0: zone category
+            zone_cat = context.get("zone_category", "unknown")
+            parts.append(zone_cat)
+        elif level == 1:
+            # Level 1: zone category (same as level 0)
+            zone_cat = context.get("zone_category", "unknown")
+            parts.append(zone_cat)
+        elif level == 2:
+            # Level 2: borough
+            borough = context.get("borough", "unknown")
+            parts.append(borough)
+        # Level 3+: no spatial dimension
+
+        # Weekend flag (level 0-2)
+        if level <= 2:
+            parts.append("weekend" if is_weekend else "weekday")
+
+        key_string = "_".join(parts)
+
+        # Confidence decreases with fallback level
+        confidence = 1.0 - (level * 0.1)
+
+        return cls(key_string=key_string, level=level, confidence=confidence)
+
+
+@dataclass
 class ContextDimension:
     """
     Extracts a single dimension of context from an event.
@@ -159,3 +238,84 @@ class ContextDimension:
             "contract_tier": event.get("_contract_tier", "BRONZE"),
             "owner": event.get("_owner", "unknown"),
         }
+
+
+class ContextRegistry:
+    """
+    Registry for context extraction and matching.
+
+    Responsibilities:
+    1. Load context dimension definitions from YAML
+    2. Extract 5D context from events
+    3. Generate hierarchical context keys for threshold lookup
+    """
+
+    def __init__(self, zone_map: Optional[dict] = None):
+        """
+        Initialize context registry.
+
+        Args:
+            zone_map: Mapping of location_id -> (zone_name, borough)
+        """
+        self.zone_map = zone_map or {}
+
+    @classmethod
+    def from_yaml(cls, yaml_path: str) -> "ContextRegistry":
+        """
+        Load context registry from YAML config.
+
+        Args:
+            yaml_path: Path to YAML file with zone mappings
+
+        Returns:
+            ContextRegistry instance
+        """
+        try:
+            with open(yaml_path) as f:
+                config = yaml.safe_load(f)
+
+            # Extract zone map
+            zone_map = {}
+            for entry in config.get("zones", []):
+                location_id = entry["location_id"]
+                zone_map[location_id] = (entry["zone_name"], entry["borough"])
+
+            return cls(zone_map=zone_map)
+        except FileNotFoundError:
+            # Fallback to empty registry if config not found
+            return cls(zone_map={})
+
+    def resolve(self, event: dict) -> dict:
+        """
+        Extract full 5D context from event.
+
+        Args:
+            event: Event dict
+
+        Returns:
+            Context dict with all dimensions
+        """
+        context = {}
+
+        # Extract each dimension
+        context.update(ContextDimension.temporal(event))
+        context.update(ContextDimension.spatial(event, zone_map=self.zone_map))
+        context.update(ContextDimension.source(event))
+        context.update(ContextDimension.entity(event))
+        context.update(ContextDimension.policy(event))
+
+        return context
+
+    def match_key(self, context: dict, level: int = 0) -> str:
+        """
+        Generate context key string at specified hierarchy level.
+
+        Args:
+            context: Context dict from resolve()
+            level: Hierarchy level (0-4)
+
+        Returns:
+            Context key string for threshold lookup
+        """
+        key = ContextKey.from_dict(context, level=level)
+        return key.key_string

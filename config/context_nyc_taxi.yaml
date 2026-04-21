@@ -1,0 +1,57 @@
+# NYC Taxi Context Configuration
+# Defines zone mappings for spatial context extraction
+
+version: "1.0"
+entity_type: "nyc_taxi"
+
+zones:
+  - location_id: 161
+    zone_name: "Midtown Center"
+    borough: "Manhattan"
+    zone_category: "midtown"
+
+  - location_id: 237
+    zone_name: "Upper West Side"
+    borough: "Manhattan"
+    zone_category: "manhattan_other"
+
+  - location_id: 132
+    zone_name: "JFK Airport"
+    borough: "Queens"
+    zone_category: "airport"
+
+  - location_id: 138
+    zone_name: "LaGuardia Airport"
+    borough: "Queens"
+    zone_category: "airport"
+
+  - location_id: 140
+    zone_name: "Flatbush"
+    borough: "Brooklyn"
+    zone_category: "outer"
+
+  # Add more zones as needed (NYC has 263 zones total)
+  # For now, these 5 cover the main test cases
+
+# Context hierarchy for threshold fallback
+hierarchy:
+  - level: 0
+    dimensions: ["hour_of_day", "zone_category", "is_weekend"]
+    min_samples: 30
+
+  - level: 1
+    dimensions: ["time_category", "zone_category", "is_weekend"]
+    min_samples: 50
+
+  - level: 2
+    dimensions: ["time_category", "borough", "is_weekend"]
+    min_samples: 100
+
+  - level: 3
+    dimensions: ["time_category"]
+    min_samples: 200
+
+  - level: 4
+    dimensions: []
+    min_samples: 500
+    key: "global"
