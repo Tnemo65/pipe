@@ -88,6 +88,12 @@ class ConceptDriftDetector:
         self._states: dict[str, ConceptDriftState] = {}
         self._baseline_buckets: dict[str, list[float]] = {}
 
+        # Phase 3 T8: Context-aware drift detection
+        # Track PSI per (field, context_key) instead of just field
+        # Format: "field__context_key" -> ConceptDriftState
+        self._context_states: dict[str, ConceptDriftState] = {}
+        self._context_baseline_buckets: dict[str, list[float]] = {}
+
     def set_baseline(
         self,
         field: str,
@@ -233,6 +239,144 @@ class ConceptDriftDetector:
             drift_detected=drift_detected,
             threshold=self.psi_threshold,
             bucket_expected=self._baseline_buckets.get(field, []),
+            bucket_actual=[],
+            recommendation=recommendation,
+        )
+
+    def _make_context_composite_key(self, field: str, context_key: str) -> str:
+        """Create composite key for (field, context_key)."""
+        return f"{field}__{context_key}"
+
+    def set_baseline_for_context(
+        self,
+        field: str,
+        context_key: str,
+        stats: dict,
+        event_count: int,
+        bucket_edges: list[float] | None = None,
+    ) -> None:
+        """
+        Set baseline statistics for a (field, context_key) pair.
+
+        Part of Phase 3 T8: Context-aware drift detection.
+        Maintains separate baselines per context to detect context-specific drift.
+
+        Args:
+            field: Field name (e.g., "fare_amount")
+            context_key: Context key (e.g., "morning_midtown_weekday")
+            stats: Dict with p10, p90, mean, count
+            event_count: Number of events used to compute baseline
+            bucket_edges: Optional custom bucket edges
+        """
+        composite_key = self._make_context_composite_key(field, context_key)
+
+        self._context_states[composite_key] = ConceptDriftState(
+            baseline_p10=stats.get("p10", 0.0),
+            baseline_p90=stats.get("p90", 0.0),
+            baseline_mean=stats.get("mean", 0.0),
+            baseline_count=event_count,
+            last_psi_check=event_count,
+        )
+
+        if stats.get("p10") is not None and stats.get("p90") is not None:
+            self._context_baseline_buckets[composite_key] = self._build_buckets(
+                stats["p10"], stats["p90"], bucket_edges
+            )
+
+    def get_state_for_context(
+        self, field: str, context_key: str
+    ) -> ConceptDriftState | None:
+        """Get drift state for specific (field, context_key)."""
+        composite_key = self._make_context_composite_key(field, context_key)
+        return self._context_states.get(composite_key)
+
+    def check_drift_for_context(
+        self,
+        field: str,
+        context_key: str,
+        current_stats: dict,
+        event_count: int,
+        current_values: list[float] | None = None,
+    ) -> Optional[PSIResult]:
+        """
+        Check for drift in a specific (field, context_key) pair.
+
+        Part of Phase 3 T8: Context-aware drift detection.
+        Returns PSI result for specific context, enabling per-context threshold reset.
+
+        Args:
+            field: Field name
+            context_key: Context key
+            current_stats: Current rolling stats (must have p10, p90)
+            event_count: Current total event count
+            current_values: Optional raw values for per-bucket PSI
+
+        Returns:
+            PSIResult if drift check performed, None if not enough events or no baseline.
+        """
+        composite_key = self._make_context_composite_key(field, context_key)
+
+        if composite_key not in self._context_states:
+            return None
+
+        state = self._context_states[composite_key]
+
+        if event_count - state.last_psi_check < self.check_interval:
+            return None
+
+        state.last_psi_check = event_count
+
+        # Compute PSI
+        if (
+            composite_key in self._context_baseline_buckets
+            and current_values is not None
+        ):
+            bucket_edges = self._build_buckets(
+                current_stats.get("p10", 0),
+                current_stats.get("p90", 0),
+            )
+            expected = self._context_baseline_buckets[composite_key]
+            actual = self._bucket_values(current_values, bucket_edges)
+            psi = self._compute_psi(expected, actual)
+        else:
+            p10 = current_stats.get("p10", 0)
+            p90 = current_stats.get("p90", 0)
+            if p10 == p90:
+                return None
+            # Fallback: compare P10/P90 directly
+            p10_shift = abs(p10 - state.baseline_p10) / max(state.baseline_p10, 1e-9)
+            p90_shift = abs(p90 - state.baseline_p90) / max(state.baseline_p90, 1e-9)
+            # Rough PSI approximation
+            psi = (p10_shift + p90_shift) * 0.5
+
+        # Detect drift
+        drift_detected = psi >= self.psi_threshold
+
+        if drift_detected:
+            state.n_psi_alerts += 1
+
+        # Generate recommendation
+        if psi >= self.PSI_VERY_HIGH:
+            recommendation = (
+                "CRITICAL: Recompute thresholds from scratch. Large distribution shift detected."
+            )
+        elif psi >= self.PSI_MEDIUM:
+            recommendation = (
+                "HIGH: Recompute rolling stats window. Moderate drift detected."
+            )
+        elif psi >= self.PSI_LOW:
+            recommendation = "MEDIUM: Monitor closely. Minor drift detected."
+        elif psi >= self.PSI_VIRTUAL:
+            recommendation = "LOW: Virtual drift detected. No action needed yet — monitor more frequently."
+        else:
+            recommendation = "OK: No significant drift. Continue monitoring."
+
+        return PSIResult(
+            field=field,
+            psi=round(psi, 4),
+            drift_detected=drift_detected,
+            threshold=self.psi_threshold,
+            bucket_expected=self._context_baseline_buckets.get(composite_key, []),
             bucket_actual=[],
             recommendation=recommendation,
         )
