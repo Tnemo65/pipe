@@ -1,6 +1,7 @@
 # GTFS Live Stream Contract
 # Real-time vehicle position data from GTFS Realtime API
 # All rules active (live data should not have duplicates)
+# Note: timestamp field validated separately in pipeline stage
 
 name: gtfs_live
 version: v1.0.0
