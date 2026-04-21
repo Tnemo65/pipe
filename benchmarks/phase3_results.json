@@ -1,7 +1,7 @@
 {
   "phase": "Phase 3",
   "feature": "Contract Gating with Lineage Awareness",
-  "timestamp": "2026-04-21T16:28:13.884948",
+  "timestamp": "2026-04-21T19:09:50.271533",
   "test_runs": [
     {
       "test_name": "contract_validation",
@@ -22,7 +22,7 @@
           "owner": "data_platform_team"
         }
       ],
-      "elapsed_seconds": 0.011160135269165039
+      "elapsed_seconds": 0.005402565002441406
     },
     {
       "test_name": "replay_contract_suppresses_crs003",
@@ -31,41 +31,41 @@
       "expected_violations": 0,
       "events_processed": 10,
       "crs003_suppressed": true,
-      "elapsed_seconds": 0.02303624153137207,
-      "events_per_second": 434.0985914035251,
-      "latency_ms": 2.303624153137207
+      "elapsed_seconds": 0.015978574752807617,
+      "events_per_second": 625.8380459272744,
+      "latency_ms": 1.5978574752807617
     },
     {
       "test_name": "live_contract_detects_crs003",
       "passed": true,
-      "violations_detected": 15,
+      "violations_detected": 25,
       "expected_violations_min": 1,
       "events_processed": 10,
       "crs003_active": true,
-      "elapsed_seconds": 0.017544031143188477,
-      "events_per_second": 569.9944282122715,
-      "latency_ms": 1.7544031143188477
+      "elapsed_seconds": 0.009674787521362305,
+      "events_per_second": 1033.6144311096873,
+      "latency_ms": 0.9674787521362305
     },
     {
       "test_name": "contract_sla_enforcement",
       "passed": true,
-      "violations_detected": 100,
-      "violation_rate": "100.00%",
+      "violations_detected": 200,
+      "violation_rate": "200.00%",
       "events_processed": 100,
       "sla_measurable": true,
-      "elapsed_seconds": 0.030125141143798828,
-      "events_per_second": 3319.4865219937637,
-      "latency_ms": 0.3012514114379883
+      "elapsed_seconds": 0.015909433364868164,
+      "events_per_second": 6285.578983650287,
+      "latency_ms": 0.15909433364868164
     },
     {
       "test_name": "gtfs_lineage_contract",
       "passed": true,
-      "violations_detected": 150,
+      "violations_detected": 0,
       "events_processed": 50,
       "unique_lineage_sources": 3,
-      "elapsed_seconds": 0.02645397186279297,
-      "events_per_second": 1890.075345181874,
-      "latency_ms": 0.5290794372558594
+      "elapsed_seconds": 0.011995315551757812,
+      "events_per_second": 4168.293846398474,
+      "latency_ms": 0.23990631103515625
     },
     {
       "test_name": "alert_router_with_contracts",
@@ -73,8 +73,8 @@
       "violations_processed": 20,
       "alerts_routed": 20,
       "routing_rate": 1.0,
-      "elapsed_seconds": 8.845329284667969e-05,
-      "alerts_per_second": 226108.0323450135
+      "elapsed_seconds": 4.220008850097656e-05,
+      "alerts_per_second": 473932.65536723164
     }
   ]
 }

@@ -1,0 +1,10 @@
+rule:
+  id: GTFSSem001
+  name: Impossible speed check
+  type: GTFSImpossibleSpeedRule
+  severity: MEDIUM
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

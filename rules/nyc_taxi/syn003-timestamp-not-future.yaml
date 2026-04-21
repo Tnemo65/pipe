@@ -1,0 +1,10 @@
+rule:
+  id: SYN003
+  name: Timestamp not in future
+  type: TimestampNotFutureRule
+  severity: HIGH
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

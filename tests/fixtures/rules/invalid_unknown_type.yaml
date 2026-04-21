@@ -1,0 +1,9 @@
+rule:
+  id: TEST001
+  name: Unknown Type Rule
+  type: NonExistentRule
+  severity: HIGH
+  enabled: true
+
+  parameters:
+    field: fare_amount

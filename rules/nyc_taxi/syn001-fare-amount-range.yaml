@@ -1,0 +1,10 @@
+rule:
+  id: SYN001
+  name: Fare amount validity
+  type: FareAmountRangeRule
+  severity: HIGH
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

@@ -1,0 +1,10 @@
+rule:
+  id: GTFSSyn001
+  name: Vehicle ID validity
+  type: GTFSVehicleIDValidRule
+  severity: HIGH
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

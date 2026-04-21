@@ -285,42 +285,40 @@ class RuleRegistry:
 
 def build_default_registry(entity_type: str = "nyc_taxi") -> RuleRegistry:
     """
-    Build the default registry with all built-in rules.
+    Build registry with YAML rules as source of truth.
 
     Args:
         entity_type: "nyc_taxi" or "gtfs_vehicle". Determines which rules are included.
 
     Returns:
-        RuleRegistry with SYN001-003, SEM001-003, CRS001-003 registered (NYC taxi),
-        or GTFSSyn001-003, GTFSSem001-002, GTFSCRS001-002 registered (GTFS).
+        RuleRegistry with YAML rules + stateful rules registered.
+
+    Raises:
+        FileNotFoundError: If rules directory doesn't exist
+        ValueError: If YAML invalid or rule type unknown
     """
+    from streamdq.config.rule_compiler import RuleCompiler
+
     registry = RuleRegistry()
 
+    # Map entity_type to YAML directory name
+    yaml_entity_type = "gtfs" if entity_type == "gtfs_vehicle" else entity_type
+
+    # Load YAML rules (fail fast if missing/invalid)
+    yaml_rules = RuleCompiler.load_rules(
+        entity_type=yaml_entity_type,
+        threshold_engine=None  # Wired by pipeline later
+    )
+
+    for rule in yaml_rules:
+        registry.register(rule)
+
+    # Stateful rules stay in Python (can't be YAML)
     if entity_type == "gtfs_vehicle":
-        # GTFS-specific rules
-        registry.register(GTFSVehicleIDValidRule("GTFSSyn001"))
-        registry.register(GTFSLatLongRangeRule("GTFSSyn002"))
-        registry.register(GTFSSpeedRangeRule("GTFSSyn003"))
-        registry.register(GTFSImpossibleSpeedRule("GTFSSem001"))
-        registry.register(GTFSStaleDataRule("GTFSSem002"))
         registry.register_stateful(evaluate_gtfs_trajectory_anomaly)
         registry.register_stateful(evaluate_gtfs_duplicate_event)
-        return registry
-
-    # NYC Taxi rules (default)
-    # ── Syntactic rules ──────────────────────────────────────────
-    registry.register(CompletenessRule("SYN000"))
-    registry.register(FareAmountRangeRule("SYN001"))
-    registry.register(PickupLocationValidRule("SYN002"))
-    registry.register(TimestampNotFutureRule("SYN003"))
-
-    # ── Semantic rules ─────────────────────────────────────────
-    registry.register(FareRangeRule("SEM001"))
-    registry.register(TripDurationSanityRule("SEM002"))
-    registry.register(AverageSpeedSanityRule("SEM003"))
-
-    # ── Stateful / cross-record rules ──────────────────────────
-    registry.register_stateful(evaluate_trajectory_anomaly)
-    registry.register_stateful(evaluate_duplicate_event)
+    else:
+        registry.register_stateful(evaluate_trajectory_anomaly)
+        registry.register_stateful(evaluate_duplicate_event)
 
     return registry

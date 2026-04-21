@@ -1,0 +1,10 @@
+rule:
+  id: GTFSSyn002
+  name: Lat/Long range validity
+  type: GTFSLatLongRangeRule
+  severity: HIGH
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

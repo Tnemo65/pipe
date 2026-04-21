@@ -135,6 +135,11 @@ class LocalPipeline:
         else:
             self.registry = rule_registry or build_default_registry(entity_type=entity_type)
 
+        # Phase 4 T13: Wire threshold engine to YAML rules that need it
+        for rule in self.registry._stateless_rules:
+            if hasattr(rule, 'threshold_engine') and rule.threshold_engine is None:
+                rule.threshold_engine = self.threshold_engine
+
         # Use in-memory SQLite for testing, real path for production
         import tempfile, os
         if violation_store:

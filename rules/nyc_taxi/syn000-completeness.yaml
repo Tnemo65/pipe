@@ -1,0 +1,16 @@
+rule:
+  id: SYN000
+  name: Completeness check
+  type: CompletenessRule
+  severity: HIGH
+  enabled: true
+
+  parameters:
+    required_fields:
+      - fare_amount
+      - PULocationID
+      - tpep_pickup_datetime
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

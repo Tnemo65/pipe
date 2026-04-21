@@ -1,0 +1,10 @@
+rule:
+  id: SYN002
+  name: Pickup location validity
+  type: PickupLocationValidRule
+  severity: HIGH
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

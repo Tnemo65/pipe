@@ -1,0 +1,10 @@
+rule:
+  id: SEM001
+  name: Fare range check
+  type: FareRangeRule
+  severity: MEDIUM
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

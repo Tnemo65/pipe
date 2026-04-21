@@ -1,0 +1,10 @@
+rule:
+  name: Missing ID Rule
+  type: FareAmountRangeRule
+  severity: HIGH
+  enabled: true
+
+  parameters:
+    field: fare_amount
+    min_value: 0.0
+    max_value: 500.0

@@ -1,0 +1,10 @@
+rule:
+  id: SEM002
+  name: Trip duration sanity check
+  type: TripDurationSanityRule
+  severity: MEDIUM
+  enabled: true
+
+  metadata:
+    owner: data_quality_team
+    last_updated: 2026-04-21

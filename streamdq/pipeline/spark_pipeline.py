@@ -658,6 +658,42 @@ class StreamDQPipeline:
                 print(f"[StreamDQ] Kafka producer not available: {e}")
                 self._kafka_available = False
 
+        # L8: Quality meta-stream producer
+        self._quality_topic = self.config.get("quality_topic", "streamdq_quality_events")
+        self._quality_producer = None
+        self._quality_available = False
+        if self._kafka_bootstrap and self._quality_topic:
+            try:
+                from kafka import KafkaProducer
+                self._quality_producer = KafkaProducer(
+                    bootstrap_servers=self._kafka_bootstrap,
+                    value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
+                    acks="all",
+                )
+                self._quality_available = True
+                print(f"[StreamDQ] Quality meta-stream producer ready: {self._quality_topic}")
+            except Exception as e:
+                print(f"[StreamDQ] Quality producer not available: {e}")
+                self._quality_available = False
+
+        # L8: Quality event window tracking
+        self._window_id = 0
+        self._window_start = datetime.now()
+        self._window_metrics = {
+            "total_events": 0,
+            "total_violations": 0,
+            "by_rule": {},
+            "by_type": {},
+            "by_severity": {},
+            "processing_latencies": [],
+            "e2e_latencies": [],
+            "threshold_updates": 0,
+            "processing_errors": 0,
+            "error_types": {},
+        }
+        self._quality_emit_interval = self.config.get("quality_emit_interval_sec", 300)  # 5 minutes
+        self._last_quality_emit = time.time()
+
         # Start Prometheus metrics HTTP server in background thread
         if _PROMETHEUS_AVAILABLE and not self._metrics_server_started:
             try:
@@ -846,12 +882,105 @@ class StreamDQPipeline:
         print(f"[Batch {batch_id}] {event_count} events, {violation_count} violations, "
               f"{latency_s*1000:.1f}ms latency")
 
+        # L8: Accumulate window metrics
+        self._window_metrics["total_events"] += event_count
+        self._window_metrics["total_violations"] += violation_count
+        for v in all_violations:
+            self._window_metrics["by_rule"][v.rule_id] = (
+                self._window_metrics["by_rule"].get(v.rule_id, 0) + 1
+            )
+            self._window_metrics["by_type"][v.violation_type] = (
+                self._window_metrics["by_type"].get(v.violation_type, 0) + 1
+            )
+            self._window_metrics["by_severity"][v.severity] = (
+                self._window_metrics["by_severity"].get(v.severity, 0) + 1
+            )
+        self._window_metrics["processing_latencies"].append(latency_s * 1000)
+
+        # L8: Check if 5 minutes have passed — emit quality event
+        now = time.time()
+        if now - self._last_quality_emit >= self._quality_emit_interval:
+            self._emit_quality_event()
+            self._last_quality_emit = now
+
         # Save cross-record state checkpoint for fault tolerance
         if self._state_checkpoint_path and self._running:
             try:
                 save_cross_record_state(self._state_checkpoint_path)
             except Exception:
                 pass
+
+    def _emit_quality_event(self):
+        """
+        L8: Emit quality meta-stream event.
+
+        Called every 5 minutes. Aggregates window metrics and publishes
+        to streamdq_quality_events Kafka topic.
+        """
+        if not self._quality_available:
+            return
+
+        window_end = datetime.now()
+
+        # Compute aggregate metrics
+        proc_lat = sorted(self._window_metrics["processing_latencies"])
+        n = len(proc_lat)
+        metrics = {
+            "total_events": self._window_metrics["total_events"],
+            "total_violations": self._window_metrics["total_violations"],
+            "violation_rate": (
+                self._window_metrics["total_violations"] / max(self._window_metrics["total_events"], 1)
+            ),
+            "by_rule": dict(self._window_metrics["by_rule"]),
+            "by_type": dict(self._window_metrics["by_type"]),
+            "by_severity": dict(self._window_metrics["by_severity"]),
+            "processing_latency_p50_ms": proc_lat[n // 2] if n > 0 else 0,
+            "processing_latency_p99_ms": proc_lat[int(n * 0.99)] if n > 0 else 0,
+            "e2e_latency_p50_ms": 0,  # Not tracked in legacy mode
+            "e2e_latency_p99_ms": 0,
+            "threshold_updates": self._window_metrics["threshold_updates"],
+            "processing_errors": self._window_metrics["processing_errors"],
+            "error_types": dict(self._window_metrics["error_types"]),
+        }
+
+        # Create quality event
+        from streamdq.models.quality_event import QualityEvent
+        quality_event = QualityEvent.from_metrics(
+            pipeline_id=self.config.get("pipeline_id", "spark_pipeline"),
+            window_id=self._window_id,
+            window_start=self._window_start,
+            window_end=window_end,
+            metrics=metrics,
+        )
+
+        # Publish to Kafka
+        try:
+            self._quality_producer.send(
+                self._quality_topic,
+                value=quality_event.to_json(),
+            )
+            self._quality_producer.flush(timeout=5)
+            print(f"[Quality] Window {self._window_id}: {metrics['total_events']} events, "
+                  f"{metrics['total_violations']} violations "
+                  f"({metrics['violation_rate']:.2%} rate)")
+        except Exception as e:
+            print(f"[Quality] Failed to emit quality event: {e}")
+
+        # Reset window metrics
+        self._window_id += 1
+        self._window_start = window_end
+        self._window_metrics = {
+            "total_events": 0,
+            "total_violations": 0,
+            "by_rule": {},
+            "by_type": {},
+            "by_severity": {},
+            "processing_latencies": [],
+            "e2e_latencies": [],
+            "threshold_updates": 0,
+            "processing_errors": 0,
+            "error_types": {},
+        }
 
     def run(
         self,
