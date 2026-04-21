@@ -7,7 +7,7 @@ Use this for unit tests, CI, and quick validation.
 from __future__ import annotations
 import time
 from datetime import datetime
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, TYPE_CHECKING
 
 from streamdq.rules.base import RuleContext, Violation, ExternalContext
 from streamdq.rules.registry import RuleRegistry, build_default_registry
@@ -22,6 +22,9 @@ from streamdq.rules.cross_record import (
     reset_cross_record_state,
 )
 from streamdq.models.profiler import SchemaProfiler, SchemaProfile
+
+if TYPE_CHECKING:
+    from streamdq.models.contract import DataContract
 
 
 # ────────────────────────────────────────────────────────────────
@@ -109,9 +112,10 @@ class LocalPipeline:
         alert_router: AlertRouter | None = None,
         use_context_aware_thresholds: bool = True,
         context_config_path: str = "config/context_nyc_taxi.yaml",
+        contract: "DataContract | None" = None,
     ):
         self.entity_type = entity_type
-        self.registry = rule_registry or build_default_registry(entity_type=entity_type)
+        self._contract = contract
 
         # Phase 2: Context-aware adaptive thresholds
         if use_context_aware_thresholds:
@@ -124,6 +128,13 @@ class LocalPipeline:
         else:
             self.threshold_engine = AdaptiveThresholdEngine(window_size=adaptive_threshold_window)
             self._use_context_aware = False
+
+        # Phase 3 T9: Build registry from contract if provided
+        if contract is not None:
+            self.registry = RuleRegistry.from_contract(contract, entity_type=entity_type)
+        else:
+            self.registry = rule_registry or build_default_registry(entity_type=entity_type)
+
         # Use in-memory SQLite for testing, real path for production
         import tempfile, os
         if violation_store:
@@ -162,6 +173,11 @@ class LocalPipeline:
         self.profile = profiler.profile(records)
         self.lifecycle_stage = "idle"
         return self.profile
+
+    @property
+    def rule_registry(self) -> RuleRegistry:
+        """Alias for self.registry (for backward compatibility and test convenience)."""
+        return self.registry
 
     def process_event(self, event: dict) -> list[Violation]:
         """Process a single event and return violations."""
