@@ -267,6 +267,19 @@ class ContextAwareAdaptiveThresholdEngine:
         # No valid stats at any level
         return None
 
+    def get_all_stats(self) -> dict:
+        """
+        Get all stats (for backward compatibility with LocalPipeline).
+
+        Context-aware engine doesn't have "all stats" without context.
+        Returns empty dict to signal rules should use static fallbacks
+        or query threshold_with_fallback() directly.
+
+        Better approach: Pass engine to RuleContext and modify rules
+        to use get_threshold_with_fallback() directly.
+        """
+        return {}
+
     @property
     def event_count(self) -> int:
         """Total events processed."""

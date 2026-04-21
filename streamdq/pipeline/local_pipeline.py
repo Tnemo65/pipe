@@ -12,6 +12,8 @@ from typing import Iterable, Iterator
 from streamdq.rules.base import RuleContext, Violation, ExternalContext
 from streamdq.rules.registry import RuleRegistry, build_default_registry
 from streamdq.rules.adaptive import AdaptiveThresholdEngine
+from streamdq.rules.context_adaptive import ContextAwareAdaptiveThresholdEngine
+from streamdq.models.context_registry import ContextRegistry
 from streamdq.storage.violation_store import ViolationStore
 from streamdq.notification.alert_router import AlertRouter
 from streamdq.rules.cross_record import (
@@ -105,10 +107,23 @@ class LocalPipeline:
         adaptive_threshold_window: int = 10_000,
         entity_type: str = "nyc_taxi",
         alert_router: AlertRouter | None = None,
+        use_context_aware_thresholds: bool = True,
+        context_config_path: str = "config/context_nyc_taxi.yaml",
     ):
         self.entity_type = entity_type
         self.registry = rule_registry or build_default_registry(entity_type=entity_type)
-        self.threshold_engine = AdaptiveThresholdEngine(window_size=adaptive_threshold_window)
+
+        # Phase 2: Context-aware adaptive thresholds
+        if use_context_aware_thresholds:
+            context_registry = ContextRegistry.from_yaml(context_config_path)
+            self.threshold_engine = ContextAwareAdaptiveThresholdEngine(
+                registry=context_registry,
+                window_size=adaptive_threshold_window
+            )
+            self._use_context_aware = True
+        else:
+            self.threshold_engine = AdaptiveThresholdEngine(window_size=adaptive_threshold_window)
+            self._use_context_aware = False
         # Use in-memory SQLite for testing, real path for production
         import tempfile, os
         if violation_store:
@@ -160,7 +175,11 @@ class LocalPipeline:
             value = event.get(field)
             if value is not None:
                 try:
-                    self.threshold_engine.update(field, float(value))
+                    if self._use_context_aware:
+                        # Phase 2: Context-aware update requires event for context extraction
+                        self.threshold_engine.update(field, float(value), event)
+                    else:
+                        self.threshold_engine.update(field, float(value))
                 except (ValueError, TypeError):
                     pass
 
