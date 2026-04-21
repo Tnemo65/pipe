@@ -1,0 +1,48 @@
+# GTFS Live Stream Contract
+# Real-time vehicle position data from GTFS Realtime API
+# All rules active (live data should not have duplicates)
+
+name: gtfs_live
+version: v1.0.0
+tier: GOLD
+owner: data_platform_team
+description: "GTFS Realtime vehicle positions (Malaysia public transport)"
+
+required_rules:
+  - SYN001  # Null checks
+  - SYN002  # Range validation
+  - SYN003  # Enum validation
+  - SEM001  # Semantic range
+  - SEM002  # Duration sanity
+  - CRS001  # GPS jumps
+  - CRS003  # Duplicates (should NOT occur in live streams)
+
+optional_rules: []
+
+suppressed_rules: []
+
+sla_max_violation_rate: 0.05  # 5% max violation rate for live data
+
+# Field-level constraints
+fields:
+  - name: vehicle_id
+    data_type: str
+    nullable: false
+
+  - name: latitude
+    data_type: float
+    nullable: false
+    min_value: -90.0
+    max_value: 90.0
+
+  - name: longitude
+    data_type: float
+    nullable: false
+    min_value: -180.0
+    max_value: 180.0
+
+  - name: speed
+    data_type: float
+    nullable: true
+    min_value: 0.0
+    max_value: 200.0

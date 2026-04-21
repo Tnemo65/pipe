@@ -1,0 +1,47 @@
+# NYC Taxi Replay Stream Contract
+# Historical data replayed for testing/development
+# CRS003 (duplicates) suppressed because replays naturally contain duplicates
+
+name: nyc_taxi_replay
+version: v1.0.0
+tier: SILVER
+owner: data_platform_team
+description: "NYC Taxi historical data replay for testing and development"
+
+required_rules:
+  - SYN001  # Null checks
+  - SYN002  # Range validation
+  - SEM001  # Fare range check
+  - SEM002  # Duration sanity check
+
+optional_rules:
+  - CRS001  # GPS jumps (useful but not critical for replay)
+
+suppressed_rules:
+  - CRS003  # Duplicates (natural in replay streams)
+
+sla_max_violation_rate: 0.10  # 10% max violation rate for replay data
+
+# Field-level constraints
+fields:
+  - name: fare_amount
+    data_type: float
+    nullable: false
+    min_value: 0.0
+    max_value: 500.0
+
+  - name: trip_distance
+    data_type: float
+    nullable: false
+    min_value: 0.0
+    max_value: 100.0
+
+  - name: PULocationID
+    data_type: int
+    nullable: false
+
+  - name: passenger_count
+    data_type: int
+    nullable: true
+    min_value: 0
+    max_value: 6
