@@ -68,6 +68,12 @@ class DataContract:
     created_at: datetime = field(default_factory=datetime.now)
     description: str = ""
 
+    # Phase 3 (T9): Contract-Aware Rule Gating
+    required_rules: list[str] = field(default_factory=list)
+    optional_rules: list[str] = field(default_factory=list)
+    suppressed_rules: list[str] = field(default_factory=list)
+    sla_max_violation_rate: Optional[float] = None
+
     # Tier-specific thresholds (fraction of records that must pass)
     # NOTE: violation_rate <= (1 - threshold)
     # Thresholds ordered so that BRONZE is most lenient, GOLD is strictest:
