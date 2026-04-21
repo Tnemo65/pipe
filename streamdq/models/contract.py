@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 
@@ -200,6 +201,68 @@ class DataContract:
             tier_met=tier_met,
             missing_rules=missing_rules,
             gap_analysis=gap,
+        )
+
+    @classmethod
+    def from_yaml(cls, yaml_path: str | Path) -> "DataContract":
+        """
+        Load contract from YAML file.
+
+        YAML schema:
+            name: str
+            version: str
+            tier: str (BRONZE, SILVER, GOLD)
+            owner: str
+            required_rules: list[str]
+            optional_rules: list[str]
+            suppressed_rules: list[str]
+            sla_max_violation_rate: float
+            fields: list[dict] (FieldContract specs)
+
+        Args:
+            yaml_path: Path to YAML contract file
+
+        Returns:
+            DataContract instance
+        """
+        import yaml
+
+        yaml_path = Path(yaml_path)
+
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"Contract file not found: {yaml_path}")
+
+        with open(yaml_path) as f:
+            data = yaml.safe_load(f)
+
+        # Parse tier enum
+        tier_str = data.get("tier", "BRONZE")
+        tier = CertificationTier[tier_str]
+
+        # Parse fields
+        fields = []
+        for field_spec in data.get("fields", []):
+            fields.append(FieldContract(
+                name=field_spec["name"],
+                data_type=field_spec["data_type"],
+                nullable=field_spec.get("nullable", True),
+                min_value=field_spec.get("min_value"),
+                max_value=field_spec.get("max_value"),
+                allowed_values=field_spec.get("allowed_values"),
+                description=field_spec.get("description", ""),
+            ))
+
+        return cls(
+            name=data["name"],
+            version=data["version"],
+            tier=tier,
+            owner=data.get("owner", ""),
+            description=data.get("description", ""),
+            fields=fields,
+            required_rules=data.get("required_rules", []),
+            optional_rules=data.get("optional_rules", []),
+            suppressed_rules=data.get("suppressed_rules", []),
+            sla_max_violation_rate=data.get("sla_max_violation_rate"),
         )
 
 

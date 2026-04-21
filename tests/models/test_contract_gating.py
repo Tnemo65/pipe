@@ -148,3 +148,41 @@ class TestContractRuleGating:
                 fields=[],
                 sla_max_violation_rate=1.5
             )
+
+
+from pathlib import Path
+
+
+class TestContractYAMLLoading:
+    """Test loading contracts from YAML files."""
+
+    def test_load_nyc_taxi_replay_contract(self):
+        """Load NYC Taxi replay contract from YAML."""
+        yaml_path = Path("config/contracts/nyc_taxi_replay.yaml")
+
+        if not yaml_path.exists():
+            pytest.skip(f"Contract file not found: {yaml_path}")
+
+        contract = DataContract.from_yaml(yaml_path)
+
+        assert contract.name == "nyc_taxi_replay"
+        assert contract.version == "v1.0.0"
+        assert contract.tier == CertificationTier.SILVER
+        assert contract.owner == "data_platform_team"
+        assert "CRS003" in contract.suppressed_rules
+        assert contract.sla_max_violation_rate == 0.10
+
+    def test_load_gtfs_live_contract(self):
+        """Load GTFS live contract from YAML."""
+        yaml_path = Path("config/contracts/gtfs_live.yaml")
+
+        if not yaml_path.exists():
+            pytest.skip(f"Contract file not found: {yaml_path}")
+
+        contract = DataContract.from_yaml(yaml_path)
+
+        assert contract.name == "gtfs_live"
+        assert contract.tier == CertificationTier.GOLD
+        assert "CRS003" in contract.required_rules
+        assert "CRS003" not in contract.suppressed_rules
+        assert contract.sla_max_violation_rate == 0.05
