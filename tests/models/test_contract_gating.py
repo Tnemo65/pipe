@@ -4,6 +4,9 @@ Tests for DataContract rule gating fields (Phase 3 T9).
 Validates required_rules, optional_rules, suppressed_rules, and sla_max_violation_rate.
 """
 import pytest
+import tempfile
+import yaml
+from pathlib import Path
 from streamdq.models.contract import DataContract, FieldContract, CertificationTier
 
 
@@ -150,15 +153,13 @@ class TestContractRuleGating:
             )
 
 
-from pathlib import Path
-
-
 class TestContractYAMLLoading:
     """Test loading contracts from YAML files."""
 
     def test_load_nyc_taxi_replay_contract(self):
         """Load NYC Taxi replay contract from YAML."""
-        yaml_path = Path("config/contracts/nyc_taxi_replay.yaml")
+        PROJECT_ROOT = Path(__file__).resolve().parents[2]
+        yaml_path = PROJECT_ROOT / "config" / "contracts" / "nyc_taxi_replay.yaml"
 
         if not yaml_path.exists():
             pytest.skip(f"Contract file not found: {yaml_path}")
@@ -174,7 +175,8 @@ class TestContractYAMLLoading:
 
     def test_load_gtfs_live_contract(self):
         """Load GTFS live contract from YAML."""
-        yaml_path = Path("config/contracts/gtfs_live.yaml")
+        PROJECT_ROOT = Path(__file__).resolve().parents[2]
+        yaml_path = PROJECT_ROOT / "config" / "contracts" / "gtfs_live.yaml"
 
         if not yaml_path.exists():
             pytest.skip(f"Contract file not found: {yaml_path}")
@@ -186,3 +188,41 @@ class TestContractYAMLLoading:
         assert "CRS003" in contract.required_rules
         assert "CRS003" not in contract.suppressed_rules
         assert contract.sla_max_violation_rate == 0.05
+
+    def test_from_yaml_file_not_found(self):
+        """from_yaml raises FileNotFoundError for missing files."""
+        with pytest.raises(FileNotFoundError, match="Contract file not found"):
+            DataContract.from_yaml("nonexistent.yaml")
+
+    def test_from_yaml_invalid_tier(self):
+        """from_yaml raises KeyError for invalid tier values."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump({
+                "name": "test",
+                "version": "1.0.0",
+                "tier": "INVALID_TIER",
+                "owner": "test"
+            }, f)
+            temp_path = f.name
+
+        try:
+            with pytest.raises(KeyError):
+                DataContract.from_yaml(temp_path)
+        finally:
+            Path(temp_path).unlink()
+
+    def test_from_yaml_missing_required_field(self):
+        """from_yaml raises KeyError for missing required fields (name, version)."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump({
+                "tier": "BRONZE",
+                "owner": "test"
+                # Missing "name" and "version"
+            }, f)
+            temp_path = f.name
+
+        try:
+            with pytest.raises(KeyError):
+                DataContract.from_yaml(temp_path)
+        finally:
+            Path(temp_path).unlink()

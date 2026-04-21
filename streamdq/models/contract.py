@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Optional
+import yaml
 
 
 class CertificationTier(Enum):
@@ -213,6 +214,7 @@ class DataContract:
             version: str
             tier: str (BRONZE, SILVER, GOLD)
             owner: str
+            description: str
             required_rules: list[str]
             optional_rules: list[str]
             suppressed_rules: list[str]
@@ -225,8 +227,6 @@ class DataContract:
         Returns:
             DataContract instance
         """
-        import yaml
-
         yaml_path = Path(yaml_path)
 
         if not yaml_path.exists():

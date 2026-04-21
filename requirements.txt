@@ -29,3 +29,6 @@ pytest-timeout>=2.2.0
 
 # Optional: boto3 for S3 download
 boto3>=1.34.0
+
+# YAML
+PyYAML>=6.0
