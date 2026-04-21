@@ -97,6 +97,15 @@ class DataContract:
         },
     }
 
+    def __post_init__(self):
+        """Validate contract fields after initialization."""
+        # Validate sla_max_violation_rate range
+        if self.sla_max_violation_rate is not None:
+            if not (0.0 <= self.sla_max_violation_rate <= 1.0):
+                raise ValueError(
+                    f"sla_max_violation_rate must be in [0.0, 1.0], got {self.sla_max_violation_rate}"
+                )
+
     def evaluate(
         self,
         violations_by_rule: dict[str, int],
@@ -139,8 +148,8 @@ class DataContract:
 
         # Check rule coverage
         rules_fired = set(violations_by_rule.keys())
-        required_rules = self.TIER_RULES[self.tier]
-        missing_rules = required_rules - rules_fired
+        tier_required_rules = self.TIER_RULES[self.tier]
+        missing_rules = tier_required_rules - rules_fired
 
         # Determine achieved tier using explicit order (NG-25: avoid enum order dependency)
         # Tier thresholds ordered from most lenient to strictest (BRONZE < SILVER < GOLD)
@@ -186,7 +195,7 @@ class DataContract:
             per_rule_violations=per_rule_violations,
             rule_coverage={
                 rule_id: rule_id in rules_fired
-                for rule_id in required_rules
+                for rule_id in tier_required_rules
             },
             tier_met=tier_met,
             missing_rules=missing_rules,

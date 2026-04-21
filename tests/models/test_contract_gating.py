@@ -4,7 +4,6 @@ Tests for DataContract rule gating fields (Phase 3 T9).
 Validates required_rules, optional_rules, suppressed_rules, and sla_max_violation_rate.
 """
 import pytest
-from datetime import datetime
 from streamdq.models.contract import DataContract, FieldContract, CertificationTier
 
 
@@ -82,7 +81,9 @@ class TestContractRuleGating:
         assert contract.sla_max_violation_rate is None
 
     def test_contract_serialization_with_rule_gating(self):
-        """Contract with rule gating fields serializes correctly."""
+        """Contract with rule gating fields serializes correctly via dataclasses.asdict()."""
+        from dataclasses import asdict
+
         contract = DataContract(
             name="test_stream",
             version="1.0.0",
@@ -95,19 +96,55 @@ class TestContractRuleGating:
             sla_max_violation_rate=0.05
         )
 
-        # Serialize to dict (assuming to_dict method exists or use __dict__)
-        data = {
-            "name": contract.name,
-            "version": contract.version,
-            "tier": contract.tier.value,
-            "owner": contract.owner,
-            "required_rules": contract.required_rules,
-            "optional_rules": contract.optional_rules,
-            "suppressed_rules": contract.suppressed_rules,
-            "sla_max_violation_rate": contract.sla_max_violation_rate
-        }
+        data = asdict(contract)
 
         assert data["required_rules"] == ["FMT001", "COM001"]
         assert data["optional_rules"] == ["CRS003"]
         assert data["suppressed_rules"] == ["PAT001"]
         assert data["sla_max_violation_rate"] == 0.05
+
+    def test_sla_max_violation_rate_valid_boundaries(self):
+        """sla_max_violation_rate accepts 0.0 and 1.0 as valid boundary values."""
+        contract_min = DataContract(
+            name="test_stream",
+            version="1.0.0",
+            tier=CertificationTier.BRONZE,
+            owner="test_team",
+            fields=[],
+            sla_max_violation_rate=0.0
+        )
+        assert contract_min.sla_max_violation_rate == 0.0
+
+        contract_max = DataContract(
+            name="test_stream",
+            version="1.0.0",
+            tier=CertificationTier.BRONZE,
+            owner="test_team",
+            fields=[],
+            sla_max_violation_rate=1.0
+        )
+        assert contract_max.sla_max_violation_rate == 1.0
+
+    def test_sla_max_violation_rate_negative_value_raises_error(self):
+        """sla_max_violation_rate raises ValueError for negative values."""
+        with pytest.raises(ValueError, match="sla_max_violation_rate must be in"):
+            DataContract(
+                name="test_stream",
+                version="1.0.0",
+                tier=CertificationTier.BRONZE,
+                owner="test_team",
+                fields=[],
+                sla_max_violation_rate=-0.1
+            )
+
+    def test_sla_max_violation_rate_exceeds_one_raises_error(self):
+        """sla_max_violation_rate raises ValueError when greater than 1.0."""
+        with pytest.raises(ValueError, match="sla_max_violation_rate must be in"):
+            DataContract(
+                name="test_stream",
+                version="1.0.0",
+                tier=CertificationTier.BRONZE,
+                owner="test_team",
+                fields=[],
+                sla_max_violation_rate=1.5
+            )
