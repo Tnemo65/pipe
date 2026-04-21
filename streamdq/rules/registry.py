@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from streamdq.rules.base import DataQualityRule, RuleContext, Violation
+from streamdq.models.contract import DataContract
 from streamdq.rules.syntactic import (
     CompletenessRule,
     FareAmountRangeRule,
@@ -90,6 +91,10 @@ class RuleRegistry:
                     violations.append(result)
         return violations
 
+    def get_all_rules(self) -> list[DataQualityRule]:
+        """Get all registered stateless rules."""
+        return self._stateless_rules
+
     def get_summary(self) -> dict:
         """Get a summary of all registered rules."""
         return {
@@ -105,6 +110,39 @@ class RuleRegistry:
             "stateful_evaluators": len(self._stateful_evaluators),
             "total_rules": len(self._stateless_rules) + len(self._stateful_evaluators),
         }
+
+    @classmethod
+    def from_contract(cls, contract: DataContract) -> "RuleRegistry":
+        """
+        Build rule registry filtered by contract specification.
+
+        Contract controls which rules fire:
+        - required_rules: Must be included
+        - optional_rules: Included if available
+        - suppressed_rules: Excluded
+
+        If contract specifies no rules, fall back to tier-based defaults.
+
+        Args:
+            contract: DataContract with rule specifications
+
+        Returns:
+            RuleRegistry with contract-filtered rules
+        """
+        # Start with default registry
+        registry = build_default_registry()
+
+        # If contract specifies suppressed rules, remove them
+        if contract.suppressed_rules:
+            for rule_id in contract.suppressed_rules:
+                registry._stateless_rules = [r for r in registry._stateless_rules if r.rule_id != rule_id]
+
+        # If contract specifies required/optional rules, filter to those only
+        if contract.required_rules or contract.optional_rules:
+            allowed_rules = set(contract.required_rules) | set(contract.optional_rules)
+            registry._stateless_rules = [r for r in registry._stateless_rules if r.rule_id in allowed_rules]
+
+        return registry
 
 
 def build_default_registry(entity_type: str = "nyc_taxi") -> RuleRegistry:
