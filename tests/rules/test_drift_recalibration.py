@@ -150,3 +150,79 @@ class TestDriftCallback:
         assert len(callback2_invoked) == 1
         assert callback1_invoked[0] == "fare_amount"
         assert callback2_invoked[0] == "evening"
+
+
+class TestDriftThresholdIntegration:
+    """Test drift detector resets context-aware thresholds."""
+
+    def test_drift_resets_context_thresholds(self):
+        """Drift detection triggers threshold reset for specific context."""
+        from streamdq.rules.context_adaptive import ContextAwareAdaptiveThresholdEngine
+        from streamdq.models.context_registry import ContextRegistry
+        from pathlib import Path
+
+        # Setup context-aware engine
+        PROJECT_ROOT = Path(__file__).resolve().parents[2]
+        config_path = PROJECT_ROOT / "config" / "context_nyc_taxi.yaml"
+
+        if not config_path.exists():
+            pytest.skip(f"Config not found: {config_path}")
+
+        registry = ContextRegistry.from_yaml(str(config_path))
+        engine = ContextAwareAdaptiveThresholdEngine(
+            registry=registry,
+            window_size=1000,
+        )
+
+        # Setup drift detector
+        detector = ConceptDriftDetector(psi_threshold=0.2, check_interval=100)
+
+        # Connect drift detector to engine
+        def on_drift_detected(field, context_key, psi):
+            engine.reset_context(field, context_key)
+
+        detector.register_drift_callback(on_drift_detected)
+
+        # Populate morning context with values
+        morning_event = {
+            "tpep_pickup_datetime": "2024-01-15T10:00:00",
+            "PULocationID": 161,
+        }
+
+        for i in range(100):
+            engine.update("fare_amount", 15.0 + i * 0.1, morning_event)
+
+        # Trigger recompute to populate stats
+        engine._recompute()
+
+        # Extract context key from an event
+        context = registry.resolve(morning_event)
+        context_key = registry.match_key(context, level=0)
+        composite_key = engine._make_composite_key("fare_amount", context_key)
+
+        assert composite_key in engine._buffers
+        assert len(engine._buffers[composite_key]) == 100
+
+        # Set baseline
+        morning_stats = engine.get_stats_for_context("fare_amount", context, level=0)
+        assert morning_stats is not None
+
+        detector.set_baseline_for_context(
+            field="fare_amount",
+            context_key=context_key,
+            stats={"p10": morning_stats["p10"], "p90": morning_stats["p90"], "mean": morning_stats["mean"], "count": 100},
+            event_count=100,
+        )
+
+        # Trigger drift (large shift in fare)
+        result = detector.check_drift_for_context(
+            field="fare_amount",
+            context_key=context_key,
+            current_stats={"p10": 30.0, "p90": 80.0, "mean": 50.0},
+            event_count=200,
+        )
+
+        assert result.drift_detected is True
+
+        # Verify buffer was reset
+        assert len(engine._buffers[composite_key]) == 0  # Reset clears buffer

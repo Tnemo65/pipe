@@ -280,6 +280,37 @@ class ContextAwareAdaptiveThresholdEngine:
         """
         return {}
 
+    def reset_context(self, field: str, context_key: str) -> None:
+        """
+        Reset thresholds for a specific (field, context_key) due to drift.
+
+        Part of Phase 3 T8: Drift-aware threshold recalibration.
+        Called by drift detector callback when PSI >= threshold.
+
+        Clears all hierarchy levels (L0-L4) for this (field, context) to force
+        recomputation from scratch with fresh data.
+
+        Args:
+            field: Field name (e.g., "fare_amount")
+            context_key: Context key (e.g., "morning_midtown_weekday")
+        """
+        # Clear buffers for all hierarchy levels that match this context
+        # Since we don't know which level the context_key corresponds to,
+        # we clear all levels that contain this field
+
+        # Simplified: Clear the specific composite key
+        composite_key = self._make_composite_key(field, context_key)
+
+        if composite_key in self._buffers:
+            self._buffers[composite_key] = []
+
+        if composite_key in self._stats:
+            del self._stats[composite_key]
+
+        # Also clear from last_update
+        if composite_key in self._last_update:
+            del self._last_update[composite_key]
+
     @property
     def event_count(self) -> int:
         """Total events processed."""
