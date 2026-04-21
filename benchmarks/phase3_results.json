@@ -1,0 +1,80 @@
+{
+  "phase": "Phase 3",
+  "feature": "Contract Gating with Lineage Awareness",
+  "timestamp": "2026-04-21T16:28:13.884948",
+  "test_runs": [
+    {
+      "test_name": "contract_validation",
+      "passed": true,
+      "contracts_found": 2,
+      "contracts_valid": 2,
+      "loaded_contracts": [
+        {
+          "name": "nyc_taxi_replay",
+          "tier": "CertificationTier.SILVER",
+          "version": "v1.0.0",
+          "owner": "data_platform_team"
+        },
+        {
+          "name": "gtfs_live",
+          "tier": "CertificationTier.GOLD",
+          "version": "v1.0.0",
+          "owner": "data_platform_team"
+        }
+      ],
+      "elapsed_seconds": 0.011160135269165039
+    },
+    {
+      "test_name": "replay_contract_suppresses_crs003",
+      "passed": true,
+      "violations_detected": 0,
+      "expected_violations": 0,
+      "events_processed": 10,
+      "crs003_suppressed": true,
+      "elapsed_seconds": 0.02303624153137207,
+      "events_per_second": 434.0985914035251,
+      "latency_ms": 2.303624153137207
+    },
+    {
+      "test_name": "live_contract_detects_crs003",
+      "passed": true,
+      "violations_detected": 15,
+      "expected_violations_min": 1,
+      "events_processed": 10,
+      "crs003_active": true,
+      "elapsed_seconds": 0.017544031143188477,
+      "events_per_second": 569.9944282122715,
+      "latency_ms": 1.7544031143188477
+    },
+    {
+      "test_name": "contract_sla_enforcement",
+      "passed": true,
+      "violations_detected": 100,
+      "violation_rate": "100.00%",
+      "events_processed": 100,
+      "sla_measurable": true,
+      "elapsed_seconds": 0.030125141143798828,
+      "events_per_second": 3319.4865219937637,
+      "latency_ms": 0.3012514114379883
+    },
+    {
+      "test_name": "gtfs_lineage_contract",
+      "passed": true,
+      "violations_detected": 150,
+      "events_processed": 50,
+      "unique_lineage_sources": 3,
+      "elapsed_seconds": 0.02645397186279297,
+      "events_per_second": 1890.075345181874,
+      "latency_ms": 0.5290794372558594
+    },
+    {
+      "test_name": "alert_router_with_contracts",
+      "passed": true,
+      "violations_processed": 20,
+      "alerts_routed": 20,
+      "routing_rate": 1.0,
+      "elapsed_seconds": 8.845329284667969e-05,
+      "alerts_per_second": 226108.0323450135
+    }
+  ]
+}
