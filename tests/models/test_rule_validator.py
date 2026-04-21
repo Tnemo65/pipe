@@ -287,3 +287,168 @@ class TestRuleValidationResult:
         assert result.accepted is False
         assert result.rejection_reason is not None
         assert "FPR" in result.rejection_reason
+
+
+class TestRuleRegistryValidation:
+    """Test RuleRegistry integration with RuleValidator (Task 3.2)."""
+
+    def test_registry_enable_validation(self):
+        """RuleRegistry.enable_validation() activates validator."""
+        from streamdq.rules.registry import RuleRegistry
+
+        registry = RuleRegistry()
+
+        # Validator should be disabled by default
+        assert registry._validator is None
+
+        # Enable validation
+        validator = RuleValidator(
+            fpr_threshold=0.10,
+            precision_threshold=0.50,
+            coverage_threshold=0.01,
+            min_events=100
+        )
+        registry.enable_validation(validator)
+
+        # Validator should now be set
+        assert registry._validator is not None
+        assert registry._validator is validator
+        assert isinstance(registry._validation_events, list)
+
+    def test_registry_register_rule_without_validation(self):
+        """RuleRegistry.register() works normally when validation disabled."""
+        from streamdq.rules.registry import RuleRegistry
+
+        registry = RuleRegistry()
+        rule = MockStrongRule()
+
+        # Should register without validation
+        registry.register_rule(rule)
+
+        # Rule should be registered
+        assert len(registry._stateless_rules) == 1
+        assert registry._stateless_rules[0] is rule
+
+    def test_registry_register_rule_with_validation_accepts_good_rule(self):
+        """RuleRegistry.register_rule() accepts rule when validation enabled and rule is good."""
+        from streamdq.rules.registry import RuleRegistry
+
+        registry = RuleRegistry()
+
+        # Enable validation
+        validator = RuleValidator(
+            fpr_threshold=0.10,
+            precision_threshold=0.50,
+            coverage_threshold=0.01,
+            min_events=100
+        )
+        registry.enable_validation(validator)
+
+        # Create strong rule (low FPR, should pass)
+        strong_rule = MockStrongRule()
+
+        # Generate historical data
+        historical_events = [
+            {"id": f"event_{i}", "value": float(i)}
+            for i in range(200)
+        ]
+
+        # Register rule with validation
+        result = registry.register_rule(strong_rule, historical_events)
+
+        # Should be accepted
+        assert result.accepted is True
+        assert result.rejection_reason is None
+
+        # Rule should be registered
+        assert len(registry._stateless_rules) == 1
+        assert registry._stateless_rules[0] is strong_rule
+
+        # Validation event should be recorded
+        assert len(registry._validation_events) == 1
+        assert registry._validation_events[0] == result
+
+    def test_registry_register_rule_with_validation_rejects_bad_rule(self):
+        """RuleRegistry.register_rule() rejects rule when validation enabled and rule is bad."""
+        from streamdq.rules.registry import RuleRegistry
+
+        registry = RuleRegistry()
+
+        # Enable validation
+        validator = RuleValidator(
+            fpr_threshold=0.10,
+            precision_threshold=0.50,
+            coverage_threshold=0.01,
+            min_events=100
+        )
+        registry.enable_validation(validator)
+
+        # Create weak rule (high FPR, should fail)
+        weak_rule = MockWeakRule()
+
+        # Generate historical data
+        historical_events = [
+            {"id": f"event_{i}", "value": float(i)}
+            for i in range(200)
+        ]
+
+        # Register rule with validation
+        result = registry.register_rule(weak_rule, historical_events)
+
+        # Should be rejected
+        assert result.accepted is False
+        assert result.rejection_reason is not None
+        assert "fpr" in result.rejection_reason.lower()
+
+        # Rule should NOT be registered
+        assert len(registry._stateless_rules) == 0
+
+        # Validation event should be recorded
+        assert len(registry._validation_events) == 1
+        assert registry._validation_events[0] == result
+
+    def test_registry_validation_events_tracking(self):
+        """RuleRegistry tracks all validation events."""
+        from streamdq.rules.registry import RuleRegistry
+
+        registry = RuleRegistry()
+
+        # Enable validation
+        validator = RuleValidator(
+            fpr_threshold=0.10,
+            precision_threshold=0.50,
+            coverage_threshold=0.01,
+            min_events=100
+        )
+        registry.enable_validation(validator)
+
+        # Generate historical data
+        historical_events = [
+            {"id": f"event_{i}", "value": float(i)}
+            for i in range(200)
+        ]
+
+        # Register multiple rules
+        strong_rule1 = MockStrongRule(rule_id="STRONG_1")
+        strong_rule2 = MockStrongRule(rule_id="STRONG_2")
+        weak_rule = MockWeakRule(rule_id="WEAK_1")
+
+        registry.register_rule(strong_rule1, historical_events)
+        registry.register_rule(weak_rule, historical_events)
+        registry.register_rule(strong_rule2, historical_events)
+
+        # Should have 3 validation events
+        assert len(registry._validation_events) == 3
+
+        # Should have 2 accepted rules
+        assert len(registry._stateless_rules) == 2
+
+        # Validate event records
+        assert registry._validation_events[0].rule_id == "STRONG_1"
+        assert registry._validation_events[0].accepted is True
+
+        assert registry._validation_events[1].rule_id == "WEAK_1"
+        assert registry._validation_events[1].accepted is False
+
+        assert registry._validation_events[2].rule_id == "STRONG_2"
+        assert registry._validation_events[2].accepted is True

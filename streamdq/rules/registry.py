@@ -2,10 +2,13 @@
 Rule registry — central registration and evaluation of all rules.
 """
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from streamdq.rules.base import DataQualityRule, RuleContext, Violation
 from streamdq.models.contract import DataContract
+
+if TYPE_CHECKING:
+    from streamdq.models.rule_validator import RuleValidator, RuleValidationResult
 from streamdq.rules.syntactic import (
     CompletenessRule,
     FareAmountRangeRule,
@@ -44,10 +47,85 @@ class RuleRegistry:
     def __init__(self):
         self._stateless_rules: list[DataQualityRule] = []
         self._stateful_evaluators: dict[str, callable] = {}
+        self._validator: Optional[RuleValidator] = None  # type: ignore
+        self._validation_events: list[RuleValidationResult] = []  # type: ignore
+
+    def enable_validation(self, validator: RuleValidator):  # type: ignore
+        """
+        Enable rule validation before registration.
+
+        Args:
+            validator: RuleValidator instance to use for validating rules before registration.
+        """
+        self._validator = validator
 
     def register(self, rule: DataQualityRule):
         """Register a stateless rule (evaluates single event)."""
         self._stateless_rules.append(rule)
+
+    def register_rule(
+        self,
+        rule: DataQualityRule,
+        historical_events: Optional[list[dict]] = None,
+        ground_truth: Optional[dict] = None,
+    ) -> RuleValidationResult:  # type: ignore
+        """
+        Register a stateless rule with optional validation.
+
+        If validation is enabled, the rule is validated on historical events before registration.
+        The rule is only registered if validation passes.
+
+        Args:
+            rule: DataQualityRule to register
+            historical_events: Historical events for validation (required if validator enabled)
+            ground_truth: Optional dict mapping event_id -> is_anomaly for ground truth validation
+
+        Returns:
+            RuleValidationResult with validation outcome and metrics.
+            If validation not enabled, returns a result with accepted=True.
+
+        Raises:
+            ValueError: If validation enabled but historical_events is None
+        """
+        # Import at runtime to avoid circular imports
+        from streamdq.models.rule_validator import RuleValidationResult
+
+        # If validation disabled, just register and return success
+        if self._validator is None:
+            self._stateless_rules.append(rule)
+            return RuleValidationResult(
+                rule_id=rule.rule_id,
+                fpr=0.0,
+                precision=0.0,
+                recall=0.0,
+                coverage=0.0,
+                total_events=0,
+                violations=0,
+                accepted=True,
+                rejection_reason=None,
+            )
+
+        # Validation enabled: check historical_events provided
+        if historical_events is None:
+            raise ValueError(
+                "historical_events required when validation enabled"
+            )
+
+        # Validate the rule
+        result = self._validator.validate_rule(
+            rule=rule,
+            historical_events=historical_events,
+            ground_truth=ground_truth,
+        )
+
+        # Track validation event
+        self._validation_events.append(result)
+
+        # Register rule if validation passed
+        if result.accepted:
+            self._stateless_rules.append(rule)
+
+        return result
 
     def register_stateful(self, evaluator: callable):
         """
