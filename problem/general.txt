@@ -1,0 +1,7 @@
+1. Data của ta đang sử dụng là data gì mà ta biết được tính đúng sai để đo precision?
+2. Thực tế có nguồn data nào để mô phỏng streaming mà biết được nó lỗi ở đâu để làm
+ground truth không?
+3. Các business rule mà ta thực tế giải quyết được là gì
+4. Lớp DQ thứ 3 của ta chạy Anomaly detection (pattern và relationship) đang làm được
+những gì cần thiết cho thực tế?
+5. Phân tích từng model: Ta sẽ sử dụng data gì để train nó, label ra sao, những trường nào, số lượng ra sao

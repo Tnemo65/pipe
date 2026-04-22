@@ -35,9 +35,13 @@ except ImportError:
 
 
 ANOMALY_TYPES = [
+    # 8 anomaly types implemented:
+    # SYN-level: fare_negative (SYN001), location_invalid (SYN002), timestamp_future (SYN003)
+    # SEM-level: fare_outlier (SEM001), duration_negative (SEM002), duration_outlier (SEM002), speed_outlier (SEM003)
+    # CRS-level: duplicate (CRS003)
     "fare_negative", "fare_outlier", "location_invalid",
     "duration_negative", "duration_outlier", "timestamp_future",
-    "speed_outlier", "duplicate",  # NG-15: aligned with evaluation
+    "speed_outlier", "duplicate",
 ]
 
 
@@ -59,7 +63,7 @@ class NYCTaxiReplayProducer:
         rate: int = 1000,
         shuffle: bool = True,
         inject_anomalies: bool = False,
-        anomaly_rate: float = 0.02,
+        anomaly_rate: float = 0.05,  # Default 5% matching YAML config; previously 0.02
         random_seed: int = 42,
         direct_mode: bool = False,
     ):

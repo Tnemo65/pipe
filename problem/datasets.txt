@@ -1,0 +1,66 @@
+Bằng chứng thuyết phục
+"An incremental algorithm for repairing denial constraint violations" (Information Systems, Q1, 2024): sử dụng dữ liệu tiêm nhiễu vì hai lý do chính: 
+(1) Các lỗi thực tế thường không đi kèm với nhãn sự thật nền (ground truth), khiến việc đo lường độ chính xác (precision/recall) là bất khả thi; 
+(2) Tất cả các phương pháp cơ sở (baseline methods) hiện nay đều sử dụng lỗi được tiêm vào để đảm bảo tính công bằng khi so sánh
+"Diversifying repairs of Denial constraint violations" (Information Systems, Q1, 2022): 
+Sử dụng tập dữ liệu gốc sạch, sau đó cố tình dùng công cụ tiêm lỗi để tạo ra các tập dữ liệu có chứa vi phạm luật DC
+Bài báo "Automated Bayesian quality control of streaming rain gauge data" (Environmental Modelling & Software, 2013): 
+Tác giả đã tự tạo ra các "synthetic data errors" (lỗi dữ liệu tổng hợp) như lỗi mất tín hiệu (missed tip) và tín hiệu giả (false tip) trên luồng dữ liệu thời tiết.
+Họ lý giải rằng cần làm vậy vì rất khó để biết phân loại thực sự của dữ liệu quan sát tự nhiên để tính toán tỷ lệ báo động giả/bỏ lọt (false positive/negative)
+Bài báo "Icewafl: A Configurable Data Stream Polluter" (EDBT, 2025): 
+Bài báo này được viết ra chỉ để giới thiệu một công cụ chuyên đi "làm bẩn" dữ liệu (Data polluter). Tác giả khẳng định các công cụ tiêm nhiễu cho phép người dùng cố ý chèn lỗi để đánh giá một cách có hệ thống cách các thuật toán hoạt động trước các loại lỗi dữ liệu khác nhau
+Ada-Context (2025)
+Tác giả đã thao túng 5% dữ liệu kiểm thử bằng cách tiêm các lỗi không chính xác (inaccurate), không hợp lệ (invalid) và thiếu sót (incomplete) dựa trên chuẩn ISO 25012 để đo lường khả năng làm sạch của thuật toán
+Mọi bài báo State-of-the-Art (SOTA) 
+đều sử dụng cách này Việc dùng dữ liệu tiêm nhiễu không phải là "tự làm tự khen", mà nó là luật chơi chung của cộng đồng khoa học. Bạn có thể thấy điều này ở các dự án uy tín nhất:
+Trong một nghiên cứu trên tạp chí danh giá Information Systems (2022), các tác giả khẳng định rõ: "Theo những gì chúng tôi biết, tất cả các phương pháp cơ sở (baseline methods) đều sử dụng lỗi được tiêm vào. Chúng tôi sử dụng cùng một thiết lập như các phương pháp cơ sở để đảm bảo một sự so sánh công bằng"
+.DAFDiscover  VLDB (2024) 
+sử dụng phương pháp nhân bản dữ liệu thật và dùng công cụ Bart để tiêm nhiễu (bằng cách thêm ký tự "*") theo một tỷ lệ xác suất nhất định nhằm mô phỏng các lỗi dữ liệu thực tế
+
+Hướng dataset
+Chọn hướng dataset để có thể demo toàn bộ những gì ta có thể làm: 
+1. Ada-Context: adaptive context-aware grid-based approach for curation of data streams
+Link bài báo (DOI): https://doi.org/10.1007/s10618-025-01095-6
+Link Mã nguồn & Dữ liệu (GitHub): https://github.com/mostafamirzaie/Traffic_Data_Quality
+2. NYC Taxi Trip và công cụ tạo lỗi BART 
+Link Dataset: https://www.kaggle.com/competitions/nyc-taxi-trip-duration
+Công cụ BART (Messing Up with BART: Error Generation for Evaluating Data-cleaning Algorithms)
+=> Có thể sử dụng dữ liệu này làm đồng thời các điều sau không?
+Vừa cho production flow
+Vừa cho training model 
+
+Dataset cần các điều kiện sau đúng không?
+  1. Data Quality Dimensions                                                             
+  - Completeness (missing values)                                                        
+  - Accuracy (outliers, errors)                             
+  - Consistency (cross-field conflicts)
+  - Validity (format, type, range violations)
+  - Uniqueness (duplicates)
+  - Timeliness (timestamps)
+  2. Concept Drift
+  - Temporal variation (theo giờ/ngày/mùa)
+  - Distribution shift (mean/variance thay đổi)
+  - Seasonal patterns
+  - Trend changes
+  3. Anomaly Detection
+  - Point anomalies (outliers đơn lẻ)
+  - Contextual anomalies (bất thường theo ngữ cảnh)
+  - Collective anomalies (nhóm bất thường)
+  - Multivariate anomalies (nhiều chiều)
+  4. Context Requirements
+  - Spatial context (khu vực)
+  - Temporal context (thời gian)
+  - Categorical context (nhóm)
+  5. Volume
+  - Min: 10K-100K records (training)
+  - Preferred: 1M+ records (production)
+  - Có thể replay streaming
+  6. Features
+  - 5-10 numerical fields
+  - 3-5 categorical fields
+  - Timestamp chi tiết
+  - Có thể derive 40+ features
+  7. Ground Truth (Optional)
+  - Có label anomaly/normal
+  - Hoặc tự tạo bằng weak supervision
+

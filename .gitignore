@@ -81,7 +81,6 @@ data/
 docs/
 .env
 .claude/
-.cursor/
 .claude/settings.local.json
 diagrams/
 .claude

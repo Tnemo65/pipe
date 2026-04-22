@@ -115,6 +115,21 @@ def evaluate_trajectory_anomaly(
     """
     Detect impossible vehicle movements from GTFS vehicle position data.
 
+    ARCHITECTURAL NOTE: This function is designed for GTFS vehicle position data
+    with fields: latitude, longitude, vehicle_id, timestamp. It requires continuous
+    GPS position reports per vehicle. NYC taxi records (which have pickup/dropoff
+    coordinates but NOT continuous GPS tracking) do NOT use this function in the
+    current pipeline -- they use CRS003 (deduplication) only.
+
+    The Spark pipeline restricts CRS001/CRS002 to `gtfs_vehicle` entity_type only
+    (see spark_pipeline.py lines 1163-1165: `filter(entity_type == "gtfs_vehicle")`).
+
+    Speed bands:
+    - < 1 km/h + jump > 100m -> CRITICAL (stationary spoofing)
+    - 1-20 km/h + jump > 100m -> HIGH (slow drift injection attack)
+    - 20-40 km/h + jump > 100m -> MEDIUM (moderate GPS manipulation)
+    - > 40 km/h -> no violation (legitimate highway movement)
+
     GPS speed = haversine_distance / time_between_reports.
     Allow up to 160 km/h (~100 mph) — accommodates KTMB express trains
     (140 km/h) with margin. Faster is physically impossible for buses/trains.
@@ -268,6 +283,10 @@ def evaluate_duplicate_event(
 ) -> Optional[Violation]:
     """
     Detect duplicate events: same key fields within a time window.
+
+    NG-15 FIX: Duplicate injection now emits TWO records (original + exact copy)
+    to enable CRS003 recall measurement. The replay producer (nyc_taxi_replay.py)
+    stores the original event and re-emits it immediately after the injected record.
 
     Strategy:
     - Hash of (trip_id, PULocationID, DOLocationID, passenger_count, trip_distance)

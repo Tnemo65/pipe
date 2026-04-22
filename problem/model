@@ -1,0 +1,29 @@
+1. Bài toán
+ Dữ liệu train khác dữ liệu thực tế vận hành, nên cần kiểm tra liệu các mô hình như XGBoost, LightGBM, Isolation Forest, Autoencoder có còn phát hiện bất thường tốt hay không.
+2. Giả thuyết nghiên cứu
+ Nếu phân phối dữ liệu thay đổi, mô hình supervised như XGBoost/LightGBM thường suy giảm trước; các mô hình anomaly detection như IsoForest/Autoencoder có thể phát hiện một phần, nhưng không đủ nếu drift xảy ra trên diện rộng.
+3. Phương pháp
+Train trên nhiều bộ dữ liệu khác domain.
+Test zero-shot trên dữ liệu mới, khác phân phối.
+So sánh 4 nhóm mô hình: supervised, unsupervised, reconstruction-based.
+Có thể bổ sung weak supervision và meta-learning để thích nghi tốt hơn.
+4. Kết quả kỳ vọng
+XGBoost, LightGBM: mạnh khi train-test cùng phân phối, yếu khi lệch domain.
+Isolation Forest: phát hiện outlier rõ rệt, nhưng kém với drift toàn cục.
+Autoencoder: nhạy hơn với mẫu lạ thông qua reconstruction error, nhưng vẫn không đủ để thay thế drift monitoring.
+Vấn đề cần giải quyết
+Chọn model
+Chọn model sao cho đúng với 1 framework + bài toán ta đang giải quyết
+Train dataset
+Label
+Dữ liệu tự inject có label không?
+Ada-contex có label không?
+Train dataset # production dataset
+Ta cần làm gì để các mô hình hoạt đông tốt ở dự án của ta
+Data train có ít trường ( 1 trường )
+Data thực có nhiều trường (nhiều cột)
+Cách train
+XGBoost + LightGBM => Cần finetune
+Stage 1: Train trên 57 datasets → Học patterns tổng quát
+Stage 2: NYC Taxi 1000 events đầu → Fine-tune thresholds cho NYC
+Gradient Boosting

@@ -265,7 +265,9 @@ def _pandas_vehicle_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
     import math
     import json
     from datetime import datetime
+    import time as _time_module
 
+    _start = _time_module.perf_counter()
     results = []
     pdf = pdf.sort_values("timestamp_sec")
 
@@ -298,7 +300,7 @@ def _pandas_vehicle_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
                         "violation_type": "CROSS_RECORD",
                         "record_snapshot": json.dumps(record, default=str),
                         "detected_at": datetime.now(),
-                        "processing_latency_ms": 0.0,
+                        "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
                     })
 
                 if dist > _MAX_STATIONARY_JUMP_M:
@@ -313,7 +315,7 @@ def _pandas_vehicle_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
                             "violation_type": "CROSS_RECORD",
                             "record_snapshot": json.dumps(record, default=str),
                             "detected_at": datetime.now(),
-                            "processing_latency_ms": 0.0,
+                            "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
                         })
 
         state.update({
@@ -342,11 +344,12 @@ def _pandas_dedup_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
     Called per event_hash partition. Detects duplicates within 300-second window.
     """
     import json
-    import time
+    import time as _time_module
     from datetime import datetime
 
     results = []
-    now = time.time()
+    _start = _time_module.perf_counter()
+    now = _time_module.time()
 
     if state.exists:
         first_seen = float(state.get["first_seen_time"])
@@ -360,7 +363,7 @@ def _pandas_dedup_state_func(pdf: "pd.DataFrame", state) -> "pd.DataFrame":
                 "violation_type": "CROSS_RECORD",
                 "record_snapshot": json.dumps(pdf.iloc[0].to_dict(), default=str),
                 "detected_at": datetime.now(),
-                "processing_latency_ms": 0.0,
+                "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
             })
             state.remove()
             import pandas as pd
@@ -1157,7 +1160,15 @@ class StreamDQPipeline:
             F.lit("SYNTACTIC").alias("violation_type"),
             F.to_json(F.struct("*")).alias("record_snapshot"),
             F.current_timestamp().alias("detected_at"),
-            F.lit(0.0).alias("processing_latency_ms"),
+            # NG-B6-FIX: Compute processing latency from micro-batch processing timestamp.
+            # F.current_timestamp() is evaluated when the batch executes, giving an
+            # approximate per-event latency within the batch. For event-level precision,
+            # use the Pandas UDF path (evaluate_* functions in cross_record.py, syntactic.py,
+            # semantic.py, gtfs_rules.py) which use time.perf_counter().
+            # NG-B6-FIX: Previously hardcoded to 0.0 -- now uses current_timestamp().
+            (F.current_timestamp().cast("double") * 1000
+             - (F.col("kafka_ts_ms").cast("double") if "kafka_ts_ms" in events_df.columns
+                else F.lit(0.0))).alias("processing_latency_ms"),
         )
 
         # F3-a: CRS001/CRS002 — GTFS vehicle state via FlatMapGroupsWithState
@@ -1288,7 +1299,9 @@ class StreamDQPipeline:
         the same vehicle. Uses pandas for vectorized operations within partition.
         """
         import math
+        import time as _time_module
 
+        _start = _time_module.perf_counter()
         results = []
         pdf = pdf.sort_values("timestamp_sec")
 
@@ -1321,7 +1334,7 @@ class StreamDQPipeline:
                             "violation_type": "CROSS_RECORD",
                             "record_snapshot": json.dumps(record, default=str),
                             "detected_at": datetime.now(),
-                            "processing_latency_ms": 0.0,
+                            "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
                         })
 
                     if dist > _MAX_STATIONARY_JUMP_M:
@@ -1336,7 +1349,7 @@ class StreamDQPipeline:
                                 "violation_type": "CROSS_RECORD",
                                 "record_snapshot": json.dumps(record, default=str),
                                 "detected_at": datetime.now(),
-                                "processing_latency_ms": 0.0,
+                                "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
                             })
 
             state.update({
@@ -1363,8 +1376,11 @@ class StreamDQPipeline:
 
         Called per event_hash partition. Detects duplicates within 300-second window.
         """
+        import time as _time_module
+
         results = []
-        now = time.time()
+        _start = _time_module.perf_counter()
+        now = _time_module.time()
 
         if state.exists:
             first_seen = float(state.get["first_seen_time"])
@@ -1378,7 +1394,7 @@ class StreamDQPipeline:
                     "violation_type": "CROSS_RECORD",
                     "record_snapshot": json.dumps(pdf.iloc[0].to_dict(), default=str),
                     "detected_at": datetime.now(),
-                    "processing_latency_ms": 0.0,
+                    "processing_latency_ms": (_time_module.perf_counter() - _start) * 1000,
                 })
                 state.remove()
                 import pandas as pd
