@@ -289,7 +289,7 @@ These gaps exist specifically at the intersection of streaming systems and trans
 │                                                                                    │
 │ Existing approaches:                                                              │
 │ • Stream DaQ (arXiv 2025): Streaming-native but NO domain-specific GPS rules    │
-│ • METER (PVLDB 2024): Streaming concept drift adaptation but NO GPS validation   │
+│ • METER (PVLDB Vol.17, No.4, 2023): Streaming concept drift adaptation but NO GPS validation   │
 │ • AutoDQM (arXiv 2025): Adaptive thresholds for CERN detector data, NOT GPS      │
 │ • GTFS Validator: Domain-specific transit rules but batch-only architecture        │
 │ • CETrajAD (SDM 2025): GPS anomaly detection but batch-only, NOT DQ validation   │
@@ -448,4 +448,4 @@ The CRITICAL gaps form a coherent research agenda: build a streaming-native fram
 
 ---
 
-*Gap Analysis synthesized from: Stream DaQ (arXiv 2025), Deequ (VLDB 2018), METER (PVLDB 2024), Martin et al. (PVLDB 2025), CETrajAD (SDM 2025), NUMOSIM (SIGSPATIAL 2024), Wong (2025), AutoDQM (arXiv 2025), GTFS Validator (MobilityData), GTFS-realtime Validator (CUTR-USF), TAPS, Great Expectations, Soda Core, dbt, IBM Auto DQ documentation.*
+*Gap Analysis synthesized from: Stream DaQ (arXiv 2025), Deequ (VLDB 2018), METER (PVLDB Vol.17, No.4, 2023), Martin et al. (PVLDB 2025), CETrajAD (SDM 2025), NUMOSIM (SIGSPATIAL 2024), Wong (2025), AutoDQM (arXiv 2025), GTFS Validator (MobilityData), GTFS-realtime Validator (CUTR-USF), TAPS, Great Expectations, Soda Core, dbt, IBM Auto DQ documentation.*

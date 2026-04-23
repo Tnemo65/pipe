@@ -3,7 +3,7 @@
 **Date**: April 22, 2026
 **Agent**: VALIDATOR (data-researcher + statistical-analysis skills)
 **Project**: "A Context-Aware Framework for Streaming Data Quality Monitoring"
-**Primary Idea**: IDEA-NEW-2 (T-Assess × StreamDQ Integration)
+**Primary Idea**: IDEA-NEW-2 (T-Assess × ContextAware-DQ Integration)
 **Upgrade**: IDEA-05 (Contextual Calibration) integration to achieve Context-Aware 3/3
 **Dataset**: NYC TLC Yellow Taxi — READY
 **Evaluation Framework**: Synthetic anomaly injection with ground truth
@@ -13,11 +13,11 @@
 
 ## Executive Summary
 
-All major claims about the context-aware upgrade are **measurable** using the existing StreamDQ synthetic injection framework on NYC TLC data. The evaluation infrastructure is sound: statistical power is >>100x beyond the minimum required (per AGENT-06 DATA_CHECK), synthetic injection methodology exists and is operational, and all four research questions have defined ground truth methods.
+All major claims about the context-aware upgrade are **measurable** using the existing ContextAware-DQ synthetic injection framework on NYC TLC data. The evaluation infrastructure is sound: statistical power is >>100x beyond the minimum required (per AGENT-06 DATA_CHECK), synthetic injection methodology exists and is operational, and all four research questions have defined ground truth methods.
 
 **Three gaps require attention before experiments run:**
 
-1. **Missing RQs**: RQ1–RQ4 cover contextual calibration (IDEA-05 integration) but do not cover the TQS integration claims (IDEA-NEW-2's primary contribution). The TQS weighting variants, TQS degradation curves, and complementarity proof (T-Assess alone vs. StreamDQ alone vs. integrated) are not addressed by the current RQ set.
+1. **Missing RQs**: RQ1–RQ4 cover contextual calibration (IDEA-05 integration) but do not cover the TQS integration claims (IDEA-NEW-2's primary contribution). The TQS weighting variants, TQS degradation curves, and complementarity proof (T-Assess alone vs. ContextAware-DQ alone vs. integrated) are not addressed by the current RQ set.
 
 2. **TQS weighting not pre-registered**: The three TQS weighting variants (V1: equal, V2: domain-prioritized, V3: task-adapted) are mentioned in the integration plan but not pre-registered with fixed formulations. Without pre-registration, variant selection post-hoc introduces optimistic bias.
 
@@ -41,14 +41,14 @@ All major claims about the context-aware upgrade are **measurable** using the ex
    - Spatial: 3 zone groups (Manhattan core, outer boroughs, airport/特殊 zones)
    - Operational: 2 day-type buckets (weekday, weekend/holiday)
    - Total: 6 × 3 × 2 = 36 context cells
-2. Within each cell, inject anomalies at a controlled rate (5%, per StreamDQ protocol) with known anomaly type, entity index, and injection severity (low/medium/high).
+2. Within each cell, inject anomalies at a controlled rate (5%, per ContextAware-DQ protocol) with known anomaly type, entity index, and injection severity (low/medium/high).
 3. Run both static thresholds (global P10/P90 per rule) and context-aware thresholds (per-cell P10/P90) on the same injected dataset.
 4. For each context cell: compute TP, FP, FN, TN. Compute precision = TP/(TP+FP), recall = TP/(TP+FN).
 5. Pair per-cell precision and recall values. Compare paired differences (context-aware − static).
 
 **Expected Result**: Higher recall in rare contexts (night, outer boroughs, weekends) where static thresholds are too coarse. Comparable precision in all contexts (context-aware should not increase false positives). Overall F1 improvement ≥ 5pp in ≥50% of context cells.
 
-**Feasibility**: HIGH. Synthetic injection framework exists in StreamDQ (per codebase audit). NYC TLC provides 150K–300K records per typical context cell — sufficient for both clean and anomalous groups. Statistical power is >>0.99 for medium effects (d=0.5).
+**Feasibility**: HIGH. Synthetic injection framework exists in ContextAware-DQ (per codebase audit). NYC TLC provides 150K–300K records per typical context cell — sufficient for both clean and anomalous groups. Statistical power is >>0.99 for medium effects (d=0.5).
 
 **Ground Truth Tracking Requirements**:
 - Every injected anomaly must record: `anomaly_type`, `entity_index`, `injection_rate`, `context_cell` (temporal × spatial × operational)
@@ -108,11 +108,11 @@ All major claims about the context-aware upgrade are **measurable** using the ex
 - **V2 (Domain-Prioritized)**: Validity 40%, Consistency 30%, Completeness 20%, Fairness 10%
 - **V3 (Rule-Count)**: Weight proportional to number of SYN/SEM/CRS rules per dimension (4 rules → weight = 4/9 for SYN, etc.)
 
-**Trajectory Construction**: From NYC TLC, group records by `hack_license` + date to form trip trajectories. Apply StreamDQ rules per trajectory. Map violations to T-Assess dimensions. Compute TQS per trajectory.
+**Trajectory Construction**: From NYC TLC, group records by `hack_license` + date to form trip trajectories. Apply ContextAware-DQ rules per trajectory. Map violations to T-Assess dimensions. Compute TQS per trajectory.
 
 **Expected Result**: Context-aware TQS (all variants) should achieve ρ > 0.7. At least one variant should achieve ρ > 0.75. Improvement over static TQS: Δρ ≥ 0.15.
 
-**Feasibility**: HIGH. TQS computation is a post-processing step on StreamDQ violation records. Correlation analysis requires only the injected dataset and a TQS aggregation function. NYC TLC provides sufficient trajectories for high statistical power.
+**Feasibility**: HIGH. TQS computation is a post-processing step on ContextAware-DQ violation records. Correlation analysis requires only the injected dataset and a TQS aggregation function. NYC TLC provides sufficient trajectories for high statistical power.
 
 **Important Caveat**: This RQ measures whether TQS tracks *injected anomaly density*. It does NOT measure whether TQS tracks *actual data quality in the wild* (since ground truth quality is only available through injection). The correlation with synthetic injection is a necessary but not sufficient condition for real-world accuracy.
 
@@ -144,7 +144,7 @@ Stream DaQ uses rolling μ±kσ with configurable time horizons. For the ablatio
 
 **Feasibility**: HIGH. All three arms are computable from the same dataset using the same injection protocol. The key metric is the F1 delta between arms, which is directly measurable.
 
-**Limitation**: This comparison is against a *simulated* Stream DaQ baseline, not an actual Stream DaQ deployment. The simulation may not perfectly replicate Stream DaQ's behavior (e.g., its exact k-selection strategy, drift detection, and adaptation rate parameters). The comparison should be framed as "temporal-context vs. multi-dimensional context" rather than "StreamDQ vs. Stream DaQ."
+**Limitation**: This comparison is against a *simulated* Stream DaQ baseline, not an actual Stream DaQ deployment. The simulation may not perfectly replicate Stream DaQ's behavior (e.g., its exact k-selection strategy, drift detection, and adaptation rate parameters). The comparison should be framed as "temporal-context vs. multi-dimensional context" rather than "ContextAware-DQ vs. Stream DaQ."
 
 ---
 
@@ -156,7 +156,7 @@ The current RQ set covers the IDEA-05 (Contextual Calibration) integration but d
 Does TQS degrade monotonically with increasing injected anomaly density? Is the degradation rate dimension-dependent (e.g., SYN violations degrade Validity faster than SEM violations degrade Completeness)?
 
 **RQ6: Complementarity Proof**
-Does the T-Assess × StreamDQ combination detect things neither detects alone? (SKEPTIC's key condition.)
+Does the T-Assess × ContextAware-DQ combination detect things neither detects alone? (SKEPTIC's key condition.)
 
 **RQ7: TQS Variant Comparison**
 Which of the three pre-registered TQS weighting variants (V1, V2, V3) achieves the highest correlation with ground truth quality? Does the selected variant depend on the operational use case?
@@ -345,7 +345,7 @@ V3 (Rule-Count):
   TQS = (3/9) × Validity + (3/9) × Completeness + (3/9) × Consistency + 0 × Fairness
 ```
 
-**Note**: The V3 formula above is incorrect — it yields 3/9 + 3/9 + 3/9 = 1, but Fairness weight = 0 (no StreamDQ rules map to Fairness). V3 should be corrected to: SYN→Validity, SEM→Completeness, CRS→Consistency, and Fairness is computed separately (or set to 1.0 as a default). **This must be resolved and pre-registered before evaluation runs.**
+**Note**: The V3 formula above is incorrect — it yields 3/9 + 3/9 + 3/9 = 1, but Fairness weight = 0 (no ContextAware-DQ rules map to Fairness). V3 should be corrected to: SYN→Validity, SEM→Completeness, CRS→Consistency, and Fairness is computed separately (or set to 1.0 as a default). **This must be resolved and pre-registered before evaluation runs.**
 
 **5. Sensitivity Analysis Levels**
 - Zone granularity: 5 zones (coarse), 50 zones (medium), 263 zones (fine)
@@ -429,7 +429,7 @@ ALL RESULTS WILL BE REPORTED. No post-hoc formulation selection.
 | 7 | Multi-dim (temporal × spatial × operational) > temporal-only (Stream DaQ-style) | Ablation study (Arm A vs. Arm B) | Same injected dataset, two evaluation arms | **VERIFIABLE** | Ablation comparison is well-defined; Stream DaQ simulation must be documented precisely |
 | 8 | TQS weighting variants (V1, V2, V3) all pre-registered | Pre-registration document | Written pre-registration before experiments | **NOT VERIFIED YET** | Currently mentioned but not pre-registered; must be completed before experiments |
 | 9 | F1 improvement ≥ 5pp is operationally meaningful | Domain expert judgment | Transit operator input on what ΔF1 is actionable | **NOT VERIFIABLE** | Threshold is a design choice, not empirically measurable. Report as design rationale, not as a verified fact. |
-| 10 | Complementarity proof: integrated detects things neither detects alone | Three-arm evaluation (T-Assess alone, StreamDQ alone, integrated) | T-Assess output, StreamDQ violation records, integrated TQS | **VERIFIABLE** | Requires running T-Assess on NYC TLC trajectories independently; blocked on T-Assess API audit (P0 action) |
+| 10 | Complementarity proof: integrated detects things neither detects alone | Three-arm evaluation (T-Assess alone, ContextAware-DQ alone, integrated) | T-Assess output, ContextAware-DQ violation records, integrated TQS | **VERIFIABLE** | Requires running T-Assess on NYC TLC trajectories independently; blocked on T-Assess API audit (P0 action) |
 | 11 | TQS degradation is monotonic with injection rate | TQS computed at 0%, 1%, 2%, 5%, 10% injection levels | 5 evaluation runs at different injection rates | **VERIFIABLE** | Monotonicity test: TQS(inj_rate_2) < TQS(inj_rate_1) for all inj_rate_2 > inj_rate_1 |
 | 12 | Zone granularity sensitivity (5 vs. 50 vs. 263) is measurable | Three evaluation runs at different granularities | Same dataset partitioned at different resolutions | **VERIFIABLE** | All three granularities are computable; report all three results |
 | 13 | "Why is quality low?" is answerable from violation analysis | User study with domain experts | Transit operator interviews | **NOT VERIFIABLE** | Requires domain expert study, outside the scope of this evaluation |
@@ -476,7 +476,7 @@ Before running any evaluation experiments, the following must be completed:
 **Problem**: RQ1–RQ4 cover contextual calibration (IDEA-05) but do not cover the TQS integration claims central to IDEA-NEW-2. The following are not addressed:
 
 1. **TQS degradation curves**: Does TQS degrade monotonically with injection rate? Is the degradation dimension-dependent?
-2. **Complementarity proof**: Does the combination (T-Assess × StreamDQ) detect things neither detects alone? This is the SKEPTIC's key condition and is not captured as a formal RQ.
+2. **Complementarity proof**: Does the combination (T-Assess × ContextAware-DQ) detect things neither detects alone? This is the SKEPTIC's key condition and is not captured as a formal RQ.
 3. **TQS variant selection**: Which of V1/V2/V3 best correlates with ground truth? Is the best variant use-case-dependent?
 
 **Recommendation**: Add RQ5–RQ7 as formal research questions:
@@ -487,10 +487,10 @@ RQ5: Does TQS degrade monotonically with increasing injected anomaly density?
      Method: Monotonicity test + degradation curve visualization
      Expected: Monotonic decrease; dimension-specific degradation rates
 
-RQ6: Does T-Assess × StreamDQ detect violations neither detects alone?
-     GT: Three evaluation arms: T-Assess alone, StreamDQ alone, integrated
+RQ6: Does T-Assess × ContextAware-DQ detect violations neither detects alone?
+     GT: Three evaluation arms: T-Assess alone, ContextAware-DQ alone, integrated
      Method: Set comparison of detected entities per arm
-     Expected: Integrated ∪ (T-Assess-only ∪ StreamDQ-only) > either alone
+     Expected: Integrated ∪ (T-Assess-only ∪ ContextAware-DQ-only) > either alone
 
 RQ7: Which TQS weighting variant (V1, V2, V3) best tracks ground truth?
      GT: Same as RQ3
@@ -501,7 +501,7 @@ RQ7: Which TQS weighting variant (V1, V2, V3) best tracks ground truth?
 
 ### F.2 — Gap 2: TQS Weighting V3 Has a Zero Fairness Weight
 
-**Problem**: V3 (Rule-Count) as currently formulated assigns weight = 0 to the Fairness dimension because no StreamDQ rules map to Fairness. This means V3's TQS is missing an entire quality dimension.
+**Problem**: V3 (Rule-Count) as currently formulated assigns weight = 0 to the Fairness dimension because no ContextAware-DQ rules map to Fairness. This means V3's TQS is missing an entire quality dimension.
 
 **Impact**: V3 is not a valid 4-dimensional TQS. If V3 is included in the pre-registered variants, it must be either:
 - **Option A**: Corrected to V3 = SYN→Validity + SEM→Completeness + CRS→Consistency + Fairness=1.0 (default/uninformative), or
@@ -513,7 +513,7 @@ RQ7: Which TQS weighting variant (V1, V2, V3) best tracks ground truth?
 
 **Problem**: The SKEPTIC's critical condition (prove the combination detects things neither detects alone) is not in the RQ set. Without this proof, the integration is an architectural convenience, not a demonstrated contribution.
 
-**Recommendation**: Implement RQ6 (above) as a non-negotiable evaluation arm. If the complementarity proof fails (integrated = T-Assess alone OR StreamDQ alone), the contribution must be reframed as "T-Assess as an evaluation tool for StreamDQ" rather than "integrated T-Assess × StreamDQ system."
+**Recommendation**: Implement RQ6 (above) as a non-negotiable evaluation arm. If the complementarity proof fails (integrated = T-Assess alone OR ContextAware-DQ alone), the contribution must be reframed as "T-Assess as an evaluation tool for ContextAware-DQ" rather than "integrated T-Assess × ContextAware-DQ system."
 
 ### F.4 — Gap 4: Stream DaQ Simulation Must Be Precisely Documented
 
@@ -585,10 +585,10 @@ The evaluation is ready to proceed once:
 4. RQ5–RQ7 are formally added to the RQ set
 5. B1 and B6 are fixed (engineering effort: < 1 day each)
 
-The 10-day timeline estimate from the integration plan is realistic if gates 1–5 are completed in parallel with engineering fixes. The evaluation itself (synthetic injection, violation tracking, metric computation) leverages existing StreamDQ infrastructure.
+The 10-day timeline estimate from the integration plan is realistic if gates 1–5 are completed in parallel with engineering fixes. The evaluation itself (synthetic injection, violation tracking, metric computation) leverages existing ContextAware-DQ infrastructure.
 
 ---
 
 *Report prepared by AGENT-06: VALIDATOR — April 22, 2026*
 *Grounded in: 03_IDEA_SELECTION.md, agent06_DATA_CHECK.md, agent04_VALIDATOR.md, agent08_SKEPTIC.md, gap_analysis.md*
-*Sources: StreamDQ codebase audit, NYC TLC Data Dictionary, T-Assess GitHub (ZJU-DAILY/T-Assess)*
+*Sources: ContextAware-DQ codebase audit, NYC TLC Data Dictionary, T-Assess GitHub (ZJU-DAILY/T-Assess)*

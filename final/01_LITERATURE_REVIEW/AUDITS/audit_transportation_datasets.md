@@ -69,7 +69,7 @@ This survey identifies transportation and taxi benchmark datasets used in academ
 | **ICDE** | Automated data slicing for model validation; robust time series outlier detection | 2023–2024 | arxiv.org |
 | **SIGMOD** | Data cleaning, workload forecasting | 2023 | arxiv.org |
 
-**Bottom line:** NYC TLC Yellow Taxi is a **well-established benchmark** in Q3+/B+ venues. However, papers primarily use it for **spatio-temporal prediction, ML observability, and data cleaning** — not specifically for **data quality evaluation** (i.e., measuring precision/recall of data quality rules on labeled anomalies). StreamDQ's use case — validating streaming data quality with ground-truth anomaly injection — is **not the primary use** in existing papers; those papers use TLC as a feature-rich dataset for model training/evaluation.
+**Bottom line:** NYC TLC Yellow Taxi is a **well-established benchmark** in Q3+/B+ venues. However, papers primarily use it for **spatio-temporal prediction, ML observability, and data cleaning** — not specifically for **data quality evaluation** (i.e., measuring precision/recall of data quality rules on labeled anomalies). ContextAware-DQ's use case — validating streaming data quality with ground-truth anomaly injection — is **not the primary use** in existing papers; those papers use TLC as a feature-rich dataset for model training/evaluation.
 
 ---
 
@@ -106,7 +106,7 @@ GTFS-RT VehiclePosition entity contains:
 | *Assessing Public Transit Network Efficiency and Accessibility in Johor Bahru and Penang, Malaysia* | ScienceDirect (MethodsX?) | 2025 | https://www.sciencedirect.com/science/article/pii/S259012302502198X | Used GTFS Static for network efficiency modeling in Johor Bahru & Penang |
 | *Benchmarking LLMs on GTFS Understanding and Retrieval* | arXiv | 2023 | https://arxiv.org/pdf/2308.02618 | Benchmarked GPT-3.5/GPT-4 on GTFS data comprehension tasks |
 
-**Bottom line:** GTFS Malaysia (data.gov.my) has **no Q3+/B+ publications**. Only one ScienceDirect paper (2025) uses GTFS Static for accessibility analysis. **Zero publications** found using GTFS-RT vehicle positions for data quality evaluation. This makes StreamDQ's GTFS-RT validation component **novel** — but also means no prior benchmark to compare against.
+**Bottom line:** GTFS Malaysia (data.gov.my) has **no Q3+/B+ publications**. Only one ScienceDirect paper (2025) uses GTFS Static for accessibility analysis. **Zero publications** found using GTFS-RT vehicle positions for data quality evaluation. This makes ContextAware-DQ's GTFS-RT validation component **novel** — but also means no prior benchmark to compare against.
 
 ### 2.4 Known Data Quality Issues with GTFS-RT
 
@@ -138,7 +138,7 @@ GTFS-RT VehiclePosition entity contains:
 | **Format** | CSV |
 | **Streaming Evaluation?** | YES — designed for streaming with early-detection scoring |
 
-**Transportation content:** NAB includes real-world traffic data from Twin Cities Metro (Minnesota) with labeled anomalies. This is the **closest** transportation-specific benchmark in the NAB corpus. However, the traffic data is **aggregated time-series** (not per-vehicle GPS events), making it unsuitable for event-level data quality validation like StreamDQ requires.
+**Transportation content:** NAB includes real-world traffic data from Twin Cities Metro (Minnesota) with labeled anomalies. This is the **closest** transportation-specific benchmark in the NAB corpus. However, the traffic data is **aggregated time-series** (not per-vehicle GPS events), making it unsuitable for event-level data quality validation like ContextAware-DQ requires.
 
 ### 3.2 SCAR — Streaming Anomaly Benchmark
 
@@ -189,7 +189,7 @@ GTFS-RT VehiclePosition entity contains:
 | **Labeled Anomalies?** | YES — manually labeled by 3 volunteers; anomaly ratio 2.89%–7.25% |
 | **Format** | Proprietary (partitioned by source-destination cell pairs) |
 
-**Note:** iBAT is a **trajectory anomaly detection** benchmark (detecting fraudulent GPS routes), not a **data quality** benchmark. It validates that a taxi trajectory deviates from expected routes — a different task from StreamDQ's rule-based data quality validation.
+**Note:** iBAT is a **trajectory anomaly detection** benchmark (detecting fraudulent GPS routes), not a **data quality** benchmark. It validates that a taxi trajectory deviates from expected routes — a different task from ContextAware-DQ's rule-based data quality validation.
 
 ### 3.6 AnoLT — Anomaly Labeled Traffic Dataset
 
@@ -204,7 +204,7 @@ GTFS-RT VehiclePosition entity contains:
 | **Labeled Anomalies?** | YES — manually labeled point and subsequence anomalies |
 | **Format** | Time series (aggregated volume per sensor per time interval) |
 
-**Note:** AnoLT is the closest transportation-domain labeled dataset, but it's **aggregated traffic counts** (vehicles per 5-min interval per sensor), not **per-event taxi trips or per-vehicle GPS positions**. Not directly comparable to StreamDQ's use case.
+**Note:** AnoLT is the closest transportation-domain labeled dataset, but it's **aggregated traffic counts** (vehicles per 5-min interval per sensor), not **per-event taxi trips or per-vehicle GPS positions**. Not directly comparable to ContextAware-DQ's use case.
 
 ---
 
@@ -280,9 +280,9 @@ Research does NOT rely on a single "most popular" GTFS feed. Instead, researcher
 - **No benchmark** measuring precision/recall of rule-based DQ validation on streaming taxi/transit data
 - **No GTFS-RT benchmark** with ground-truth labeled anomalies for vehicle position validation
 
-### 6.2 Existing Benchmarks Are Wrong Fit for StreamDQ
+### 6.2 Existing Benchmarks Are Wrong Fit for ContextAware-DQ
 
-| Benchmark | Why It Doesn't Fit StreamDQ |
+| Benchmark | Why It Doesn't Fit ContextAware-DQ |
 |-----------|---------------------------|
 | **NAB** | Traffic data is aggregated time-series, not per-event records; no GPS-level anomalies |
 | **SCAR** | Synthesizes from UCI datasets; no transportation domain; evaluates AD algorithms, not DQ rules |
@@ -293,13 +293,13 @@ Research does NOT rely on a single "most popular" GTFS feed. Instead, researcher
 
 ### 6.3 GTFS-RT Research Is Descriptive, Not Evaluative
 
-All GTFS-RT quality papers **describe** data quality issues (missing fields, spatial drift). **None** evaluate whether a rule-based system can detect these issues with precision/recall metrics. This is exactly StreamDQ's contribution — but it means StreamDQ operates in a **research gap** with no established benchmark for comparison.
+All GTFS-RT quality papers **describe** data quality issues (missing fields, spatial drift). **None** evaluate whether a rule-based system can detect these issues with precision/recall metrics. This is exactly ContextAware-DQ's contribution — but it means ContextAware-DQ operates in a **research gap** with no established benchmark for comparison.
 
 ---
 
 ## 7. Summary Table
 
-| Dataset | Q3+/B+ Papers? | Transportation? | Labeled Anomalies? | Streaming? | Accessibility | Directly Comparable to StreamDQ? |
+| Dataset | Q3+/B+ Papers? | Transportation? | Labeled Anomalies? | Streaming? | Accessibility | Directly Comparable to ContextAware-DQ? |
 |---------|---------------|-----------------|-------------------|------------|---------------|--------------------------------|
 | NYC TLC Yellow Taxi | YES (VLDB, KDD, SIGMOD, CIKM, ICDE) | YES (taxi trips) | NO (raw data only) | YES (can be streamed) | Public, Parquet | PARTIAL — rich features but no labeled anomalies for DQ evaluation |
 | GTFS Malaysia (data.gov.my) | NO | YES (transit) | NO | YES (30s updates) | CC BY 4.0, API | NO — no prior research using this specific feed |
@@ -313,24 +313,24 @@ All GTFS-RT quality papers **describe** data quality issues (missing fields, spa
 
 ---
 
-## 8. Recommendations for StreamDQ Paper
+## 8. Recommendations for ContextAware-DQ Paper
 
 ### 8.1 Positioning NYC TLC in the Paper
 
 - **Context:** NYC TLC is a **well-established Q3+/B+ dataset** — cite VLDB/PVLDB papers using it (Shankar et al. 2022, Wu et al. 2025)
-- **Limitations:** Those papers use TLC for ML/prediction tasks, NOT data quality validation. This is a gap StreamDQ fills.
-- **StreamDQ's contribution:** Uses TLC for **evaluating data quality rules** with ground-truth anomaly injection — a different use case from prior work.
+- **Limitations:** Those papers use TLC for ML/prediction tasks, NOT data quality validation. This is a gap ContextAware-DQ fills.
+- **ContextAware-DQ's contribution:** Uses TLC for **evaluating data quality rules** with ground-truth anomaly injection — a different use case from prior work.
 
 ### 8.2 Positioning GTFS Malaysia in the Paper
 
 - **Honest claim:** GTFS Malaysia has **no Q3+/B+ publications**. Only one ScienceDirect accessibility paper (2025).
-- **StreamDQ's contribution:** First academic system to validate GTFS-RT vehicle position data quality with rule-based DQ detection.
-- **Cite:** Wong (2025) arXiv for GTFS-RT quality methodology, but note StreamDQ focuses on **detecting** anomalies vs. Wong's **measuring** drift.
+- **ContextAware-DQ's contribution:** First academic system to validate GTFS-RT vehicle position data quality with rule-based DQ detection.
+- **Cite:** Wong (2025) arXiv for GTFS-RT quality methodology, but note ContextAware-DQ focuses on **detecting** anomalies vs. Wong's **measuring** drift.
 
 ### 8.3 Benchmark Comparison
 
 - **Don't claim** NYC TLC is "the standard benchmark" for streaming DQ — it's not. It's a well-known dataset reused for this purpose.
-- **Cite** NAB, SCAR, Exathlon as context for streaming AD benchmarks, but clearly distinguish: those evaluate **algorithm performance**, StreamDQ evaluates **data quality rule precision/recall**.
+- **Cite** NAB, SCAR, Exathlon as context for streaming AD benchmarks, but clearly distinguish: those evaluate **algorithm performance**, ContextAware-DQ evaluates **data quality rule precision/recall**.
 - **Cite** iBAT and AnoLT for transportation-domain labeled datasets, but note the task difference (trajectory fraud / traffic anomaly vs. rule-based DQ).
 
 ---

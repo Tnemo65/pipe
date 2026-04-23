@@ -24,7 +24,7 @@ The combination of IDEA-NEW-2 and IDEA-05 is **confirmed as complete and mutuall
 
 ### Why This Combination Works
 
-The StreamDQ codebase already has the context-aware infrastructure (discovered during orchestrator analysis). IDEA-05's contribution is not building new components — it is **wiring the existing `ContextAwareAdaptiveThresholdEngine` and `ContextRegistry` into the rule engine and TQS layer**. This reduces the implementation from a 12-week build to an 8-week integration.
+The ContextAware-DQ codebase already has the context-aware infrastructure (discovered during orchestrator analysis). IDEA-05's contribution is not building new components — it is **wiring the existing `ContextAwareAdaptiveThresholdEngine` and `ContextRegistry` into the rule engine and TQS layer**. This reduces the implementation from a 12-week build to an 8-week integration.
 
 The result chain:
 
@@ -241,7 +241,7 @@ Explainable quality reporting (IDEA-NEW-2)
 
 **A. "A Context-Aware Framework for Streaming Data Quality Monitoring: Hierarchical Context Calibration and Trajectory Quality Scoring"**
 
-Strongest option. "Context-Aware" is front-and-center (matching the title). "Hierarchical Context Calibration" names the key methodological contribution (L0-L4 fallback with physics priors). "Trajectory Quality Scoring" connects to T-Assess (VLDB 2025). The three key words — Context-Aware, Hierarchical, Trajectory Quality Scoring — each map to a distinct thesis contribution.
+Strongest option. "Context-Aware" is front-and-center (matching the title). "Hierarchical Context Calibration" names the key methodological contribution (L0-L4 fallback with physics priors). "Trajectory Quality Scoring" connects to T-Assess (under review at VLDB 2025). The three key words — Context-Aware, Hierarchical, Trajectory Quality Scoring — each map to a distinct thesis contribution.
 
 **B. "Explainable Streaming Data Quality for GPS Trajectories: Context-Aware Thresholds with Hierarchical Fallback"**
 
@@ -291,7 +291,7 @@ Revised from 12 weeks (original IDEA-05 estimate) to **8 weeks** because all cor
 - IDEA-NEW-2 cannot proceed as designed
 - Fallback: Implement simplified TQS without T-Assess dependency
   - Use equal weights across 4 dimensions (Validity, Consistency, Completeness, Plausibility)
-  - No T-Assess API call; TQS computed from StreamDQ violations only
+  - No T-Assess API call; TQS computed from ContextAware-DQ violations only
   - Grade impact: A- (integration novelty lost, but still novel domain application)
   - Title: "Context-Aware Streaming Data Quality Monitoring" still valid with IDEA-05 alone
 

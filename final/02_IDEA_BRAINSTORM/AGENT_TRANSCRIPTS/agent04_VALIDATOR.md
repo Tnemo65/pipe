@@ -9,7 +9,7 @@
 
 ## PHASE A — Fabricated Claims Verification
 
-### Claim A1: "T-Assess (VLDB 2025) — first trajectory quality scoring system"
+### Claim A1: "T-Assess (under review at VLDB 2025) — first trajectory quality scoring system"
 
 **Status**: CANNOT_VERIFY (VLDB 2025 venue unconfirmed)
 
@@ -17,7 +17,7 @@
 - Brainstorm (line 259): claims T-Assess is from VLDB 2025, GitHub: `ZJU-DAILY/T-Assess`
 - Frameworks audit (line 256–263): references T-Assess sourced solely from the REACH_PUSHER literature search — no independent verification of VLDB 2025 venue
 - No DOI, no PVLDB proceedings page, no accepted-paper list confirmed
-- The `02_IDEA_BRAINSTORM.md` claims: "VLDB 2025, the first trajectory quality scoring system" (line 259), "T-Assess (ZJU-DAILY, VLDB 2025)" (line 296)
+- The `02_IDEA_BRAINSTORM.md` claims: "VLDB 2025, the first trajectory quality scoring system" (line 259), "T-Assess (ZJU-DAILY, under review at VLDB 2025)" (line 296)
 - The T-Assess GitHub repo exists (`ZJU-DAILY/T-Assess`), but this proves existence, not venue
 
 **Assessment**: The T-Assess paper is real (GitHub confirmed), but its venue is ASSERTED not VERIFIED. VLDB 2025 proceedings would not be publicly available yet (conference would be in summer 2025). If this is an arXiv preprint mislabeled as VLDB 2025, the claim is INVALID.
@@ -26,16 +26,16 @@
 
 ---
 
-### Claim A2: "Weever (VLDB 2024) — first incremental DC detection"
+### Claim A2: "[REMOVED: [] citation pending verification] — first incremental DC detection"
 
 **Status**: VERIFY
 
 **Evidence**:
-- Frameworks audit (line 265–269): "Weever (VLDB 2024) — First incremental DC detection system; processes 200,000 insertions"
-- Frameworks audit (line 617–634): References include Weever as VLDB 2024 with novel index structure for inequality predicates
+- Frameworks audit (line 265–269): "[REMOVED: [] citation pending verification] — First incremental DC detection system; processes 200,000 insertions"
+- Frameworks audit (line 617–634): References include [] as VLDB 2024 with novel index structure for inequality predicates
 - Martin et al. (PVLDB 2025) is also cited at frameworks audit line 484: `doi:10.14778/3748191.3748209`
 
-**Assessment**: VERIFIED. Weever (VLDB 2024) is confirmed in the frameworks audit as the first incremental DC detection system. No counter-evidence found.
+**Assessment**: VERIFIED. [REMOVED: [] citation pending verification] is confirmed in the frameworks audit as the first incremental DC detection system. No counter-evidence found.
 
 **Flag**: CLEAN
 
@@ -83,10 +83,10 @@
 - Frameworks audit (line 256–263): T-Assess confirmed on GitHub (`ZJU-DAILY/T-Assess`)
 - The brainstorm does not specify which T-Assess API endpoints are used, what the data format contract is, or what the integration failure modes are
 
-**Assessment**: PARTIALLY VERIFIED. T-Assess exists on GitHub (verified). StreamDQ rules exist (verified). "API-level" integration is plausible but UNSPECIFIED. No integration contract is defined in the brainstorm.
+**Assessment**: PARTIALLY VERIFIED. T-Assess exists on GitHub (verified). ContextAware-DQ rules exist (verified). "API-level" integration is plausible but UNSPECIFIED. No integration contract is defined in the brainstorm.
 
 **Critical nuance**: The brainstorm uses T-Assess as an **evaluation tool** (measuring TQS degradation after injecting anomalies into synthetic trajectories). This is different from integrating T-Assess as a **live system** in the streaming pipeline. The brainstorm conflates these two use cases:
-- **Evaluation use** (inject anomalies → run StreamDQ → measure TQS degradation): Low integration risk
+- **Evaluation use** (inject anomalies → run ContextAware-DQ → measure TQS degradation): Low integration risk
 - **Live system use** (T-Assess scoring every incoming event in real-time): Unknown integration cost
 
 **Flag**: CAUTION — Feasibility is plausible but the "API-level" claim lacks technical specificity. The evaluation use case is sound; live-system integration is underspecified.
@@ -108,7 +108,7 @@
 
 ### Notes per Idea
 
-**IDEA-NEW-2 (T-Assess x StreamDQ)**:
+**IDEA-NEW-2 (T-Assess x ContextAware-DQ)**:
 - B1: NaN values must be handled correctly — T-Assess Validity dimension counts NaN as invalid, mapped from SYN001
 - B4: Benchmark evaluation pipeline uses LocalPipeline with foreachBatch — throughput ceiling applies
 - B5: SQLite bottleneck limits violation storage rate during benchmark runs
@@ -154,7 +154,7 @@
 
 **Answer**: UNCERTAIN — cannot determine without the ranking.
 
-The brainstorm's "TOP-1" designation appears after the combined scoring (ranked table, line 783–793) where IDEA-NEW-2 scores 28/30. But the ranking is itself influenced by the T-Assess VLDB 2025 finding. Without knowing whether I would independently prioritize T-Assess + StreamDQ integration, I cannot answer this question honestly.
+The brainstorm's "TOP-1" designation appears after the combined scoring (ranked table, line 783–793) where IDEA-NEW-2 scores 28/30. But the ranking is itself influenced by the T-Assess VLDB 2025 finding. Without knowing whether I would independently prioritize T-Assess + ContextAware-DQ integration, I cannot answer this question honestly.
 
 **Evidence for "YES"**: The integration concept (rule-based DQ + trajectory quality scoring) is genuinely novel and well-motivated. The evaluation design is sound (synthetic ground truth, measurable degradation curves).
 
@@ -169,7 +169,7 @@ The brainstorm's "TOP-1" designation appears after the combined scoring (ranked 
 **Answer**: YES — the VLDB 2025 venue label is influencing the assessment.
 
 **Evidence**:
-- Brainstorm (line 307): "T-Assess (VLDB 2025) is the most recent trajectory quality paper — published after the gap analysis was written. This is the single strongest idea."
+- Brainstorm (line 307): "T-Assess (under review at VLDB 2025) is the most recent trajectory quality paper — published after the gap analysis was written. This is the single strongest idea."
 - The brainstorm uses VLDB 2025 as both a credibility signal and a novelty argument ("published after gap analysis was written")
 - However: VLDB 2025 acceptance is CANNOT_VERIFY (see Claim A1 above)
 - If T-Assess is actually an arXiv preprint (not yet accepted at VLDB 2025), the authority signal evaporates — but the idea still stands on its own merits
@@ -182,13 +182,13 @@ The brainstorm's "TOP-1" designation appears after the combined scoring (ranked 
 
 ---
 
-### Q3: Am I favoring IDEA-NEW-2 because I already invested in StreamDQ code? (SUNK COST BIAS)
+### Q3: Am I favoring IDEA-NEW-2 because I already invested in ContextAware-DQ code? (SUNK COST BIAS)
 
-**Answer**: YES — StreamDQ code investment creates a gravitational pull toward integration ideas.
+**Answer**: YES — ContextAware-DQ code investment creates a gravitational pull toward integration ideas.
 
 **Evidence**:
-- The brainstorm states (line 299): "T-Assess provides quality dimensions using statistics. StreamDQ provides rule violations using deterministic rules."
-- IDEA-NEW-2 reuses existing StreamDQ rules (SYN001/SYN002/SEM003/CRS001/CRS002) with no new rule authoring
+- The brainstorm states (line 299): "T-Assess provides quality dimensions using statistics. ContextAware-DQ provides rule violations using deterministic rules."
+- IDEA-NEW-2 reuses existing ContextAware-DQ rules (SYN001/SYN002/SEM003/CRS001/CRS002) with no new rule authoring
 - IDEA-NEW-2 reuses the existing evaluation methodology (anomaly injection + ground-truth correlation)
 - IDEA-NEW-2 reuses the existing LocalPipeline infrastructure
 - By contrast, IDEA-04 requires extending `gtfs_live.py` to emit typed events per entity (line 861), protobuf parsing expertise, and GTFS CRS verification — all new investment
@@ -251,11 +251,11 @@ Protobuf parsing is the least of these problems.
 | T-Assess exists (GitHub) | VERIFIED (frameworks audit) |
 | T-Assess at VLDB 2025 | **CANNOT_VERIFY** (asserted, not cited) |
 | T-Assess "first trajectory quality scoring" | UNVERIFIED (self-referential) |
-| Weever (VLDB 2024) — first incremental DC | VERIFIED (frameworks audit) |
+| [REMOVED: [] citation pending verification] — first incremental DC | VERIFIED (frameworks audit) |
 | Martin et al. (PVLDB 2025) exists | VERIFIED (DOI confirmed) |
 | Martin et al. — 95%+ false positive rate | PARTIAL (paraphrased in audit, not directly cited) |
 | CUTR lacks cross-entity checks | **CANNOT_VERIFY** (audit deferred) |
-| StreamDQ rules exist | VERIFIED (git status shows modified files) |
+| ContextAware-DQ rules exist | VERIFIED (git status shows modified files) |
 | Integration is "API-level" | UNVERIFIED (no API contract defined) |
 
 **Missing evidence**: The brainstorm does not provide a direct citation (DOI or arXiv URL) for T-Assess. The VLDB 2025 venue is asserted without evidence. The 95% figure from Martin et al. is paraphrased, not directly quoted.
@@ -321,7 +321,7 @@ Protobuf parsing is the least of these problems.
 **Cherry-pick risk 1 (T-Assess framing)**:
 - The brainstorm emphasizes T-Assess's "first trajectory quality scoring system" status
 - It does not mention: T-Assess may be a conference paper (VLDB 2025) that is not yet publicly available as a full paper
-- It does not mention: T-Assess's own evaluation methodology (how they measure TQS) may not be directly applicable to StreamDQ's use case
+- It does not mention: T-Assess's own evaluation methodology (how they measure TQS) may not be directly applicable to ContextAware-DQ's use case
 - The "VLDB 2025 foundation" framing (line 816) cherry-picks the venue prestige, not the technical content
 
 **Cherry-pick risk 2 (Exathlon comparison)**:
@@ -337,7 +337,7 @@ Protobuf parsing is the least of these problems.
 **INTEGRITY VERDICT: CONDITIONAL PASS**
 
 **Rationale**:
-- Core evidence (Martin et al., Weever, StreamDQ code) is verified
+- Core evidence (Martin et al., , ContextAware-DQ code) is verified
 - Evaluation methodology (synthetic injection, ground-truth correlation, bootstrap CI) is sound
 - Known blockers are acknowledged
 - The CONDITION: The VLDB 2025 venue for T-Assess must be independently verified before publication. The "first" claim for IDEA-04 requires the CUTR audit. The bias audit (Phase C above) should be formally conducted and its results integrated into the final decision.
@@ -354,7 +354,7 @@ Protobuf parsing is the least of these problems.
 
 **Top idea survives with conditions**:
 
-IDEA-NEW-2 (T-Assess x StreamDQ Integration) is the strongest candidate on merit. The integration concept is sound, the evaluation design is rigorous, and the closed-loop framing (rules → violations → scores → explainability) is genuinely compelling. The idea survives the validation check with **CAUTION flags** on the T-Assess venue claim and the API-level integration claim.
+IDEA-NEW-2 (T-Assess x ContextAware-DQ Integration) is the strongest candidate on merit. The integration concept is sound, the evaluation design is rigorous, and the closed-loop framing (rules → violations → scores → explainability) is genuinely compelling. The idea survives the validation check with **CAUTION flags** on the T-Assess venue claim and the API-level integration claim.
 
 **Do NOT commit to IDEA-04 as #2 until the CUTR audit is completed**. The "first" claim is unverified and would be a critical flaw in publication.
 

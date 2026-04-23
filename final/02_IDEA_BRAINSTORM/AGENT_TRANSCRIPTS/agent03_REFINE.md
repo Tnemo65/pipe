@@ -11,7 +11,7 @@
 
 This document scores 6 candidate ideas against the fixed thesis name across 4 dimensions: **Context-Aware**, **Framework**, **Streaming**, and **Data Quality Monitoring**. Scoring is strict and evidence-based. Only ideas scoring ≥10/12 are flagged as EXCELLENT FIT; ≤7/12 are flagged as POOR FIT.
 
-**Top Finding**: IDEA-NEW-2 (T-Assess × StreamDQ Integration) scores **12/12** — the only idea that fully satisfies all four dimensions. IDEA-07 (Benchmark) scores **10/12** — EXCELLENT FIT as a framework contribution. The remaining four ideas score 8-9/12 — MEDIUM FIT with significant scoping gaps.
+**Top Finding**: IDEA-NEW-2 (T-Assess × ContextAware-DQ Integration) scores **12/12** — the only idea that fully satisfies all four dimensions. IDEA-07 (Benchmark) scores **10/12** — EXCELLENT FIT as a framework contribution. The remaining four ideas score 8-9/12 — MEDIUM FIT with significant scoping gaps.
 
 ---
 
@@ -28,15 +28,15 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 ---
 
-### IDEA-NEW-2: T-Assess × StreamDQ Integration
+### IDEA-NEW-2: T-Assess × ContextAware-DQ Integration
 
-**What it is**: Integrate T-Assess (VLDB 2025) trajectory quality scoring with StreamDQ's SYN/SEM/CRS rule taxonomy. Rule violations map to quality dimensions; quality scores aggregate violations.
+**What it is**: Integrate T-Assess (under review at VLDB 2025) trajectory quality scoring with ContextAware-DQ's SYN/SEM/CRS rule taxonomy. Rule violations map to quality dimensions; quality scores aggregate violations.
 
 | Component | Score | Evidence |
 |-----------|-------|----------|
-| **Context-Aware** | **3** | T-Assess quality dimensions (validity, completeness, consistency, fairness) are inherently contextual — they aggregate rule violations by dimension. StreamDQ's adaptive engine (rolling P10/P90) provides threshold context. Together: context-aware quality scoring. |
-| **Framework** | **3** | Full integration of two systems: StreamDQ rule engine + T-Assess scoring layer + dimension mapper. Multiple components: rules, violations, dimension mapper, TQS aggregator, confidence scorer. |
-| **Streaming** | **3** | StreamDQ is Spark Structured Streaming. T-Assess explicitly supports "online (real-time stream) evaluation." Both systems are streaming-native. |
+| **Context-Aware** | **3** | T-Assess quality dimensions (validity, completeness, consistency, fairness) are inherently contextual — they aggregate rule violations by dimension. ContextAware-DQ's adaptive engine (rolling P10/P90) provides threshold context. Together: context-aware quality scoring. |
+| **Framework** | **3** | Full integration of two systems: ContextAware-DQ rule engine + T-Assess scoring layer + dimension mapper. Multiple components: rules, violations, dimension mapper, TQS aggregator, confidence scorer. |
+| **Streaming** | **3** | ContextAware-DQ is Spark Structured Streaming. T-Assess explicitly supports "online (real-time stream) evaluation." Both systems are streaming-native. |
 | **Data Quality Monitoring** | **3** | Core DQ: rules detect violations, violations degrade TQS, TQS explains quality. Explicit violation reporting + quality scoring + confidence signal = full DQ monitoring. |
 
 **Total: 12/12 — EXCELLENT FIT**
@@ -75,7 +75,7 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 | Component | Score | Evidence |
 |-----------|-------|----------|
 | **Context-Aware** | **2** | Cross-entity validation requires spatial-temporal context (vehicle position must match trip schedule). But the rules themselves are static — no adaptive thresholds or contextual fallback. Partially context-aware via GTFS static reference joins. |
-| **Framework** | **2** | Requires multiple components: protobuf parser, entity correlator, consistency checker, violation reporter. But these are extensions of the existing StreamDQ engine, not a full framework. Partial framework. |
+| **Framework** | **2** | Requires multiple components: protobuf parser, entity correlator, consistency checker, violation reporter. But these are extensions of the existing ContextAware-DQ engine, not a full framework. Partial framework. |
 | **Streaming** | **3** | Streaming-native GTFS-RT validation. CRS pre-investigation requires Spark Structured Streaming. Explicitly streaming. |
 | **Data Quality Monitoring** | **2** | Core DQ validation — but limited to cross-entity consistency checking. No quality scoring, no confidence aggregation, no explainability layer. Partial DQ monitoring. |
 
@@ -83,7 +83,7 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 **Scoping diagnosis**: OVERSCOPED in novelty, UNDERSCOPED in framework breadth. The idea is too narrow (only GTFS-RT cross-entity validation) to be a full "framework" contribution, yet the engineering complexity (protobuf + multi-stream correlation) is high.
 
-**Scoping recommendation**: Reduce to a **rule type** within the StreamDQ framework rather than a standalone idea. Express cross-entity checks as CRS rules (CRS-EXT-001: VehiclePosition ↔ TripUpdate consistency, CRS-EXT-002: TripUpdate ↔ Alert consistency). Implement as 2-3 rules in the existing CRS module. This keeps the novel contribution (cross-entity validation for GTFS-RT) while reducing scope to fit the framework model.
+**Scoping recommendation**: Reduce to a **rule type** within the ContextAware-DQ framework rather than a standalone idea. Express cross-entity checks as CRS rules (CRS-EXT-001: VehiclePosition ↔ TripUpdate consistency, CRS-EXT-002: TripUpdate ↔ Alert consistency). Implement as 2-3 rules in the existing CRS module. This keeps the novel contribution (cross-entity validation for GTFS-RT) while reducing scope to fit the framework model.
 
 **Title fit**: "A Context-Aware Framework for Streaming Data Quality Monitoring: Cross-Entity Consistency Validation for GTFS Realtime" — works if scoped as rules, not a standalone system.
 
@@ -112,13 +112,13 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 ### IDEA-NEW-3: Incremental DCs for GPS
 
-**What it is**: Express StreamDQ CRS rules as formal Denial Constraints (DCs), use Weever (VLDB 2024) incremental detection framework adapted for GPS-specific predicates.
+**What it is**: Express ContextAware-DQ CRS rules as formal Denial Constraints (DCs), use [REMOVED: [] citation pending verification] incremental detection framework adapted for GPS-specific predicates.
 
 | Component | Score | Evidence |
 |-----------|-------|----------|
 | **Context-Aware** | **2** | DCs are declarative constraints — they express *what* must hold, not *when* or *how*. Incremental DC enforcement is context-sensitive (previous state matters), but there is no adaptive threshold or contextual fallback. Partially context-aware. |
 | **Framework** | **2** | DC parser + DC evaluator + GPS predicate optimizer + violation reporter. Multiple components, but they are tightly coupled to the DC engine — not a broadly reusable framework. Partial framework. |
-| **Streaming** | **3** | Weever (VLDB 2024) is explicitly an incremental streaming DC detection system. GPS adaptation maintains streaming semantics. |
+| **Streaming** | **3** | [REMOVED: [] citation pending verification] is explicitly an incremental streaming DC detection system. GPS adaptation maintains streaming semantics. |
 | **Data Quality Monitoring** | **2** | Formal DC enforcement is a rigorous form of DQ validation. But the contribution is the *formalization* of GPS rules as DCs, not a full DQ monitoring pipeline with scoring and reporting. |
 
 **Total: 9/12 — MEDIUM FIT (OVERSCO**)
@@ -146,7 +146,7 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 **Scoping diagnosis**: UNDERSCOPED. IDEA-05 activates Context-Aware and Streaming perfectly, but scores only 1/3 on Framework. A single calibration method cannot carry the "Framework" label in a thesis title.
 
-**Scoping recommendation**: Combine IDEA-05 with IDEA-NEW-2 (T-Assess × StreamDQ). The T-Assess integration provides the framework; IDEA-05's contextual calibration provides the context-aware thresholds within that framework. IDEA-05 becomes the **threshold calibration module** of the integrated system.
+**Scoping recommendation**: Combine IDEA-05 with IDEA-NEW-2 (T-Assess × ContextAware-DQ). The T-Assess integration provides the framework; IDEA-05's contextual calibration provides the context-aware thresholds within that framework. IDEA-05 becomes the **threshold calibration module** of the integrated system.
 
 **Title fit**: Cannot serve as standalone primary idea. Must be embedded within a framework idea.
 
@@ -169,12 +169,12 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 ## Phase B — Scoping Recommendations
 
-### IDEA-NEW-2: T-Assess × StreamDQ Integration — EXCELLENT FIT
+### IDEA-NEW-2: T-Assess × ContextAware-DQ Integration — EXCELLENT FIT
 
 **Status**: No scope change needed. Fully scoped.
 
 **Recommended scope boundaries**:
-- **In scope**: StreamDQ → T-Assess dimension mapper, TQS aggregation (validity, completeness, consistency, fairness), quality degradation curves, confidence scoring, synthetic ground truth evaluation with bootstrap CI
+- **In scope**: ContextAware-DQ → T-Assess dimension mapper, TQS aggregation (validity, completeness, consistency, fairness), quality degradation curves, confidence scoring, synthetic ground truth evaluation with bootstrap CI
 - **Out of scope**: Modifying T-Assess internals, distributed TQS computation, user study for operator usefulness
 - **Pre-registration required**: TQS weighting scheme (define 3 variants a priori; do not select post-hoc without correction)
 
@@ -186,8 +186,8 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 **Recommended scope boundaries**:
 - **In scope**: NYC TLC replay harness, GTFS-RT synthetic generator, NUMOSIM → DQ rule type mapping (must be explicit), precision/recall/latency metrics, reproducibility documentation
-- **Out of scope**: Community adoption, interactive dashboard, multi-framework comparison (StreamDQ only for initial version)
-- **Critical gap**: The benchmark measures DQ quality but does not itself demonstrate "Context-Aware." Recommend including IDEA-05's contextual calibration as a benchmarked component — i.e., "evaluate StreamDQ with and without contextual calibration on the benchmark."
+- **Out of scope**: Community adoption, interactive dashboard, multi-framework comparison (ContextAware-DQ only for initial version)
+- **Critical gap**: The benchmark measures DQ quality but does not itself demonstrate "Context-Aware." Recommend including IDEA-05's contextual calibration as a benchmarked component — i.e., "evaluate ContextAware-DQ with and without contextual calibration on the benchmark."
 
 ---
 
@@ -212,11 +212,11 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 **Status**: Promote to threshold calibration module within IDEA-NEW-2.
 
 **Recommended scope boundaries**:
-- **Reduce to**: Threshold calibration module for StreamDQ
+- **Reduce to**: Threshold calibration module for ContextAware-DQ
   - Multi-dimensional context cells (time-of-day × day-of-week × road type)
   - Hierarchical fallback: context-rich → context-poor → physics prior
   - Ablation: contextual vs. static vs. rolling thresholds
-- **Embed within**: IDEA-NEW-2 (T-Assess × StreamDQ) as the threshold adaptation layer
+- **Embed within**: IDEA-NEW-2 (T-Assess × ContextAware-DQ) as the threshold adaptation layer
 - **Out of scope**: Standalone deployment, distributed context store
 
 **Title fit**: Works as "Contextual Threshold Calibration" within the framework, not as a standalone contribution.
@@ -230,7 +230,7 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 **Recommended scope boundaries**:
 - **Reduce to**: Formal DC expression of CRS001 (speed) and CRS002 (GPS jump) as evaluation comparison — "formal DC enforcement vs. procedural GPS rules"
 - **Timeline**: Phase 2, after IDEA-NEW-2 and IDEA-07 are validated
-- **Out of scope**: Full Weever implementation, distributed DC engine
+- **Out of scope**: Full [] implementation, distributed DC engine
 
 ---
 
@@ -285,16 +285,16 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 ### Combination 4: IDEA-NEW-2 + IDEA-07
 
-**Compatible?** YES — IDEA-07 (Benchmark) is the evaluation infrastructure; IDEA-NEW-2 (T-Assess × StreamDQ) is the system being evaluated. The benchmark measures IDEA-NEW-2's performance.
+**Compatible?** YES — IDEA-07 (Benchmark) is the evaluation infrastructure; IDEA-NEW-2 (T-Assess × ContextAware-DQ) is the system being evaluated. The benchmark measures IDEA-NEW-2's performance.
 
 **Timeline overlap?** YES — IDEA-07 must be built first (evaluation infrastructure). IDEA-NEW-2 uses IDEA-07 as its evaluation harness.
 
 **Framing fit?** EXCELLENT — This is the natural thesis structure:
 - IDEA-07: "We build a benchmark for streaming transportation DQ"
-- IDEA-NEW-2: "We evaluate our T-Assess × StreamDQ integration on this benchmark"
+- IDEA-NEW-2: "We evaluate our T-Assess × ContextAware-DQ integration on this benchmark"
 - The benchmark is both the evaluation methodology AND a standalone durable contribution
 
-**Recommended**: Build IDEA-07 first (Phase 1), then use it to evaluate IDEA-NEW-2 (Phase 2). The thesis has two contributions: (1) benchmark infrastructure, (2) T-Assess × StreamDQ integration evaluated on the benchmark.
+**Recommended**: Build IDEA-07 first (Phase 1), then use it to evaluate IDEA-NEW-2 (Phase 2). The thesis has two contributions: (1) benchmark infrastructure, (2) T-Assess × ContextAware-DQ integration evaluated on the benchmark.
 
 ---
 
@@ -311,7 +311,7 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 ## Phase D — Title Recommendation
 
-### TOP IDEA: IDEA-NEW-2 (T-Assess × StreamDQ Integration)
+### TOP IDEA: IDEA-NEW-2 (T-Assess × ContextAware-DQ Integration)
 
 **Recommended Thesis/Paper Title**:
 
@@ -323,11 +323,11 @@ This document scores 6 candidate ideas against the fixed thesis name across 4 di
 
 **Rationale for primary title**:
 1. "Context-Aware" — T-Assess quality dimensions (validity, completeness, consistency, fairness) are inherently contextual aggregations of rule violations. IDEA-05's contextual calibration adds threshold context.
-2. "Framework" — Full integration of: StreamDQ rule engine → violation detector → dimension mapper → TQS aggregator → confidence scorer. Multiple components, not a single method.
+2. "Framework" — Full integration of: ContextAware-DQ rule engine → violation detector → dimension mapper → TQS aggregator → confidence scorer. Multiple components, not a single method.
 3. "Streaming Data Quality Monitoring" — Rules detect violations in real-time; violations degrade TQS; TQS explains quality. Full closed-loop monitoring pipeline.
 4. "Integrating Rule-Based Validation with Trajectory Quality Scoring" — Explicitly names the novel integration (rule-based DQ + statistical quality scoring) as the contribution.
 
-**Why not shorter**: The integration contribution is the key differentiator. A generic title ("Context-Aware Streaming DQ Framework for Transportation") obscures the novel T-Assess × StreamDQ integration, which is the VLDB 2025-grounded contribution.
+**Why not shorter**: The integration contribution is the key differentiator. A generic title ("Context-Aware Streaming DQ Framework for Transportation") obscures the novel T-Assess × ContextAware-DQ integration, which is the VLDB 2025-grounded contribution.
 
 ---
 
@@ -351,9 +351,9 @@ IDEA-NEW-2 is the only idea that:
 
 ### Finding 3: IDEA-07 and IDEA-NEW-2 Are Naturally Complementary
 
-IDEA-07 (Benchmark) and IDEA-NEW-2 (T-Assess × StreamDQ) form a coherent two-contribution thesis:
+IDEA-07 (Benchmark) and IDEA-NEW-2 (T-Assess × ContextAware-DQ) form a coherent two-contribution thesis:
 - **Contribution 1**: Streaming Transportation DQ Benchmark — evaluation methodology as durable infrastructure
-- **Contribution 2**: T-Assess × StreamDQ Integration — system evaluated on the benchmark
+- **Contribution 2**: T-Assess × ContextAware-DQ Integration — system evaluated on the benchmark
 
 This structure provides both a methodology contribution (benchmark) and a systems contribution (integration), satisfying both VLDB systems-track and SIGMOD research-track reviewer expectations.
 

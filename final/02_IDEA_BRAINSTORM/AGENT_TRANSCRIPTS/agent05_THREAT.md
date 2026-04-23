@@ -39,10 +39,10 @@ I distinguish between **component preemption** (competitor has the parts) and **
 - **Domain**: Trajectory data quality scoring — first trajectory quality system
 - **Approach**: Statistical quality dimensions (validity, completeness, consistency, fairness)
 - **Supports**: Both offline and online (real-time stream) evaluation
-- **Key weakness**: No rule-based DQ validation; no GPS-specific rules; no StreamDQ integration
+- **Key weakness**: No rule-based DQ validation; no GPS-specific rules; no ContextAware-DQ integration
 - **Threat level to this thesis**: HIGH for IDEA-NEW-2 (direct overlap), LOW for everything else
 
-#### C3: Weever Team (VLDB 2024)
+#### C3: [] Team (VLDB 2024)
 - **Status**: Published at VLDB 2024
 - **Code**: Not verified on GitHub
 - **Domain**: General databases — no GPS/trajectory domain
@@ -69,19 +69,19 @@ I distinguish between **component preemption** (competitor has the parts) and **
 
 ### Per-Idea Preemption Analysis
 
-#### IDEA-NEW-2: T-Assess x StreamDQ Integration
+#### IDEA-NEW-2: T-Assess x ContextAware-DQ Integration
 
 | Competitor | Preemption Risk | Reasoning |
 |------------|---------------|----------|
 | **Stream DaQ** | LOW | Generic framework; no trajectory quality scoring; would need to independently discover T-Assess integration opportunity |
-| **T-Assess Team** | **HIGH** | They built T-Assess (VLDB 2025). They could trivially extend it with rule-based DQ validation and publish "T-Assess v2" at SIGMOD/VLDB 2026. Their VLDB 2025 paper explicitly supports online evaluation — they have the infrastructure. |
-| **Weever** | LOW | General database focus; no trajectory domain; no integration incentive |
+| **T-Assess Team** | **HIGH** | They built T-Assess (under review at VLDB 2025). They could trivially extend it with rule-based DQ validation and publish "T-Assess v2" at SIGMOD/VLDB 2026. Their VLDB 2025 paper explicitly supports online evaluation — they have the infrastructure. |
+| **** | LOW | General database focus; no trajectory domain; no integration incentive |
 | **Industry** | LOW | No academic publication trajectory; no T-Assess integration interest |
 | **Unknown** | MEDIUM | Could be working on the same integration; most dangerous vector |
 
 **Critical vulnerability**: The T-Assess team has the most direct path to preemption. They authored the first trajectory quality system. Extending it with rule-based DQ validation (SYN/SEM/CRS rules) is a natural next step that they are well-positioned to execute. Their VLDB 2025 paper already supports online evaluation — they just need to add rules.
 
-**Timing sensitivity**: The T-Assess team publishing a streaming extension in September 2026 (5 months from now) would directly preempt IDEA-NEW-2. Even if they don't call it "T-Assess x StreamDQ," the integration of trajectory quality scoring + rule-based validation would be non-novel by December 2026 submission.
+**Timing sensitivity**: The T-Assess team publishing a streaming extension in September 2026 (5 months from now) would directly preempt IDEA-NEW-2. Even if they don't call it "T-Assess x ContextAware-DQ," the integration of trajectory quality scoring + rule-based validation would be non-novel by December 2026 submission.
 
 ---
 
@@ -89,13 +89,13 @@ I distinguish between **component preemption** (competitor has the parts) and **
 
 | Competitor | Preemption Risk | Reasoning |
 |------------|---------------|----------|
-| **Stream DaQ** | LOW | No interest in publishing a benchmark for a competitor's (StreamDQ's) evaluation; they have their own internal metrics |
+| **Stream DaQ** | LOW | No interest in publishing a benchmark for a competitor's (ContextAware-DQ's) evaluation; they have their own internal metrics |
 | **T-Assess** | LOW | T-Assess has their own evaluation; no incentive to build a benchmark for the transportation DQ field |
-| **Weever** | LOW | General database focus; no transportation domain interest |
+| **** | LOW | General database focus; no transportation domain interest |
 | **Industry** | MEDIUM | Grab or Confluent could publish "Transportation Streaming DQ Benchmark" as a blog post, not a paper — but industry blogs don't preempt academic submissions |
 | **Unknown** | LOW | Benchmark papers require significant infrastructure investment; low probability of independent parallel development |
 
-**Assessment**: Benchmark preemption risk is LOW. No competitor has the incentive to build a transportation DQ benchmark specifically for StreamDQ's evaluation. The infrastructure investment is substantial and the academic payoff is modest (benchmarks are cited but rarely win best paper). Stream DaQ and T-Assess have no incentive to build a benchmark that primarily benefits StreamDQ's evaluation.
+**Assessment**: Benchmark preemption risk is LOW. No competitor has the incentive to build a transportation DQ benchmark specifically for ContextAware-DQ's evaluation. The infrastructure investment is substantial and the academic payoff is modest (benchmarks are cited but rarely win best paper). Stream DaQ and T-Assess have no incentive to build a benchmark that primarily benefits ContextAware-DQ's evaluation.
 
 **Key insight**: The benchmark is **defensive infrastructure**, not a competitive idea. It enables the thesis to claim reproducibility and comparative evaluation. Preemption would require a competitor to independently invest in the same infrastructure for their own evaluation — unlikely given their generic domain focus.
 
@@ -107,7 +107,7 @@ I distinguish between **component preemption** (competitor has the parts) and **
 |------------|---------------|----------|
 | **Stream DaQ** | LOW | No GTFS-RT domain interest; would need significant domain expertise investment |
 | **T-Assess** | MEDIUM | T-Assess targets trajectory data broadly; GTFS-RT is a trajectory data source; they could extend to GTFS-RT validation. But their focus is quality scoring, not cross-entity consistency. |
-| **Weever** | LOW | General database focus; no GTFS-RT domain |
+| **** | LOW | General database focus; no GTFS-RT domain |
 | **Industry** | LOW | CUTR validator exists (2018) but is batch/periodic; no streaming cross-entity. Grab/Confluent have no academic paper trajectory. |
 | **Unknown** | MEDIUM | Could be working on GTFS-RT streaming validation; no known prior work |
 
@@ -123,7 +123,7 @@ I distinguish between **component preemption** (competitor has the parts) and **
 |------------|---------------|----------|
 | **Stream DaQ** | MEDIUM | Stream DaQ uses rolling μ±kσ (adaptive thresholds). They could extend to physics-constrained calibration as part of their adaptive threshold methodology. However, their current approach is statistical, not physics-constrained. |
 | **T-Assess** | LOW | T-Assess uses statistical quality dimensions; no physics-constrained calibration interest |
-| **Weever** | LOW | DC detection; no calibration interest |
+| **** | LOW | DC detection; no calibration interest |
 | **Industry** | LOW | No academic publication trajectory |
 | **Unknown** | MEDIUM | Adaptive threshold calibration is a known research area; unknown researcher could independently propose physics-constrained calibration |
 
@@ -139,7 +139,7 @@ I distinguish between **component preemption** (competitor has the parts) and **
 |------------|---------------|----------|
 | **Stream DaQ** | **HIGH** | Stream DaQ uses rolling μ±kσ — this IS contextual calibration by another name. They have adaptive thresholds with contextual adaptation. Adding "transportation-specific context" (rush hour, highway vs. urban) is a small extension. |
 | **T-Assess** | LOW | Statistical quality dimensions; no threshold calibration focus |
-| **Weever** | LOW | DC detection; no calibration interest |
+| **** | LOW | DC detection; no calibration interest |
 | **Industry** | MEDIUM | Grab's LLM-based rule recommendation could extend to contextual threshold adaptation |
 | **Unknown** | MEDIUM | Adaptive threshold calibration is well-studied; could be independently proposed |
 
@@ -155,21 +155,21 @@ I distinguish between **component preemption** (competitor has the parts) and **
 |------------|---------------|----------|
 | **Stream DaQ** | LOW | No DC formalism; keyed checks are not DCs |
 | **T-Assess** | LOW | No DC interest; quality scoring focus |
-| **Weever** | **HIGH** | Weever (VLDB 2024) is the first incremental DC detection system. They could trivially extend to GPS-specific DCs — they have the incremental DC infrastructure, they just need GPS domain expertise. |
+| **** | **HIGH** | [REMOVED: [] citation pending verification] is the first incremental DC detection system. They could trivially extend to GPS-specific DCs — they have the incremental DC infrastructure, they just need GPS domain expertise. |
 | **Industry** | LOW | No DC formalism; no academic trajectory |
 | **Unknown** | MEDIUM | DC research community is active; unknown researcher could propose GPS-specific DCs |
 
-**Assessment**: Preemption risk is HIGH from Weever. Weever published incremental DC detection at VLDB 2024 — the foundational work is done. GPS-specific adaptation is a straightforward domain extension that Weever's team is well-positioned to execute. They would need GPS domain expertise (Haversine distance, GTFS-RT data model), but that's achievable.
+**Assessment**: Preemption risk is HIGH from . [] published incremental DC detection at VLDB 2024 — the foundational work is done. GPS-specific adaptation is a straightforward domain extension that 's team is well-positioned to execute. They would need GPS domain expertise (Haversine distance, GTFS-RT data model), but that's achievable.
 
-**Defensive argument**: The Weever team targets general databases. GPS-specific predicate optimization (Haversine distance, speed constraints) requires domain-specific engineering that may be outside their research agenda. But this is a weak defense — they could collaborate with transportation researchers.
+**Defensive argument**: The [] team targets general databases. GPS-specific predicate optimization (Haversine distance, speed constraints) requires domain-specific engineering that may be outside their research agenda. But this is a weak defense — they could collaborate with transportation researchers.
 
 ---
 
 ## PHASE B — Preemption Risk Matrix
 
-| Idea | Stream DaQ | T-Assess | Weever | Industry | Unknown | AVG RISK |
+| Idea | Stream DaQ | T-Assess | [] | Industry | Unknown | AVG RISK |
 |------|:----------:|:--------:|:------:|:--------:|:-------:|:--------:|
-| **IDEA-NEW-2** (T-Assess x StreamDQ) | LOW | **HIGH** | LOW | LOW | MEDIUM | **MEDIUM-HIGH** |
+| **IDEA-NEW-2** (T-Assess x ContextAware-DQ) | LOW | **HIGH** | LOW | LOW | MEDIUM | **MEDIUM-HIGH** |
 | **IDEA-07** (Benchmark) | LOW | LOW | LOW | MEDIUM | LOW | **LOW** |
 | **IDEA-04** (GTFS-RT Cross-Entity) | LOW | MEDIUM | LOW | LOW | MEDIUM | **LOW-MEDIUM** |
 | **IDEA-02** (Physics-Constrained) | MEDIUM | LOW | LOW | LOW | MEDIUM | **LOW-MEDIUM** |
@@ -180,19 +180,19 @@ I distinguish between **component preemption** (competitor has the parts) and **
 
 | Risk Level | Ideas | Implication |
 |------------|-------|-------------|
-| **HIGH** | IDEA-05 (vs. Stream DaQ), IDEA-NEW-3 (vs. Weever), IDEA-NEW-2 (vs. T-Assess) | These specific competitor-idea pairs have direct preemption paths |
+| **HIGH** | IDEA-05 (vs. Stream DaQ), IDEA-NEW-3 (vs. ), IDEA-NEW-2 (vs. T-Assess) | These specific competitor-idea pairs have direct preemption paths |
 | **MEDIUM** | IDEA-NEW-2 (vs. Unknown), IDEA-02 (vs. Stream DaQ + Unknown), IDEA-05 (vs. Unknown + Industry), IDEA-NEW-3 (vs. Unknown), IDEA-04 (vs. T-Assess + Unknown) | Parallel independent development is plausible |
 | **LOW** | IDEA-07, IDEA-04, IDEA-02 (vs. most competitors) | No direct preemption path identified |
 
 ### Key Findings
 
-1. **IDEA-NEW-2 (T-Assess x StreamDQ)** is the most preemption-prone idea due to T-Assess team having the foundational component (T-Assess itself). The integration with rule-based DQ is novel, but the T-Assess team could extend their own system.
+1. **IDEA-NEW-2 (T-Assess x ContextAware-DQ)** is the most preemption-prone idea due to T-Assess team having the foundational component (T-Assess itself). The integration with rule-based DQ is novel, but the T-Assess team could extend their own system.
 
 2. **IDEA-05 (Contextual Calibration)** is vulnerable to Stream DaQ extending their existing adaptive threshold approach. Stream DaQ's rolling μ±kσ is already contextual — transportation-specific context is an incremental extension.
 
-3. **IDEA-NEW-3 (Incremental DCs for GPS)** is vulnerable to Weever extending to GPS-specific DCs. Weever has the foundational framework; GPS adaptation is domain-specific but not methodologically novel.
+3. **IDEA-NEW-3 (Incremental DCs for GPS)** is vulnerable to [] extending to GPS-specific DCs. [] has the foundational framework; GPS adaptation is domain-specific but not methodologically novel.
 
-4. **IDEA-07 (Benchmark)** is the most defensible idea. No competitor has the incentive to build a transportation DQ benchmark for StreamDQ's evaluation.
+4. **IDEA-07 (Benchmark)** is the most defensible idea. No competitor has the incentive to build a transportation DQ benchmark for ContextAware-DQ's evaluation.
 
 ---
 
@@ -210,9 +210,9 @@ The T-Assess team (ZJU-DAILY, VLDB 2025) has the most direct preemption path:
 
 #### Defense Arguments
 
-**DA1 — Integration Novelty**: The specific integration of T-Assess quality dimensions + StreamDQ SYN/SEM/CRS rules is not obvious from T-Assess alone. T-Assess provides statistical quality dimensions; it has no rule-based DQ validation. The mapping (SYN rules → Validity, CRS rules → Consistency) requires transportation domain knowledge that T-Assess (general trajectory focus) doesn't have.
+**DA1 — Integration Novelty**: The specific integration of T-Assess quality dimensions + ContextAware-DQ SYN/SEM/CRS rules is not obvious from T-Assess alone. T-Assess provides statistical quality dimensions; it has no rule-based DQ validation. The mapping (SYN rules → Validity, CRS rules → Consistency) requires transportation domain knowledge that T-Assess (general trajectory focus) doesn't have.
 
-**DA2 — Evaluation Methodology**: The synthetic ground truth + degradation curve evaluation is specific to StreamDQ's evaluation framework. T-Assess evaluates on real trajectory data without ground truth injection. The evaluation methodology is as much a contribution as the integration itself.
+**DA2 — Evaluation Methodology**: The synthetic ground truth + degradation curve evaluation is specific to ContextAware-DQ's evaluation framework. T-Assess evaluates on real trajectory data without ground truth injection. The evaluation methodology is as much a contribution as the integration itself.
 
 **DA3 — Transportation Focus**: T-Assess targets trajectory data broadly (mobility data, vehicle trajectories). The specific GTFS-RT validation (protobuf parsing, cross-entity consistency, NYC taxi domain rules) is outside T-Assess's scope.
 
@@ -227,7 +227,7 @@ The T-Assess team (ZJU-DAILY, VLDB 2025) has the most direct preemption path:
 
 **MS1 — Race to Publish**: File a preprint (arXiv) by July 2026 at the latest. Establish priority. A preprint establishes priority without peer review and can be updated.
 
-**MS2 — Scope the Integration Narrowly**: Don't claim "T-Assess x StreamDQ Integration" broadly. Claim specifically: "Rule-Based DQ Validation as a Dimension in Trajectory Quality Scoring." The framing as a dimension extension (not a full integration) is more defensible and harder to preempt.
+**MS2 — Scope the Integration Narrowly**: Don't claim "T-Assess x ContextAware-DQ Integration" broadly. Claim specifically: "Rule-Based DQ Validation as a Dimension in Trajectory Quality Scoring." The framing as a dimension extension (not a full integration) is more defensible and harder to preempt.
 
 **MS3 — Publish the Evaluation First**: Submit the evaluation methodology (synthetic injection, degradation curves) as a separate technical report or workshop paper. This establishes priority on the evaluation approach before the full integration is submitted.
 
@@ -265,42 +265,42 @@ Adding "transportation-specific context" (rush hour vs. night, highway vs. urban
 
 **MS1 — Reframe as IDEA-02 (Physics-Constrained)**: IDEA-05 (Contextual Calibration) is more easily preempted than IDEA-02 (Physics-Constrained). The physics constraint is a principled methodological contribution; "contextual calibration" is too close to Stream DaQ's existing approach.
 
-**MS2 — Focus on Evaluation Novelty**: The specific evaluation design (synthetic injection with ground truth, per-context-cell precision/recall, bootstrap CI) is StreamDQ's differentiated contribution. Stream DaQ has no ground-truth evaluation methodology.
+**MS2 — Focus on Evaluation Novelty**: The specific evaluation design (synthetic injection with ground truth, per-context-cell precision/recall, bootstrap CI) is ContextAware-DQ's differentiated contribution. Stream DaQ has no ground-truth evaluation methodology.
 
 **MS3 — Document the Distinction Clearly**: In the paper, explicitly contrast with Stream DaQ's rolling μ±kσ: "Stream DaQ (Papastergios & Gounaris, 2025) uses rolling statistical baselines. We extend this with physics-constrained calibration over transportation-specific context dimensions."
 
 ---
 
-### HIGH Preemption Risk: IDEA-NEW-3 vs. Weever Team
+### HIGH Preemption Risk: IDEA-NEW-3 vs. [] Team
 
 #### Threat Assessment
-Weever (VLDB 2024) is the first incremental DC detection system. The foundational work is done:
-- Weever has incremental DC detection infrastructure
+[REMOVED: [] citation pending verification] is the first incremental DC detection system. The foundational work is done:
+- [] has incremental DC detection infrastructure
 - GPS-specific DCs (speed constraints, Haversine distance) are straightforward to express as formal DCs
-- The Weever team could collaborate with transportation researchers to extend to GPS
+- The [] team could collaborate with transportation researchers to extend to GPS
 
-The threat is real but weaker than T-Assess → IDEA-NEW-2 because Weever targets general databases, not transportation.
+The threat is real but weaker than T-Assess → IDEA-NEW-2 because [] targets general databases, not transportation.
 
 #### Defense Arguments
 
-**DA1 — Domain Gap**: Weever targets general databases. GPS-specific predicate optimization (Haversine distance, speed constraints) requires domain-specific engineering that is outside Weever's research agenda.
+**DA1 — Domain Gap**: [] targets general databases. GPS-specific predicate optimization (Haversine distance, speed constraints) requires domain-specific engineering that is outside 's research agenda.
 
-**DA2 — DC Expression of GPS Rules**: The novel contribution is not the DC formalism (Weever) but the specific DC expressions for GPS constraints. CRS001 (GPS jump) as `¬(∃t₁,t₂: vehicle_id = v ∧ |t₂.ts − t₁.ts| = 30s ∧ Haversine(p₁, p₂) > MAX_JUMP)` is a novel DC expression, not a novel detection algorithm.
+**DA2 — DC Expression of GPS Rules**: The novel contribution is not the DC formalism () but the specific DC expressions for GPS constraints. CRS001 (GPS jump) as `¬(∃t₁,t₂: vehicle_id = v ∧ |t₂.ts − t₁.ts| = 30s ∧ Haversine(p₁, p₂) > MAX_JUMP)` is a novel DC expression, not a novel detection algorithm.
 
-**DA3 — Evaluation on GPS Data**: Weever evaluates on general database workloads. GPS-specific evaluation (NYC TLC, GTFS-RT) is a differentiated contribution.
+**DA3 — Evaluation on GPS Data**: [] evaluates on general database workloads. GPS-specific evaluation (NYC TLC, GTFS-RT) is a differentiated contribution.
 
 #### Timing Advantage
 
-- **Weever status**: Published VLDB 2024. No indication of GPS extension planned.
-- **Weever team focus**: Database theory and systems. Transportation domain is not their focus.
+- **[] status**: Published VLDB 2024. No indication of GPS extension planned.
+- **[] team focus**: Database theory and systems. Transportation domain is not their focus.
 
 #### Mitigation Strategy
 
-**MS1 — Scope as DC Expression, Not DC Detection**: Frame the contribution as "Formal DC Expressions for GPS Trajectory Constraints" — the novel contribution is the DC formalization of GPS rules, not the detection algorithm (which uses Weever's framework).
+**MS1 — Scope as DC Expression, Not DC Detection**: Frame the contribution as "Formal DC Expressions for GPS Trajectory Constraints" — the novel contribution is the DC formalization of GPS rules, not the detection algorithm (which uses 's framework).
 
-**MS2 — Publish DC Expressions as a Technical Report**: Establish priority on the DC expressions (CRS001, CRS002 as formal DCs) before Weever or anyone else formalizes them.
+**MS2 — Publish DC Expressions as a Technical Report**: Establish priority on the DC expressions (CRS001, CRS002 as formal DCs) before [] or anyone else formalizes them.
 
-**MS3 — Collaborate with Weever Authors**: Cite Weever's incremental DC detection as the enabling technology. Frame the contribution as "building on Weever" rather than competing with them.
+**MS3 — Collaborate with [] Authors**: Cite 's incremental DC detection as the enabling technology. Frame the contribution as "building on " rather than competing with them.
 
 ---
 
@@ -328,9 +328,9 @@ The threat is real but weaker than T-Assess → IDEA-NEW-2 because Weever target
 
 #### Defense Arguments
 
-**DA1 — No Competitor Incentive**: No competitor (Stream DaQ, T-Assess, Weever) has the incentive to build a transportation DQ benchmark specifically for StreamDQ's evaluation. The infrastructure investment is substantial and the academic payoff is modest.
+**DA1 — No Competitor Incentive**: No competitor (Stream DaQ, T-Assess, ) has the incentive to build a transportation DQ benchmark specifically for ContextAware-DQ's evaluation. The infrastructure investment is substantial and the academic payoff is modest.
 
-**DA2 — Reproducibility Contribution**: The benchmark enables reproducible evaluation of streaming DQ frameworks. This is a methodological contribution that benefits the community, not just StreamDQ.
+**DA2 — Reproducibility Contribution**: The benchmark enables reproducible evaluation of streaming DQ frameworks. This is a methodological contribution that benefits the community, not just ContextAware-DQ.
 
 **DA3 — Defensive Infrastructure**: The benchmark is defensive infrastructure, not a competitive idea. Even if preempted (unlikely), it enables the thesis to claim reproducibility and comparative evaluation.
 
@@ -365,10 +365,10 @@ Stream DaQ publishes a transportation-specific extension or a journal paper with
 |------|--------|----------|-----------|
 | IDEA-05 (Contextual Calibration) | HIGH — rolling μ±kσ for transportation preempts the generic concept | CRITICAL | **CONDITIONAL** — must emphasize physics constraint as the novel element |
 | IDEA-02 (Physics-Constrained) | MEDIUM — Stream DaQ doesn't address the false positive crisis (Martin et al.) | MAJOR | **YES** — physics constraint is a principled response to PVLDB 2025 paper |
-| IDEA-NEW-2 (T-Assess x StreamDQ) | LOW — different components | MINOR | **YES** |
+| IDEA-NEW-2 (T-Assess x ContextAware-DQ) | LOW — different components | MINOR | **YES** |
 | IDEA-07 (Benchmark) | LOW — no incentive to preempt | NONE | **YES** |
 | IDEA-04 (GTFS-RT Cross-Entity) | LOW — domain-specific | NONE | **YES** |
-| IDEA-NEW-3 (Incremental DCs) | LOW — Weever owns DC detection | NONE | **YES** |
+| IDEA-NEW-3 (Incremental DCs) | LOW — [] owns DC detection | NONE | **YES** |
 
 **Ideas that become non-novel or severely weakened**: IDEA-05 (Contextual Calibration)
 
@@ -382,32 +382,32 @@ T-Assess team publishes "T-Assess v2: Rule-Based DQ Validation for Trajectory Qu
 
 | Idea | Impact | Severity | Survives? |
 |------|--------|----------|-----------|
-| IDEA-NEW-2 (T-Assess x StreamDQ) | **HIGH** — if they add SYN/SEM/CRS rules to T-Assess, the integration becomes non-novel | CRITICAL | **CONDITIONAL** — must scope narrowly and file arXiv preprint first |
+| IDEA-NEW-2 (T-Assess x ContextAware-DQ) | **HIGH** — if they add SYN/SEM/CRS rules to T-Assess, the integration becomes non-novel | CRITICAL | **CONDITIONAL** — must scope narrowly and file arXiv preprint first |
 | IDEA-07 (Benchmark) | LOW — no incentive to preempt | NONE | **YES** |
 | IDEA-04 (GTFS-RT Cross-Entity) | MEDIUM — T-Assess targets trajectory data; GTFS-RT is a trajectory source | MODERATE | **YES** — but must emphasize cross-entity specificity |
 | IDEA-02 (Physics-Constrained) | LOW | NONE | **YES** |
 | IDEA-05 (Contextual Calibration) | LOW | NONE | **YES** |
-| IDEA-NEW-3 (Incremental DCs) | LOW — Weever owns DC detection | NONE | **YES** |
+| IDEA-NEW-3 (Incremental DCs) | LOW — [] owns DC detection | NONE | **YES** |
 
-**Ideas that become non-novel or severely weakened**: IDEA-NEW-2 (T-Assess x StreamDQ) — most at risk
+**Ideas that become non-novel or severely weakened**: IDEA-NEW-2 (T-Assess x ContextAware-DQ) — most at risk
 
 **Survival strategy**: This is the most dangerous scenario. The T-Assess team has the foundational system and could trivially add rule-based validation. Mitigation steps:
 
 1. **ArXiv preprint by July 2026** (3 months) — establish priority on the integration methodology
-2. **Scope narrowly**: Don't claim "integration of T-Assess and StreamDQ." Claim "rule-based DQ validation as a dimension in trajectory quality scoring." The framing as a dimension extension is more defensible.
-3. **Focus on evaluation**: The synthetic ground truth + degradation curve evaluation is specific to StreamDQ's evaluation framework. Even if T-Assess adds rules, the evaluation methodology is novel.
+2. **Scope narrowly**: Don't claim "integration of T-Assess and ContextAware-DQ." Claim "rule-based DQ validation as a dimension in trajectory quality scoring." The framing as a dimension extension is more defensible.
+3. **Focus on evaluation**: The synthetic ground truth + degradation curve evaluation is specific to ContextAware-DQ's evaluation framework. Even if T-Assess adds rules, the evaluation methodology is novel.
 4. **Monitor T-Assess GitHub weekly**: Any rule-based validation addition is an early warning signal. If seen, accelerate the arXiv preprint.
 
 ### Combined Scenario: Both Stream DaQ (June) and T-Assess (September) Publish
 
 | Idea | Stream DaQ Impact | T-Assess Impact | Combined | Survives? |
 |------|-------------------|-----------------|----------|-----------|
-| IDEA-NEW-2 (T-Assess x StreamDQ) | LOW | HIGH | CRITICAL | **CONDITIONAL** — must scope narrowly + arXiv first |
+| IDEA-NEW-2 (T-Assess x ContextAware-DQ) | LOW | HIGH | CRITICAL | **CONDITIONAL** — must scope narrowly + arXiv first |
 | IDEA-07 (Benchmark) | LOW | LOW | NONE | **YES** |
 | IDEA-04 (GTFS-RT Cross-Entity) | LOW | MEDIUM | MODERATE | **YES** — cross-entity specificity is the moat |
 | IDEA-02 (Physics-Constrained) | MEDIUM | LOW | MEDIUM | **YES** — physics constraint is principled response to Martin et al. |
 | IDEA-05 (Contextual Calibration) | HIGH | LOW | HIGH | **CONDITIONAL** — abandon if Stream DaQ publishes; reframe as IDEA-02 |
-| IDEA-NEW-3 (Incremental DCs) | LOW | LOW | LOW | **YES** — Weever owns DC detection |
+| IDEA-NEW-3 (Incremental DCs) | LOW | LOW | LOW | **YES** — [] owns DC detection |
 
 ---
 
@@ -417,9 +417,9 @@ T-Assess team publishes "T-Assess v2: Rule-Based DQ Validation for Trajectory Qu
 
 | Rank | Idea | Primary Threat | AVG Risk | Recommendation |
 |------|------|---------------|----------|----------------|
-| **1 (Most Vulnerable)** | IDEA-NEW-2 (T-Assess x StreamDQ) | T-Assess team extending their own system | MEDIUM-HIGH | **Race to publish; scope narrowly; arXiv by July** |
+| **1 (Most Vulnerable)** | IDEA-NEW-2 (T-Assess x ContextAware-DQ) | T-Assess team extending their own system | MEDIUM-HIGH | **Race to publish; scope narrowly; arXiv by July** |
 | **2** | IDEA-05 (Contextual Calibration) | Stream DaQ extending adaptive thresholds | MEDIUM | **Reframe as IDEA-02 (Physics-Constrained); deprioritize as primary** |
-| **3** | IDEA-NEW-3 (Incremental DCs) | Weever extending to GPS domain | MEDIUM-HIGH | **Frame as DC expression, not DC detection; cite Weever** |
+| **3** | IDEA-NEW-3 (Incremental DCs) | [] extending to GPS domain | MEDIUM-HIGH | **Frame as DC expression, not DC detection; cite ** |
 | **4** | IDEA-02 (Physics-Constrained) | Stream DaQ + unknown researcher | LOW-MEDIUM | **Primary adaptive threshold contribution; cite Martin et al. as motivation** |
 | **5** | IDEA-04 (GTFS-RT Cross-Entity) | T-Assess team extending to GTFS-RT | LOW-MEDIUM | **Audit CUTR first; emphasize cross-entity specificity** |
 | **6 (Most Defensible)** | IDEA-07 (Benchmark) | Industry blog post | LOW | **Open-source + reproducibility track submission** |
@@ -429,7 +429,7 @@ T-Assess team publishes "T-Assess v2: Rule-Based DQ Validation for Trajectory Qu
 **Tier 1 (Do immediately — within 1 month):**
 1. Monitor T-Assess GitHub (ZJU-DAILY/T-Assess) weekly for rule-based DQ additions
 2. Set arXiv alerts for Papastergios & Gounaris (Stream DaQ) for follow-up papers
-3. Draft arXiv preprint outline for IDEA-NEW-2 (T-Assess x StreamDQ Integration) — file by July 2026
+3. Draft arXiv preprint outline for IDEA-NEW-2 (T-Assess x ContextAware-DQ Integration) — file by July 2026
 
 **Tier 2 (Do within 3 months — by July 2026):**
 4. File arXiv preprint on IDEA-NEW-2 to establish priority
@@ -444,7 +444,7 @@ T-Assess team publishes "T-Assess v2: Rule-Based DQ Validation for Trajectory Qu
 
 ### Submission Strategy Recommendation
 
-**Primary**: IDEA-NEW-2 (T-Assess x StreamDQ) with IDEA-07 (Benchmark) as evaluation infrastructure
+**Primary**: IDEA-NEW-2 (T-Assess x ContextAware-DQ) with IDEA-07 (Benchmark) as evaluation infrastructure
 - Highest novelty + highest feasibility (per brainstorming)
 - Most at risk from T-Assess team preemption — but race conditions favor early mover
 - File arXiv preprint by July 2026 to establish priority
@@ -467,7 +467,7 @@ T-Assess team publishes "T-Assess v2: Rule-Based DQ Validation for Trajectory Qu
 
 Applying the scope mismatch attack from the critical thinking framework:
 
-> The paper (T-Assess, VLDB 2025) claims to assess trajectory data quality. However, their architecture uses statistical quality dimensions (validity, completeness, consistency, fairness) computed from trajectory features. It has no rule-based DQ validation. StreamDQ's SYN/SEM/CRS rules detect specific violations (null, range, speed, GPS jump) that statistical methods cannot detect. Therefore, by design, T-Assess CANNOT detect rule-based violations. We demonstrate this empirically in Section X.
+> The paper (T-Assess (under review at VLDB 2025)) claims to assess trajectory data quality. However, their architecture uses statistical quality dimensions (validity, completeness, consistency, fairness) computed from trajectory features. It has no rule-based DQ validation. ContextAware-DQ's SYN/SEM/CRS rules detect specific violations (null, range, speed, GPS jump) that statistical methods cannot detect. Therefore, by design, T-Assess CANNOT detect rule-based violations. We demonstrate this empirically in Section X.
 
 **Counter-attack (competitor's response)**: "T-Assess v2 could trivially add rule-based validation as a module. Statistical quality scoring + rule-based DQ is an obvious composition."
 
@@ -479,7 +479,7 @@ Applying the scope mismatch attack from the critical thinking framework:
 
 > The paper (NUMOSIM, SIGSPATIAL 2024) benchmarks anomaly detection. However, anomaly detection (detecting unusual patterns) is fundamentally different from DQ validation (detecting specification violations). NUMOSIM cannot evaluate DQ rule precision/recall because it has no ground truth for violations. Therefore, by design, NUMOSIM CANNOT be used for DQ benchmark evaluation.
 
-**Assessment**: This attack is valid and helps IDEA-07. NUMOSIM benchmarks AD, not DQ. StreamDQ's benchmark fills a genuine gap.
+**Assessment**: This attack is valid and helps IDEA-07. NUMOSIM benchmarks AD, not DQ. ContextAware-DQ's benchmark fills a genuine gap.
 
 ### IDEA-05 — Claim vs. Reality Check
 

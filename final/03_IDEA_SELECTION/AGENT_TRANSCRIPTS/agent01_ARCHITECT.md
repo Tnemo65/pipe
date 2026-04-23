@@ -4,17 +4,17 @@
 **Phase**: Step 3B — Architect (Context-Aware Deconstruction & Upgrade Scoring)
 **Date**: April 22, 2026
 **Agent**: ARCHITECT
-**Input**: Orchestrator's critical code finding — StreamDQ already has partial context-aware infrastructure
+**Input**: Orchestrator's critical code finding — ContextAware-DQ already has partial context-aware infrastructure
 **Output**: `final/AGENT_TRANSCRIPTS_03B/agent01_ARCHITECT.md`
 
 ---
 
 ## Executive Summary
 
-**Central Finding**: The context-aware upgrade is NOT about building context-awareness from scratch. The StreamDQ codebase already contains a complete context-aware infrastructure: `ContextAwareAdaptiveThresholdEngine` (5-level hierarchical fallback), `ContextRegistry` (5D context extraction), `ExternalContext` (Dey 2001 formal 4D model), and `AdaptiveThresholdEngine` (Shannon entropy + bootstrap CI). What is MISSING is the **integration** of this infrastructure into the TQS layer and the rules engine.
+**Central Finding**: The context-aware upgrade is NOT about building context-awareness from scratch. The ContextAware-DQ codebase already contains a complete context-aware infrastructure: `ContextAwareAdaptiveThresholdEngine` (5-level hierarchical fallback), `ContextRegistry` (5D context extraction), `ExternalContext` (Dey 2001 formal 4D model), and `AdaptiveThresholdEngine` (Shannon entropy + bootstrap CI). What is MISSING is the **integration** of this infrastructure into the TQS layer and the rules engine.
 
 **Key Numbers**:
-- StreamDQ currently scores **9/12** on the thesis title fit
+- ContextAware-DQ currently scores **9/12** on the thesis title fit
 - IDEA-NEW-2 alone scores **1/3** on Context-Aware dimension
 - IDEA-NEW-2 + IDEA-05 (Contextual Calibration) together score **3/3** on Context-Aware
 - Upgrade target: **12/12** — fully realize the "Context-Aware Framework" promise
@@ -42,7 +42,7 @@
 
 **IDEA-05 (Contextual Calibration)**: YES. Contextual calibration is fundamentally about temporal context. The method explicitly calibrates thresholds by temporal context cells (rush hour vs. late night vs. weekend). This is the primary contribution of IDEA-05.
 
-**StreamDQ Existing Code**: YES — already implemented. `ExternalContext` in `base.py` (lines 17-100) extracts: `when_hour`, `when_day`, `is_rush_hour`, `is_late_night`, `is_weekend`, `is_holiday`. `ContextDimension.temporal()` in `context_registry.py` (lines 111-153) extracts: `hour_of_day`, `day_of_week`, `is_weekend`, `time_category`, `is_rush_hour`. SEM rules (`semantic.py`) already use these: `FareRangeRule` applies multipliers (1.3x rush hour, 0.7x late night, 1.15x weekend, 1.5x holiday). `TripDurationSanityRule` expands max duration by 1.5x during rush hour and 1.2x on weekends. `AverageSpeedSanityRule` adjusts max speed by +15 mph at night and -5 mph during rush hour.
+**ContextAware-DQ Existing Code**: YES — already implemented. `ExternalContext` in `base.py` (lines 17-100) extracts: `when_hour`, `when_day`, `is_rush_hour`, `is_late_night`, `is_weekend`, `is_holiday`. `ContextDimension.temporal()` in `context_registry.py` (lines 111-153) extracts: `hour_of_day`, `day_of_week`, `is_weekend`, `time_category`, `is_rush_hour`. SEM rules (`semantic.py`) already use these: `FareRangeRule` applies multipliers (1.3x rush hour, 0.7x late night, 1.15x weekend, 1.5x holiday). `TripDurationSanityRule` expands max duration by 1.5x during rush hour and 1.2x on weekends. `AverageSpeedSanityRule` adjusts max speed by +15 mph at night and -5 mph during rush hour.
 
 **Gap**: Temporal context extraction exists AND is used by rules, but thresholds are NOT context-adaptive (they use hardcoded multipliers, not data-driven contextual thresholds from `ContextAwareAdaptiveThresholdEngine`).
 
@@ -63,7 +63,7 @@
 
 **IDEA-05 (Contextual Calibration)**: YES. Spatial context is a primary dimension of contextual calibration. Thresholds for `fare_amount` should differ by zone category (midtown vs. airport vs. outer). IDEA-05's calibration method explicitly uses spatial context cells.
 
-**StreamDQ Existing Code**: YES — partially implemented. `ContextDimension.spatial()` in `context_registry.py` (lines 155-189) extracts: `zone` (zone name), `borough`, `zone_category` (midtown/airport/manhattan_other/outer). The `zone_map` parameter enables mapping location IDs to zone names and boroughs. `ContextKey` hierarchy levels 0-2 include spatial dimensions: L0 = (hour, zone_category, weekend), L1 = (hour_bucket, zone_category, weekend), L2 = (hour_bucket, borough, weekend). `ContextAwareAdaptiveThresholdEngine` maintains separate threshold buffers per context key including spatial dimensions.
+**ContextAware-DQ Existing Code**: YES — partially implemented. `ContextDimension.spatial()` in `context_registry.py` (lines 155-189) extracts: `zone` (zone name), `borough`, `zone_category` (midtown/airport/manhattan_other/outer). The `zone_map` parameter enables mapping location IDs to zone names and boroughs. `ContextKey` hierarchy levels 0-2 include spatial dimensions: L0 = (hour, zone_category, weekend), L1 = (hour_bucket, zone_category, weekend), L2 = (hour_bucket, borough, weekend). `ContextAwareAdaptiveThresholdEngine` maintains separate threshold buffers per context key including spatial dimensions.
 
 **Gap**: `ContextRegistry` can extract spatial context, and `ContextAwareAdaptiveThresholdEngine` can store per-spatial-context thresholds, but NO rules currently USE these adaptive spatial thresholds. All spatial context in rules is through hardcoded zone category strings, not adaptive data-driven thresholds.
 
@@ -84,7 +84,7 @@
 
 **IDEA-05 (Contextual Calibration)**: PARTIAL. IDEA-05 focuses on temporal and spatial calibration. Operational context (vehicle type, passenger load) is less central to the method as described.
 
-**StreamDQ Existing Code**: PARTIAL. `ContextDimension.entity()` in `context_registry.py` (lines 210-224) extracts: `entity_type` (nyc_taxi, gtfs_vehicle), `payment_type`. However, NO rules currently use operational context for adaptive threshold adjustment. Rules use operational fields directly (e.g., `trip_distance` in `FareRangeRule` for distance-based fare scaling) but not as context dimensions for threshold adaptation.
+**ContextAware-DQ Existing Code**: PARTIAL. `ContextDimension.entity()` in `context_registry.py` (lines 210-224) extracts: `entity_type` (nyc_taxi, gtfs_vehicle), `payment_type`. However, NO rules currently use operational context for adaptive threshold adjustment. Rules use operational fields directly (e.g., `trip_distance` in `FareRangeRule` for distance-based fare scaling) but not as context dimensions for threshold adaptation.
 
 **Gap**: Operational context extraction exists in the registry but is NOT used by any rules for adaptive thresholding. The `payment_type` field is extracted but never used in any rule evaluation.
 
@@ -105,7 +105,7 @@
 
 **IDEA-05 (Contextual Calibration)**: NO. The method as described uses only temporal and spatial context dimensions. External context (weather, events) would require API integration and is outside the scope of threshold calibration.
 
-**StreamDQ Existing Code**: PARTIAL. `ExternalContext` in `base.py` includes `is_holiday` (boolean), but this is derived from the event timestamp itself, not from an external calendar or weather API. `FareRangeRule` uses `is_holiday` to expand fare bounds (0.8x min, 1.5x max). However, there is NO integration with external event calendars, weather APIs, or traffic feeds.
+**ContextAware-DQ Existing Code**: PARTIAL. `ExternalContext` in `base.py` includes `is_holiday` (boolean), but this is derived from the event timestamp itself, not from an external calendar or weather API. `FareRangeRule` uses `is_holiday` to expand fare bounds (0.8x min, 1.5x max). However, there is NO integration with external event calendars, weather APIs, or traffic feeds.
 
 **Gap**: External context is the most underdeveloped dimension. Only `is_holiday` is supported, and it is hardcoded (derived from the event timestamp, not from an external calendar). Weather, traffic, and special events are not modeled at all.
 
@@ -127,7 +127,7 @@
 
 **IDEA-05 (Contextual Calibration)**: NO. Data characteristics context is orthogonal to temporal/spatial calibration. Not part of the method.
 
-**StreamDQ Existing Code**: YES — implemented. `ContextDimension.source()` in `context_registry.py` (lines 191-208) extracts: `source_id`, `source_type`, `is_replay`. CRS003 (`evaluate_duplicate_event` in `cross_record.py`, lines 304-311) explicitly suppresses duplicate detection for replay streams (`if lineage.get("is_replay", False): return None`). The `ContextAwareDuplicateAdjudicator` uses `source_id`, `batch_id`, and `kafka_offset` for duplicate confidence scoring. Policy context (`ContextDimension.policy()`, lines 226-240) extracts `contract_tier` and `owner` from event metadata.
+**ContextAware-DQ Existing Code**: YES — implemented. `ContextDimension.source()` in `context_registry.py` (lines 191-208) extracts: `source_id`, `source_type`, `is_replay`. CRS003 (`evaluate_duplicate_event` in `cross_record.py`, lines 304-311) explicitly suppresses duplicate detection for replay streams (`if lineage.get("is_replay", False): return None`). The `ContextAwareDuplicateAdjudicator` uses `source_id`, `batch_id`, and `kafka_offset` for duplicate confidence scoring. Policy context (`ContextDimension.policy()`, lines 226-240) extracts `contract_tier` and `owner` from event metadata.
 
 **Gap**: Data characteristics context is well-implemented for lineage tracking and duplicate detection, but NOT used for adaptive thresholding. The `source_type` and `is_replay` flags affect rule behavior (suppressing CRS003 for replay), but do not affect threshold values.
 
@@ -174,7 +174,7 @@
 
 ---
 
-## What StreamDQ Already Has
+## What ContextAware-DQ Already Has
 
 The orchestrator's critical finding changes everything: context-aware infrastructure is NOT a gap to be filled — it is infrastructure to be INTEGRATED.
 
@@ -302,9 +302,9 @@ L4: global                           → "global"                          [fall
 
 | Component | Score | Rationale |
 |-----------|:-----:|-----------|
-| Streaming | 3/3 | T-Assess + StreamDQ both process streaming data. Closed-loop monitoring pipeline. |
+| Streaming | 3/3 | T-Assess + ContextAware-DQ both process streaming data. Closed-loop monitoring pipeline. |
 | Data Quality | 3/3 | SYN/SEM/CRS rules detect violations. TQS aggregates violations into quality scores. |
-| Framework | 2/3 | TQS layer + StreamDQ rules + dimension mapper = framework. But context-awareness is absent. |
+| Framework | 2/3 | TQS layer + ContextAware-DQ rules + dimension mapper = framework. But context-awareness is absent. |
 | Context-Aware | 1/3 | T-Assess computes quality scores but does NOT decompose by context. Rules use temporal context but not adaptive contextual thresholds. |
 | **TOTAL** | **9/12** | |
 
@@ -321,7 +321,7 @@ L4: global                           → "global"                          [fall
 ### Evidence for Framework Dimension Upgrade (2/3 → 3/3)
 
 A "Framework" scores 3/3 when it has:
-1. Multiple interacting components — YES. StreamDQ rules + TQS aggregation + dimension mapper + confidence scorer + context-aware threshold engine + context registry.
+1. Multiple interacting components — YES. ContextAware-DQ rules + TQS aggregation + dimension mapper + confidence scorer + context-aware threshold engine + context registry.
 2. Shared data models and interfaces — YES. `RuleContext`, `Violation`, `ExternalContext`, `ContextKey`, `FieldStats`.
 3. Emergent properties from integration — YES. The combination detects things neither system detects alone. Context-aware thresholds learn from data within each cell. TQS explains quality degradation by context. This emergent behavior is the key research contribution.
 

@@ -299,7 +299,7 @@ This literature review identifies and synthesizes academic research and open-sou
 | **Approach** | Real-time anomaly detection |
 | **Evaluation** | Not specified |
 
-**This represents the closest academic work to StreamDQ's streaming GPS validation:**
+**This represents the closest academic work to ContextAware-DQ's streaming GPS validation:**
 - Uses Flink for real-time processing
 - Focuses on bus trajectories
 - Detects anomalies in trajectory data
@@ -387,7 +387,7 @@ Data Stream → Windowing → Constraint Evaluation → Quality Meta-Stream
 - PCA and neural network autoencoders for unsupervised anomaly detection
 - Web-based interface for DQM
 
-**Relevance to StreamDQ:**
+**Relevance to ContextAware-DQ:**
 - Demonstrates adaptive threshold concept
 - Shows beta-binomial model for streaming DQ threshold adaptation
 
@@ -461,7 +461,7 @@ Data Stream → Windowing → Constraint Evaluation → Quality Meta-Stream
 | **Duplicate Keys** | Duplicate IDs | ~3% |
 | **Block Trips** | Overlapping stop times with same block | ~2% |
 
-### 6.3 StreamDQ Taxonomy (Domain-Specific GTFS)
+### 6.3 ContextAware-DQ Taxonomy (Domain-Specific GTFS)
 
 | Layer | Rule Type | Examples |
 |-------|-----------|----------|
@@ -547,7 +547,7 @@ Data Stream → Windowing → Constraint Evaluation → Quality Meta-Stream
 
 ### 9.2 Comparison Table
 
-| Dimension | StreamDQ | Stream DaQ | GTFS Validator | CETrajAD |
+| Dimension | ContextAware-DQ | Stream DaQ | GTFS Validator | CETrajAD |
 |-----------|----------|-----------|----------------|----------|
 | Architecture | Streaming (Spark) | Stream-native | Batch | Batch |
 | Domain-Specific | GTFS GPS | General | GTFS Static | General |
@@ -566,7 +566,7 @@ This literature review confirms that **no prior work specifically addresses stre
 2. **Trajectory Anomaly Detection**: ML-based, batch/offline, no rule-based validation
 3. **Streaming DQ Frameworks**: General-purpose, no GPS/trajectory domain knowledge
 
-**StreamDQ's contribution is novel**: It fills the gap by providing a streaming-first, domain-specific framework for GTFS GPS quality validation with a three-layer rule taxonomy (syntactic, semantic, cross-record) and an evaluation framework with ground-truth tracking.
+**ContextAware-DQ's contribution is novel**: It fills the gap by providing a streaming-first, domain-specific framework for GTFS GPS quality validation with a three-layer rule taxonomy (syntactic, semantic, cross-record) and an evaluation framework with ground-truth tracking.
 
 ---
 

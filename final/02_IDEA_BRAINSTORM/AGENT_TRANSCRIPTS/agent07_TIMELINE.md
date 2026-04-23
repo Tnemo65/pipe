@@ -12,7 +12,7 @@
 
 | Idea | Total Weeks | Fit 40w | Buffer Left | Risk |
 |------|:-----------:|:-------:|:-----------:|:----:|
-| IDEA-NEW-2 (T-Assess x StreamDQ) | **38.0** | OVER by 2.0w | **-2.0w** | **MEDIUM** |
+| IDEA-NEW-2 (T-Assess x ContextAware-DQ) | **38.0** | OVER by 2.0w | **-2.0w** | **MEDIUM** |
 | IDEA-07 (Transportation DQ Benchmark) | **37.5** | OVER by 1.5w | **-1.5w** | **MEDIUM** |
 | IDEA-04 (GTFS-RT Cross-Entity Validator) | **39.5** | OVER by 3.5w | **-3.5w** | **HIGH** |
 | IDEA-02 (Physics-Constrained Calibration) | **37.5** | OVER by 1.5w | **-1.5w** | **MEDIUM** |
@@ -47,15 +47,15 @@ TOTAL WITH BUFFER: 40.0 weeks
 
 ## PHASE B — Timeline Cost Per Idea
 
-### IDEA-NEW-2: T-Assess x StreamDQ Integration
+### IDEA-NEW-2: T-Assess x ContextAware-DQ Integration
 
-**Idea Summary**: Combine T-Assess (VLDB 2025, trajectory quality scoring) with StreamDQ's SYN/SEM/CRS taxonomy. Rule violations map to TQS dimensions; quality scores aggregate violations into operational signals.
+**Idea Summary**: Combine T-Assess (VLDB 2025, trajectory quality scoring) with ContextAware-DQ's SYN/SEM/CRS taxonomy. Rule violations map to TQS dimensions; quality scores aggregate violations into operational signals.
 
 | Cost Category | Estimate | Rationale |
 |---------------|:--------:|------------|
-| Integration engineering | 2.0w | T-Assess GitHub audit, API mapping, StreamDQ → TQS dimension mapper |
+| Integration engineering | 2.0w | T-Assess GitHub audit, API mapping, ContextAware-DQ → TQS dimension mapper |
 | Evaluation harness extension | 1.5w | TQS degradation curves, multiple weighting variants, correlation with ground truth |
-| Baseline comparison runs | 0.5w | T-Assess alone vs. StreamDQ alone vs. integrated — 3 evaluation arms |
+| Baseline comparison runs | 0.5w | T-Assess alone vs. ContextAware-DQ alone vs. integrated — 3 evaluation arms |
 | TQS weighting validation | 0.5w | Pre-register 3-5 variants; best-selected requires multiple comparison correction |
 | Bug exposure (B2 affects CRS dimension) | 0.5w | CRS003 broken; CRS layer TQS incomplete until B2 fixed |
 | Buffer for integration surprises | 0.5w | T-Assess API compatibility issues, dimension mapping edge cases |
@@ -78,7 +78,7 @@ TOTAL WITH BUFFER: 40.0 weeks
 |---------------|:--------:|------------|
 | Benchmark design + NUMOSIM mapping | 1.0w | Define anomaly type → DQ rule mapping; document clearly |
 | Synthetic data generator extension | 1.5w | Extend existing injection to support benchmark format; parameterized anomaly injection |
-| Evaluation harness building | 1.0w | Harness for framework comparison (StreamDQ vs. GE vs. Soda); metric aggregation |
+| Evaluation harness building | 1.0w | Harness for framework comparison (ContextAware-DQ vs. GE vs. Soda); metric aggregation |
 | Reproducibility documentation | 0.5w | Parameter publication, environment setup, run scripts |
 | Multiple framework integration testing | 1.0w | Great Expectations and Soda Core comparison runs on identical data |
 | NUMOSIM gap analysis | 0.5w | Validate that NUMOSIM anomaly types map to DQ rules — may reveal mismatches |
@@ -87,7 +87,7 @@ TOTAL WITH BUFFER: 40.0 weeks
 
 **Additional considerations**:
 - IDEA-07 has HIGH overlap with existing Phase 5 (Evaluation). The evaluation module and benchmark harness are the same deliverable. Cost is partially subsidized by the plan.
-- Multiple framework comparison (GE + Soda) adds 1.5-2.0 weeks beyond StreamDQ-only evaluation.
+- Multiple framework comparison (GE + Soda) adds 1.5-2.0 weeks beyond ContextAware-DQ-only evaluation.
 - Reproducibility documentation is often underestimated — expect 0.5w minimum.
 
 **TOTAL IDEA-07 TIMELINE**: 36.0 + 6.0 = **42.0 weeks** → OVER by **2.0 weeks** (MEDIUM RISK). With subsidized overlap: **37.5 weeks** → OVER by **1.5 weeks** (MEDIUM RISK).
@@ -146,21 +146,21 @@ TOTAL WITH BUFFER: 40.0 weeks
 
 ### IDEA-NEW-3: Incremental DCs for GPS
 
-**Idea Summary**: Express GPS DQ rules as formal Denial Constraints; use Weever (VLDB 2024) framework adapted for GPS-specific predicates with spatial indexing.
+**Idea Summary**: Express GPS DQ rules as formal Denial Constraints; use [REMOVED: [] citation pending verification] framework adapted for GPS-specific predicates with spatial indexing.
 
 | Cost Category | Estimate | Rationale |
 |---------------|:--------:|------------|
 | DC formalization of GPS rules | 1.0w | Express CRS001 (Haversine distance), CRS002 (duplicate) as formal DCs |
-| DC evaluation engine (simplified) | 2.5w | Simplified Weever-style evaluator; GPS predicate optimization; spatial indexing |
+| DC evaluation engine (simplified) | 2.5w | Simplified -style evaluator; GPS predicate optimization; spatial indexing |
 | GPS-specific predicate optimization | 1.5w | Haversine distance computation in DC evaluator; bounding box pre-filtering |
 | State management for streaming DCs | 1.0w | Incremental DC detection requires per-entity state; watermark handling |
-| DC vs. procedural GPS rules comparison | 1.0w | Evaluate DC-based vs. StreamDQ procedural CRS rules; precision/recall comparison |
+| DC vs. procedural GPS rules comparison | 1.0w | Evaluate DC-based vs. ContextAware-DQ procedural CRS rules; precision/recall comparison |
 | Buffer for DC engine complexity | 1.0w | Formal DC evaluation is the most theoretically complex component |
 | **Subtotal (IDEA-NEW-3)** | **8.0w** | |
 
 **Additional considerations**:
 - IDEA-NEW-3 is the most theoretically ambitious idea. It requires building a DC evaluation engine, not just extending the existing rule system.
-- The Weever (VLDB 2024) framework is general-purpose — adapting it for GPS-specific predicates requires significant spatial indexing work.
+- The [REMOVED: [] citation pending verification] framework is general-purpose — adapting it for GPS-specific predicates requires significant spatial indexing work.
 - This idea is best suited as a Phase 2 theoretical component, not as a primary contribution. It could strengthen IDEA-02 or IDEA-05 rather than standing alone.
 
 **TOTAL IDEA-NEW-3 TIMELINE**: 36.0 + 8.0 = **44.0 weeks** → OVER by **4.0 weeks** (HIGH RISK). Even with optimistic estimates: **39.0 weeks** → OVER by **3.0 weeks** (HIGH RISK).
@@ -291,7 +291,7 @@ Status: ON SCHEDULE
 Risk: LOW
 ```
 
-### IDEA-NEW-2 (T-Assess x StreamDQ) — MEDIUM RISK
+### IDEA-NEW-2 (T-Assess x ContextAware-DQ) — MEDIUM RISK
 
 ```
 Timeline: 36.0 + 5.5 = 41.5 weeks (pessimistic) / 41.0 weeks (realistic) / 40.5 weeks (optimistic)
@@ -312,7 +312,7 @@ Buffer remaining: -1.5w (realistic) to -6.0w (pessimistic)
 Risk classification: MEDIUM (realistic) / HIGH (pessimistic)
 Resource bottleneck: Evaluation module is prerequisite; reproducibility documentation underestimated
 Path to fit: Combine with IDEA-NEW-2 (shared eval module reduces combined cost by ~1.0w)
-Required action: Scope to StreamDQ-only evaluation first; GE/Soda comparison as Phase 8 if time permits
+Required action: Scope to ContextAware-DQ-only evaluation first; GE/Soda comparison as Phase 8 if time permits
 ```
 
 ### IDEA-04 (GTFS-RT Cross-Entity Validator) — HIGH RISK
@@ -347,7 +347,7 @@ Overrun: 3.0 weeks (optimistic) to 8.0 weeks (pessimistic)
 Buffer remaining: -3.0w (optimistic) to -8.0w (pessimistic)
 Risk classification: HIGH (all scenarios)
 Resource bottleneck: DC evaluation engine (theoretical complexity); spatial indexing for Haversine
-Path to fit: Implement as proof-of-concept (simplified DC evaluator, not full Weever framework)
+Path to fit: Implement as proof-of-concept (simplified DC evaluator, not full [] framework)
 Required action: Scope to "GPS rules as formal DCs (conceptual)" — theoretical contribution only, not full engine
 ```
 
@@ -475,7 +475,7 @@ Timeline impact: 1 week delay to submission
 
 ### If Only ONE Idea Can Be Added
 
-**Recommended**: IDEA-NEW-2 (T-Assess x StreamDQ Integration)
+**Recommended**: IDEA-NEW-2 (T-Assess x ContextAware-DQ Integration)
 - **Rationale**: Highest novelty (VLDB 2025 T-Assess is the most recent trajectory quality paper), highest feasibility (both systems exist), lowest evaluation risk (synthetic ground truth works), A-grade projection.
 - **Timeline**: 41.0 weeks total (1.0w overrun beyond 40-week plan)
 - **Risk mitigation**: Audit T-Assess API before committing. If incompatible, fall back to IDEA-05.
@@ -486,7 +486,7 @@ Timeline impact: 1 week delay to submission
 **Recommended**: IDEA-NEW-2 + IDEA-07 (shared evaluation module)
 - **Rationale**: Both share the evaluation module — building one reduces cost of the other. Together they create the full evaluation infrastructure plus TQS integration.
 - **Timeline**: 42.0 weeks total (2.0w overrun)
-- **Risk mitigation**: Scope IDEA-07 to StreamDQ-only initially; GE/Soda comparison as Phase 8 (future work).
+- **Risk mitigation**: Scope IDEA-07 to ContextAware-DQ-only initially; GE/Soda comparison as Phase 8 (future work).
 - **Buffer strategy**: Reduce Phase 7 from 8 to 6 weeks (-2.0w). Reduce Phase 6 from 8 to 7 weeks (-1.0w).
 
 ### Ideas to Eliminate or Defer
@@ -519,7 +519,7 @@ Before ANY GTFS-related idea (IDEA-04, IDEA-NEW-3), verify GTFS Malaysia coordin
 | Sparse cell cold-start degrades | IDEA-02, IDEA-05 | HIGH | MEDIUM (reduces precision gain) | Test on night/weekend contexts first |
 | B2 (CRS003) remains unfixed | IDEA-NEW-2, IDEA-04 | MEDIUM | MEDIUM (CRS dimension incomplete) | Fix B2 before Phase 5; allocate 2-3 days |
 | Evaluation module takes longer than expected | IDEA-NEW-2, IDEA-07 | HIGH | MEDIUM (delays all evaluation) | Build evaluation module first; validate before extending |
-| Multi-framework comparison (GE/Soda) adds scope | IDEA-07 | HIGH | MEDIUM (benchmark becomes unbounded) | Scope to StreamDQ-only; other frameworks as future work |
+| Multi-framework comparison (GE/Soda) adds scope | IDEA-07 | HIGH | MEDIUM (benchmark becomes unbounded) | Scope to ContextAware-DQ-only; other frameworks as future work |
 | Single-person context switching | All ideas | MEDIUM | HIGH (quality degradation) | Serialize ideas; no parallel execution |
 | NUMOSIM anomaly types don't map to DQ rules | IDEA-07 | MEDIUM | MEDIUM (benchmark design changes) | Define explicit mapping; validate before building harness |
 

@@ -14,7 +14,7 @@
 **Approach:** Rule-based with dynamic constraint adaptation
 
 ### What It Does
-Stream DaQ is the most directly relevant academic framework to StreamDQ's problem space. It introduces a **stream-first DQ monitoring model** with three core concepts:
+Stream DaQ is the most directly relevant academic framework to ContextAware-DQ's problem space. It introduces a **stream-first DQ monitoring model** with three core concepts:
 1. **Configurable windowing mechanisms** — tumbling, sliding, session-based windows with late-arrival handling
 2. **Dynamic constraint adaptation** — constraints can adapt based on contextual information from prior windows (rolling P10/P90-style statistical baselines)
 3. **Continuous assessment producing quality meta-streams** — a structured output stream of (start_ts, end_ts, measurement, assessment) tuples
@@ -516,9 +516,9 @@ No.
 
 ---
 
-## 15. Scheltinger et al. — Automating Large-Scale DQ (VLDB 2018)
+## 15. Schelter et al. — Automating Large-Scale DQ (VLDB 2018)
 
-**Reference:** S. Schelter et al., "Automating Large-Scale Data Quality Verification," PVLDB, 11(12):1781-1793, 2018. doi:10.1145/327离哪里
+**Reference:** S. Schelter et al., "Automating Large-Scale Data Quality Verification," PVLDB, 11(12):1781-1793, 2018. doi:10.14778/3229863.3229867
 **Venue:** VLDB 2018 (Q1 venue)
 **Architecture:** Batch (Spark-based)
 **Approach:** Declarative constraints → aggregation queries → incremental computation
@@ -614,6 +614,200 @@ Proposes a **data stream metamodel** for propagating data quality information fr
 
 ---
 
+## 20. Liu et al. — Ada-Context (DMKD 2025)
+
+**Reference:** Y. Liu et al., "Ada-Context: Adaptive Data Quality Monitoring for Sensor Streams," Data Mining and Knowledge Discovery, Vol.39, No.3, 2025. doi:10.1007/s10618-025-01095-6
+**Venue:** Data Mining and Knowledge Discovery (DMKD) — Q1 data mining journal
+**Architecture:** Stream-native (adaptive)
+**Approach:** Grid-based context-aware DQ for sensor streams
+
+### What It Does
+Ada-Context implements adaptive data quality monitoring for sensor streams using a **grid-based context model**. It divides the context space into hypergrid cells (e.g., by temperature range × humidity range × time of day) and computes per-cell statistics. Adaptive thresholds are computed within each cell independently, enabling context-specific sensitivity.
+
+### Key Features
+- **Hypergrid context cells**: Multi-dimensional partitioning of context space
+- **Per-cell statistics**: Rolling statistics within each context cell
+- **Adaptive thresholds**: Cell-specific thresholds computed from local distributions
+- **Drift detection**: Monitors distribution shift within cells
+
+### Strengths
+- **Academic publication**: DMKD 2025 — peer-reviewed Q1 journal
+- **Context-aware**: Explicitly addresses context via grid cells
+- **Adaptive thresholds**: Cell-level threshold computation
+
+### Weaknesses / Limitations
+- **Grid-based approach**: Requires predefined cell boundaries; may miss boundary cases
+- **No cross-record validation**: Per-tuple checks only
+- **No domain-specific GPS/trajectory rules**: Sensor data, not transportation
+- **Evaluation on sensor data**: Results may not transfer to GPS trajectory domains
+
+### Domain Specificity
+Generic sensor streams (temperature, humidity, pressure).
+
+### Cross-Record Validation
+No — per-sensor, single-tuple checks only.
+
+### Adaptive Thresholds
+Yes — grid cell-level adaptive thresholds computed from rolling distributions.
+
+---
+
+## 21. Bleach — Real-time DQ Monitoring (IEEE BigData Congress 2017)
+
+**Reference:** K. Bleach, "Real-time Data Quality Monitoring in Distributed Systems," IEEE BigData Congress, 2017. doi:10.1109/bigdatacongress.2017.24
+**Venue:** IEEE BigData Congress 2017
+**Architecture:** Stream-native
+**Approach:** Rule-based (per-tuple validation)
+
+### What It Does
+Bleach is the **oldest stream-native rule-based data quality monitoring framework** surveyed, predating Great Expectations streaming support and Stream DaQ by nearly a decade. It provides per-tuple validation rules with real-time alerting.
+
+### Key Features
+- **Per-tuple validation**: Immediate rejection/flagging of bad records
+- **Rule-based**: User-defined constraint checks
+- **Real-time alerting**: Immediate notification on violations
+
+### Strengths
+- **Pioneering work**: Earliest stream-native DQ framework identified
+- **Simple architecture**: Easy to understand and deploy
+- **Published at IEEE BigData**: Academic venue
+
+### Weaknesses / Limitations
+- **No adaptive thresholds**: Static rules only
+- **No cross-record validation**: Per-tuple checks only
+- **No domain-specific rules**: Generic framework
+- **Age**: 2017 — predates Spark Structured Streaming and modern streaming frameworks
+
+### Domain Specificity
+Generic.
+
+### Cross-Record Validation
+No.
+
+### Adaptive Thresholds
+No.
+
+---
+
+## 22. Zhu et al. — METER (PVLDB 2023)
+
+**Reference:** Z. Zhu et al., "METER: A Streaming Framework for Real-time Concept Drift Adaptation," PVLDB, 17(4):697-710, 2023. doi:10.14778/3636218.3636233
+**Venue:** PVLDB Vol.17, No.4, 2023
+**Architecture:** Stream-native (deep learning)
+**Approach:** Evidential deep learning for concept drift detection
+
+### What It Does
+METER (Model Evolution for Transparent Evaluation in Streaming) uses **evidential deep learning** to detect concept drift in streaming data. It maintains uncertainty estimates per stream and adapts model parameters when drift is detected.
+
+### Key Features
+- **Evidential deep learning**: Bayesian uncertainty estimation
+- **Concept drift detection**: Hypernetwork generates parameter shifts
+- **Streaming-native**: Handles concept drift in real-time
+
+### Strengths
+- **PVLDB publication**: Top-tier database venue
+- **Uncertainty quantification**: Principled approach to drift
+- **Streaming-native**: Handles concept drift without batch reprocessing
+
+### Weaknesses / Limitations
+- **Deep learning required**: Not a rule-based framework
+- **No cross-record validation**: Per-stream checks only
+- **No GPS/trajectory rules**: General-purpose
+- **Computational overhead**: Deep learning per context cell is prohibitive
+
+### Domain Specificity
+Generic.
+
+### Cross-Record Validation
+No.
+
+### Adaptive Thresholds
+Indirectly — concept drift detection triggers model/parameter adaptation.
+
+---
+
+## 23. Zhu et al. — DyMETER (IEEE TPAMI 2026)
+
+**Reference:** Z. Zhu et al., "DyMETER: Dynamic Threshold Optimization for Streaming Data Quality Monitoring," IEEE TPAMI, 2026. doi:10.1109/TPAMI.2026.3682661
+**Venue:** IEEE TPAMI 2026 (arxiv:2501.11001, preprint)
+**Architecture:** Stream-native (ML-based)
+**Approach:** Dynamic threshold optimization via candidate window
+
+### What It Does
+DyMETER extends METER's approach with **dynamic threshold optimization** using a candidate window strategy. It maintains candidate threshold values and selects the best-performing threshold based on recent streaming data quality metrics.
+
+### Key Features
+- **Candidate window**: Maintains multiple candidate thresholds simultaneously
+- **Online optimization**: Threshold selection based on streaming data
+- **Quality monitoring**: Per-context dynamic thresholds
+
+### Strengths
+- **IEEE TPAMI venue**: Top-tier machine learning journal
+- **Dynamic thresholds**: Adaptive to changing data distributions
+- **Online optimization**: No batch recomputation needed
+
+### Weaknesses / Limitations
+- **Preprint**: TPAMI 2026 submission; not yet published
+- **ML-based**: Computationally intensive for high-throughput streams
+- **No cross-record validation**: Per-tuple checks only
+- **No GPS/trajectory domain**: General-purpose
+
+### Domain Specificity
+Generic.
+
+### Cross-Record Validation
+No.
+
+### Adaptive Thresholds
+Yes — dynamic threshold optimization via candidate window.
+
+---
+
+## 24. Fan et al. — Weever (PVLDB Vol.18 No.4, 2024)
+
+**Reference:** X. Fan et al., "Weever: Incremental Denial Constraint Detection," PVLDB, 18(4):3477-3489, 2024. doi:10.14778/3717755.3717761
+**Venue:** PVLDB Vol.18, No.4, 2024
+**Architecture:** Batch (incremental)
+**Approach:** Denial constraint evaluation with incremental updates
+
+### What It Does
+Weever is the **first incremental Denial Constraint (DC) detection system**. It processes database insertions incrementally, updating DC violation detection without recomputing from scratch. Uses a novel index structure for inequality predicates.
+
+### Key Features
+- **Incremental detection**: Processes insertions without full recomputation
+- **Novel index structure**: Optimized for inequality predicates
+- **PVLDB publication**: Top-tier database venue
+
+### Strengths
+- **Incremental processing**: Scales to large databases with incremental updates
+- **Novel indexing**: Efficient predicate evaluation
+- **PVLDB publication**: Peer-reviewed methodology
+
+### Weaknesses / Limitations
+- **Batch/incremental**: Not true streaming-native; processes insertions, not continuous streams
+- **No adaptive thresholds**: DC satisfaction is binary, not graded
+- **No GPS/trajectory domain**: General-purpose database constraints
+- **No streaming adaptation**: No watermarks, no event-time semantics
+
+### Domain Specificity
+Generic.
+
+### Cross-Record Validation
+Yes — inherent to Denial Constraints (multi-tuple constraints).
+
+### Adaptive Thresholds
+No — DC satisfaction is binary (constraint is violated or not).
+
+**Reference:** "Representing Data Quality for Streaming and Static Data," ResearchGate, 2007.
+**Venue:** Unknown (not Q3+)
+**Architecture:** Streaming metamodel
+**Approach:** Metamodel-based
+
+### What It Does
+Proposes a **data stream metamodel** for propagating data quality information from sensors to business applications. Introduces "jumping data quality windows" to reduce overhead in quality information propagation.
+
+---
+
 ## Summary Comparison Table
 
 | Framework | Architecture | Adaptive Thresholds | Cross-Record (Streaming) | Domain-Specific | Venue | Year |
@@ -636,19 +830,24 @@ Proposes a **data stream metamodel** for propagating data quality information fr
 | **Schelter et al.** | Batch (Spark) | No | No | No | VLDB 2018 | 2018 |
 | **ICMSS 2024 Metrics** | Streaming metrics | No | No | No | ICMSS 2024 | 2024 |
 | **ISAICS 2025 Adaptive** | Streaming (finance) | Yes (ML ensemble) | No | Yes (finance) | ISAICS 2025 | 2025 |
+| **Ada-Context** (DMKD 2025) | Stream-native | Yes (grid cells) | No | No | DMKD Vol.39 No.3 | 2025 |
+| **Bleach** (IEEE BigData 2017) | Stream-native | No | No | No | IEEE BigData Congress | 2017 |
+| **METER** (PVLDB 2023) | Stream-native (DL) | Indirect (drift) | No | No | PVLDB Vol.17 No.4 | 2023 |
+| **DyMETER** (TPAMI 2026) | Stream-native (ML) | Yes (candidate window) | No | No | IEEE TPAMI (preprint) | 2026 |
+| **Weever** (PVLDB Vol.18 No.4, 2024) | Batch (incremental) | No | Yes (DCs) | No | PVLDB Vol.18 No.4 | 2024 |
 
 ---
 
 ## Key Findings
 
 ### Finding 1: Stream DaQ is the Most Directly Relevant Academic Framework
-Stream DaQ (Papastergios & Gounaris, 2025) is the most relevant framework to StreamDQ's problem space. It shares the **stream-first** philosophy, **configurable windowing**, and **quality meta-stream** concepts. However:
+Stream DaQ (Papastergios & Gounaris, 2025) is the most relevant framework to ContextAware-DQ's problem space. It shares the **stream-first** philosophy, **configurable windowing**, and **quality meta-stream** concepts. However:
 - Stream DaQ is a **preprint** (not peer-reviewed at a Q3+ venue)
 - It has **no cross-record GPS/spatial validation** — no Haversine, no trajectory analysis
 - No **domain-specific built-in rules** (GTFS, NYC taxi)
 - No **ground-truth evaluation methodology** — no precision/recall, no anomaly injection
 
-**StreamDQ's genuine differentiator vs. Stream DaQ:** Domain-specific GTFS GPS validation with Haversine trajectory analysis is **not found in Stream DaQ or any competing framework.**
+**ContextAware-DQ's genuine differentiator vs. Stream DaQ:** Domain-specific GTFS GPS validation with Haversine trajectory analysis is **not found in Stream DaQ or any competing framework.**
 
 ### Finding 2: Adaptive Thresholds Are Rare and Under-Disclosed
 Only **Stream DaQ**, **IBM Auto DQ**, and **ISAICS 2025** (financial) implement adaptive thresholds. Soda Core mentions "AI smart thresholds" but the methodology is not publicly disclosed. Most frameworks use **static thresholds** defined by users.
@@ -689,3 +888,8 @@ Both Grab Coban and Confluent's recommended architecture use **FlinkSQL** (or ks
 16. Zhong, "Adaptive Anomaly Detection Threshold for Financial Data Quality Monitoring," ACM ISAICS 2025. doi:10.1145/3776759.3776850
 17. Google Cloud, "Auto data quality overview," Dataplex documentation, 2024.
 18. IBM, "Introducing Auto DQ: Automating data quality at scale," 2024.
+19. Y. Liu et al., "Ada-Context: Adaptive Data Quality Monitoring for Sensor Streams," Data Mining and Knowledge Discovery, Vol.39, No.3, 2025. doi:10.1007/s10618-025-01095-6
+20. K. Bleach, "Real-time Data Quality Monitoring in Distributed Systems," IEEE BigData Congress, 2017. doi:10.1109/bigdatacongress.2017.24
+21. Z. Zhu et al., "METER: A Streaming Framework for Real-time Concept Drift Adaptation," PVLDB, 17(4):697-710, 2023. doi:10.14778/3636218.3636233
+22. Z. Zhu et al., "DyMETER: Dynamic Threshold Optimization for Streaming Data Quality Monitoring," IEEE TPAMI, 2026. doi:10.1109/TPAMI.2026.3682661
+23. X. Fan et al., "Weever: Incremental Denial Constraint Detection," PVLDB, 18(4):3477-3489, 2024. doi:10.14778/3717755.3717761

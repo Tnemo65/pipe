@@ -51,7 +51,7 @@
 - IDEA-02: "SURVIVES (2/3 agents)" on engineering attack (cold-start rebuttal accepted); some residual risk → 3
 - IDEA-04: "SURVIVES (2/3 agents)" on engineering; protobuf + multi-stream is significant → 3
 - IDEA-05: "SURVIVES as PRIMARY" — same cold-start risk as IDEA-02, but simpler implementation → 3
-- IDEA-NEW-3: "SURVIVES (2/3 agents)" on engineering; Weever is general-purpose, spatial indexing is non-trivial → 2
+- IDEA-NEW-3: "SURVIVES (2/3 agents)" on engineering; [] is general-purpose, spatial indexing is non-trivial → 2
 
 ---
 
@@ -68,7 +68,7 @@
 | 5 | Groundbreaking — fundamentally new approach with no prior work |
 
 **Evidence anchors**:
-- IDEA-NEW-2: "First integration of rule-based DQ validation with trajectory-level quality scoring." "T-Assess uses statistics; StreamDQ uses rules — no prior work connects them." "VLDB 2025 foundation." → 5
+- IDEA-NEW-2: "First integration of rule-based DQ validation with trajectory-level quality scoring." "T-Assess uses statistics; ContextAware-DQ uses rules — no prior work connects them." "VLDB 2025 foundation." → 5
 - IDEA-04: "Cross-entity consistency validation is absent from CUTR (batch), Wong (describes but doesn't detect), and all surveyed streaming DQ frameworks." "Vehicle ↔ Trip ↔ Alert correlation is genuinely novel." → 4
 - IDEA-07: "No streaming DQ benchmark uses real-world transportation data with ground truth." Benchmark methodology papers cited for years. "First streaming DQ benchmark." → 4
 - IDEA-02: "First application of constraint-guided calibration to streaming DQ." Addresses Martin et al. false positive crisis. "No prior work has applied physics-constrained discovery." → 4
@@ -134,11 +134,11 @@
 | 5 | Very durable — depends on existing framework integration, hard to replicate |
 
 **Evidence anchors**:
-- IDEA-NEW-2: "Durable contribution: T-Assess and StreamDQ integration methodology will be cited regardless of StreamDQ's ultimate deployment." Integration requires both systems — high barrier to replicate → 5
+- IDEA-NEW-2: "Durable contribution: T-Assess and ContextAware-DQ integration methodology will be cited regardless of ContextAware-DQ's ultimate deployment." Integration requires both systems — high barrier to replicate → 5
 - IDEA-04: "CUTR audit required." Once the audit confirms cross-entity absence, the claim is durable. But protobuf+GTFS is a niche skill set. Medium durability → 3
 - IDEA-07: "Benchmark papers are cited for years." Reproducibility documentation is the key. Moderate durability — requires community adoption for full impact → 3
 - IDEA-02: "Addresses Martin et al. false positive crisis." The constrained discovery methodology is generalizable; could be applied to other domains by reviewers or competitors. Moderate vulnerability → 3
-- IDEA-NEW-3: "Weever (VLDB 2024) is general-purpose." GPS adaptation is a specific instantiation — replicable with Weever code available on GitHub → 2
+- IDEA-NEW-3: "[REMOVED: [] citation pending verification] is general-purpose." GPS adaptation is a specific instantiation — replicable with [] code available on GitHub → 2
 - IDEA-05: "Adaptive thresholds are well-studied." "Needs transportation-specific angle to avoid 'Stream DaQ++' reviewer attack." Most vulnerable to preemption → 2
 
 ---
@@ -405,7 +405,7 @@ Key observations:
 
 | Rank | Idea | Weighted Score | Borda Count | Base Rank Stability | Decisive Wins |
 |------|------|:-------------:|:-----------:|:------------------:|:-------------:|
-| **1** | **IDEA-NEW-2: T-Assess x StreamDQ Integration** | **4.60** | **25** | STABLE #1 (4/4 scenarios) | 5/5 pairs |
+| **1** | **IDEA-NEW-2: T-Assess x ContextAware-DQ Integration** | **4.60** | **25** | STABLE #1 (4/4 scenarios) | 5/5 pairs |
 | **2** | **IDEA-02: Physics-Constrained Calibration** | **3.45** | **16** | STABLE top-3 (4/4) | 3/4 pairs |
 | **3** | **IDEA-07: Streaming Transportation DQ Benchmark** | **3.35** | **15** | STABLE top-4 (4/4) | 2/4 pairs |
 | **4** | **IDEA-04: GTFS-RT Cross-Entity Validator** | **3.25** | **14** | STABLE top-4 (4/4) | 2/4 pairs |

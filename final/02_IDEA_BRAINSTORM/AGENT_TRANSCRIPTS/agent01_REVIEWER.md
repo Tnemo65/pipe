@@ -11,9 +11,9 @@
 
 ---
 
-### IDEA-NEW-2: T-Assess × StreamDQ Integration
+### IDEA-NEW-2: T-Assess × ContextAware-DQ Integration
 
-**Summary**: Combines T-Assess (VLDB 2025 — first trajectory quality scoring system) with StreamDQ's rule-based SYN/SEM/CRS taxonomy. Rule violations map to quality dimensions (SYN→validity, CRS→consistency, SEM→completeness), creating a closed-loop system where violations degrade scores and scores explain quality.
+**Summary**: Combines T-Assess (VLDB 2025 — first trajectory quality scoring system) with ContextAware-DQ's rule-based SYN/SEM/CRS taxonomy. Rule violations map to quality dimensions (SYN→validity, CRS→consistency, SEM→completeness), creating a closed-loop system where violations degrade scores and scores explain quality.
 
 #### REVIEWER-R1 (Systems/Engineering — VLDB/SIGMOD)
 
@@ -21,11 +21,11 @@
 
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
-| Novelty | 4 | Integration of statistical quality scoring with rule-based validation is genuinely novel — no prior work connects T-Assess's quality dimensions to StreamDQ's DQ rules |
+| Novelty | 4 | Integration of statistical quality scoring with rule-based validation is genuinely novel — no prior work connects T-Assess's quality dimensions to ContextAware-DQ's DQ rules |
 | Technical Depth | 3 | Integration is API-level (both systems exist). However, the TQS composite weighting scheme is statically defined — no dynamic adaptation based on streaming state. The foreachBatch Spark pipeline creates a driver bottleneck (known limitation B4). |
 | Experimental Validity | 3 | Synthetic ground truth methodology is sound (follows Exathlon precedent). BUT: TQS weighting scheme selection (multiple variants tested, best chosen) risks multiple comparisons inflation without correction. NYC TLC has 3M records but GTFS Malaysia is novel with no academic precedent. |
 | Clarity | 5 | Mapping SYN→validity, CRS→consistency, SEM→completeness is clearly documented. The closed-loop concept is well-argued. |
-| Related Work | 5 | T-Assess (VLDB 2025) is recent and properly cited. Stream DaQ (arXiv 2025) gap correctly identified. Exathlon (VLDB 2021) benchmark precedent established. |
+| Related Work | 5 | T-Assess (under review at VLDB 2025) is recent and properly cited. Stream DaQ (arXiv 2025) gap correctly identified. Exathlon (VLDB 2021) benchmark precedent established. |
 | **Overall** | **4/5** | **Accept** — The integration concept is sound and genuinely novel. Primary concern is the TQS weighting scheme evaluation: must pre-register the weighting formula before running experiments to avoid post-hoc selection bias. |
 
 **Strengths**:
@@ -35,8 +35,8 @@
 
 **Weaknesses**:
 1. **[W1: Major]** TQS weighting scheme is arbitrary — multiple variants must be tested and validated against ground truth, but this creates multiple comparisons risk without correction
-2. **[W2: Major]** foreachBatch Spark driver bottleneck (B4) limits throughput — the integration's real-time performance is constrained by StreamDQ's architecture
-3. **[W3: Minor]** T-Assess API compatibility with StreamDQ's Spark pipeline must be verified experimentally — no evidence yet that integration works without modification
+2. **[W2: Major]** foreachBatch Spark driver bottleneck (B4) limits throughput — the integration's real-time performance is constrained by ContextAware-DQ's architecture
+3. **[W3: Minor]** T-Assess API compatibility with ContextAware-DQ's Spark pipeline must be verified experimentally — no evidence yet that integration works without modification
 
 **Decisive Question**: "What is your TQS composite score formula, and how did you select it? If you tested multiple variants and selected the best-performing, how do you avoid multiple comparisons inflation?"
 
@@ -48,11 +48,11 @@
 
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
-| Novelty | 5 | This is the strongest novel contribution on the list. T-Assess (VLDB 2025) uses statistics; StreamDQ uses deterministic rules. Their integration is genuinely uncharted — the gap (GAP-07, GAP-10) is verified. |
+| Novelty | 5 | This is the strongest novel contribution on the list. T-Assess (under review at VLDB 2025) uses statistics; ContextAware-DQ uses deterministic rules. Their integration is genuinely uncharted — the gap (GAP-07, GAP-10) is verified. |
 | Technical Depth | 4 | The rule→dimension mapping is conceptually clear but the TQS aggregation function is underspecified. Is it a weighted sum? A multi-criteria score? What sensitivity does it have to individual rule weights? |
 | Experimental Validity | 3 | Synthetic injection methodology is sound. BUT: degradation curves require knowing "ground truth quality" — how is ground truth quality defined for a synthetic trajectory? Without a reference quality score, the degradation curve cannot be validated. |
 | Clarity | 4 | The concept is clearly explained. The four T-Assess dimensions (validity, completeness, consistency, fairness) are well-defined. |
-| Related Work | 5 | Excellent — T-Assess (VLDB 2025), Martin et al. (PVLDB 2025), Stream DaQ (arXiv 2025) all properly cited. |
+| Related Work | 5 | Excellent — T-Assess (under review at VLDB 2025), Martin et al. (PVLDB 2025), Stream DaQ (arXiv 2025) all properly cited. |
 | **Overall** | **4/5** | **Accept** — The integration is novel and well-motivated. Critical concern: ground truth quality definition must be formally specified before claiming "degradation curves validate the TQS." |
 
 **Strengths**:
@@ -79,7 +79,7 @@
 | Technical Depth | 4 | The four dimensions (validity, completeness, consistency, fairness) are meaningful to transit operators. GPS validity and trajectory consistency are directly operational. |
 | Experimental Validity | 4 | Clear operational framing. NYC TLC evaluation is well-motivated. Wong (2025) documents 30% GTFS-RT error rate — the operational need is verified. |
 | Clarity | 5 | The closed-loop concept (rules detect → violations degrade scores → scores explain) is immediately intuitive to operations staff. |
-| Related Work | 3 | T-Assess (VLDB 2025) is academic; transit operators care about actionable scores, not academic quality dimensions. Fairness dimension may not be meaningful for GPS trajectories. |
+| Related Work | 3 | T-Assess (under review at VLDB 2025) is academic; transit operators care about actionable scores, not academic quality dimensions. Fairness dimension may not be meaningful for GPS trajectories. |
 | **Overall** | **4/5** | **Accept** — Strong operational value. Transit operators need a single trust signal ("should I trust this data right now?"). The TQS provides exactly that. Primary concern is whether the four T-Assess dimensions map to operational decisions. |
 
 **Strengths**:
@@ -103,19 +103,19 @@
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
 | Novelty | 4 | Integration novelty is clearly justified. |
-| Technical Depth | 3 | Integration at API level is clean but T-Assess and StreamDQ must be verified to interoperate. T-Assess is a Python library; StreamDQ is a Spark pipeline — the integration boundary needs careful design. |
+| Technical Depth | 3 | Integration at API level is clean but T-Assess and ContextAware-DQ must be verified to interoperate. T-Assess is a Python library; ContextAware-DQ is a Spark pipeline — the integration boundary needs careful design. |
 | Experimental Validity | 3 | Synthetic injection methodology is standard. BUT: reproducibility documentation is absent. How does one reproduce the TQS degradation curves? What parameters (window size, TQS formula, threshold values) are used? |
 | Clarity | 5 | Clear documentation of mapping SYN→validity, CRS→consistency, SEM→completeness. Good reproducibility section in IDEA-NEW-2 analysis. |
-| Related Work | 5 | T-Assess GitHub is available. StreamDQ code is public. |
+| Related Work | 5 | T-Assess GitHub is available. ContextAware-DQ code is public. |
 | **Overall** | **4/5** | **Accept** — Good reproducibility posture. Primary concern: T-Assess integration must be documented as a reproducible pipeline step, not just a conceptual mapping. |
 
 **Strengths**:
-1. Both T-Assess and StreamDQ have public code — integration is verifiable
+1. Both T-Assess and ContextAware-DQ have public code — integration is verifiable
 2. Synthetic ground truth methodology is standard and reproducible
 3. NYC TLC dataset is publicly accessible
 
 **Weaknesses**:
-1. **[W1: Major]** T-Assess ↔ StreamDQ API compatibility is unverified — T-Assess is Python, StreamDQ runs on Spark. Cross-environment data transfer adds engineering complexity that may affect reproducibility.
+1. **[W1: Major]** T-Assess ↔ ContextAware-DQ API compatibility is unverified — T-Assess is Python, ContextAware-DQ runs on Spark. Cross-environment data transfer adds engineering complexity that may affect reproducibility.
 2. **[W2: Minor]** Reproducibility documentation (how to reproduce degradation curves) is absent from the idea description. Must include: window size, TQS formula parameters, bootstrap iteration count, random seed.
 3. **[W3: Minor]** GTFS Malaysia CRS (coordinate reference system) must be verified before Haversine-based CRS001 runs on GTFS data.
 
@@ -134,7 +134,7 @@
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
 | Novelty | 4 | First streaming DQ benchmark for transportation. NUMOSIM (SIGSPATIAL 2024) is the only mobility benchmark and targets AD, not DQ — the gap is real. |
-| Technical Depth | 3 | Reuses existing replay/producer patterns — low implementation risk. BUT: NUMOSIM anomaly type → DQ rule type mapping is non-trivial. Speed anomaly in NUMOSIM ≠ GPS jump violation in StreamDQ. |
+| Technical Depth | 3 | Reuses existing replay/producer patterns — low implementation risk. BUT: NUMOSIM anomaly type → DQ rule type mapping is non-trivial. Speed anomaly in NUMOSIM ≠ GPS jump violation in ContextAware-DQ. |
 | Experimental Validity | 3 | Exathlon (VLDB 2021) is a strong precedent. BUT: reproducibility documentation determines benchmark value. If parameters are not published, the benchmark is a single-use tool. |
 | Clarity | 4 | Clear motivation: no streaming DQ benchmark for transportation. Well-argued problem statement. |
 | Related Work | 4 | Exathlon (VLDB 2021), NAB (KDD 2015), NUMOSIM (SIGSPATIAL 2024) all properly cited. |
@@ -147,7 +147,7 @@
 
 **Weaknesses**:
 1. **[W1: Major]** NUMOSIM anomaly types don't map cleanly to DQ rule types — NUMOSIM is designed for AD, not DQ validation. The mapping must be validated experimentally, not asserted. If the mapping is wrong, the benchmark measures AD performance, not DQ validation quality.
-2. **[W2: Minor]** Community adoption is required for benchmark impact — without it, the benchmark is useful only for StreamDQ internal evaluation. Exathlon succeeded because it was adopted by multiple research groups.
+2. **[W2: Minor]** Community adoption is required for benchmark impact — without it, the benchmark is useful only for ContextAware-DQ internal evaluation. Exathlon succeeded because it was adopted by multiple research groups.
 3. **[W3: Minor]** Throughput/latency benchmarks require distributed deployment — LocalPipeline results are not representative of Spark cluster performance.
 
 **Decisive Question**: "What is your NUMOSIM → DQ rule type mapping, and how do you validate that the mapping measures DQ validation quality rather than anomaly detection performance?"
@@ -177,7 +177,7 @@
 2. **[W2: Major]** NUMOSIM → DQ rule type mapping validity is unverified. If the mapping is wrong, the benchmark's core claim ("measures DQ validation quality") is false.
 3. **[W3: Minor]** No ablation study of the benchmark itself — how sensitive are results to benchmark parameters (anomaly injection rate, trajectory length)?
 
-**Decisive Question**: "What is the theoretical justification for the NUMOSIM → DQ rule type mapping? NUMOSIM was designed for anomaly detection. What evidence do you have that a NUMOSIM speed anomaly corresponds to a StreamDQ CRS001 speed violation?"
+**Decisive Question**: "What is the theoretical justification for the NUMOSIM → DQ rule type mapping? NUMOSIM was designed for anomaly detection. What evidence do you have that a NUMOSIM speed anomaly corresponds to a ContextAware-DQ CRS001 speed violation?"
 
 ---
 
@@ -226,7 +226,7 @@
 3. Reproducibility documentation is comprehensive (parameters, seeds, evaluation protocol)
 
 **Weaknesses**:
-1. **[W1: Major]** Reproducibility requires publishing all benchmark parameters and tools publicly. If only StreamDQ internal evaluation uses the benchmark, it is not reproducible by the community.
+1. **[W1: Major]** Reproducibility requires publishing all benchmark parameters and tools publicly. If only ContextAware-DQ internal evaluation uses the benchmark, it is not reproducible by the community.
 2. **[W2: Minor]** NUMOSIM → DQ rule type mapping must be explicitly documented so other researchers can extend the benchmark.
 3. **[W3: Minor]** GTFS Malaysia API stability is unverified — if the API changes, the benchmark breaks.
 
@@ -459,7 +459,7 @@
 
 ### IDEA-NEW-3: Incremental DCs for GPS
 
-**Summary**: Express StreamDQ's GPS cross-record rules (CRS001 GPS jump, CRS002 speed, CRS003 duplicate) as formal Denial Constraints (DCs), and use Weever (VLDB 2024 — first incremental DC detection system) as the evaluation framework. The contribution is the formal DC expression of GPS-specific constraints and the GPS-predicate optimization.
+**Summary**: Express ContextAware-DQ's GPS cross-record rules (CRS001 GPS jump, CRS002 speed, CRS003 duplicate) as formal Denial Constraints (DCs), and use [] (VLDB 2024 — first incremental DC detection system) as the evaluation framework. The contribution is the formal DC expression of GPS-specific constraints and the GPS-predicate optimization.
 
 #### REVIEWER-R1 (Systems/Engineering — VLDB/SIGMOD)
 
@@ -467,24 +467,24 @@
 
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
-| Novelty | 4 | Weever (VLDB 2024) is the most recent DC work. Adapting DCs for GPS-specific predicates (Haversine distance) is novel. |
-| Technical Depth | 2 | Weever is general-purpose — adapting it for GPS requires significant engineering. Haversine distance as a DC predicate requires spatial indexing, which Weever doesn't have. GPS state management (per-vehicle trajectory) is non-trivial. |
-| Experimental Validity | 3 | Formal DC evaluation methodology exists (Weever). GPS-specific metrics are standard (detection rate, precision, recall). BUT: Weever hasn't been evaluated on spatial predicates. |
-| Clarity | 3 | Weever is complex. The GPS adaptation requires careful explanation. The relationship between DC-based and procedural GPS rules is not clearly distinguished. |
-| Related Work | 5 | Weever (VLDB 2024), Fan & Geerts (PVLDB 2014), FACET (VLDB 2022) all properly cited. |
-| **Overall** | **3/5** | **Borderline** — Most technically ambitious idea. Weever integration is non-trivial. The Haversine DC predicate is novel but requires spatial indexing that Weever doesn't provide. Primary risk: the simplified DC evaluator may not scale to real-world trajectory volumes. |
+| Novelty | 4 | [REMOVED: [] citation pending verification] is the most recent DC work. Adapting DCs for GPS-specific predicates (Haversine distance) is novel. |
+| Technical Depth | 2 | [] is general-purpose — adapting it for GPS requires significant engineering. Haversine distance as a DC predicate requires spatial indexing, which [] doesn't have. GPS state management (per-vehicle trajectory) is non-trivial. |
+| Experimental Validity | 3 | Formal DC evaluation methodology exists (). GPS-specific metrics are standard (detection rate, precision, recall). BUT: [] hasn't been evaluated on spatial predicates. |
+| Clarity | 3 | [] is complex. The GPS adaptation requires careful explanation. The relationship between DC-based and procedural GPS rules is not clearly distinguished. |
+| Related Work | 5 | [REMOVED: [] citation pending verification], Fan & Geerts (PVLDB 2014), FACET (VLDB 2022) all properly cited. |
+| **Overall** | **3/5** | **Borderline** — Most technically ambitious idea. [] integration is non-trivial. The Haversine DC predicate is novel but requires spatial indexing that [] doesn't provide. Primary risk: the simplified DC evaluator may not scale to real-world trajectory volumes. |
 
 **Strengths**:
-1. Weever (VLDB 2024) provides a formal evaluation framework — detection rate, precision, recall metrics are well-defined
+1. [REMOVED: [] citation pending verification] provides a formal evaluation framework — detection rate, precision, recall metrics are well-defined
 2. GPS-specific DC predicates are genuinely novel — no prior work expresses Haversine distance as a DC
 3. Addresses GAP-01 (cross-record) and GAP-08 (cross-entity) from a formal perspective
 
 **Weaknesses**:
-1. **[W1: Major]** Weever requires spatial indexing for Haversine predicates — Weever doesn't provide this. Building GPS-specific spatial indexing on top of Weever is significant additional engineering.
-2. **[W2: Major]** Weever targets general databases, not streaming. The streaming adaptation of Weever's incremental DC detection is non-trivial and may require substantial modifications.
+1. **[W1: Major]** [] requires spatial indexing for Haversine predicates — [] doesn't provide this. Building GPS-specific spatial indexing on top of [] is significant additional engineering.
+2. **[W2: Major]** [] targets general databases, not streaming. The streaming adaptation of 's incremental DC detection is non-trivial and may require substantial modifications.
 3. **[W3: Minor]** State growth for per-vehicle trajectory DC evaluation is unbounded unless TTL is applied — TTL policy interacts badly with DC semantics (a DC violation may involve events from much earlier in the stream).
 
-**Decisive Question**: "What spatial index structure do you use for Haversine predicates, and how does it interact with Weever's index structure? Haversine is not a standard SQL predicate — it requires custom implementation."
+**Decisive Question**: "What spatial index structure do you use for Haversine predicates, and how does it interact with 's index structure? Haversine is not a standard SQL predicate — it requires custom implementation."
 
 ---
 
@@ -498,16 +498,16 @@
 | Technical Depth | 4 | DC expression of Haversine and speed constraints is well-motivated. The theoretical properties (decidability, complexity) are worth exploring. |
 | Experimental Validity | 3 | Detection rate, precision, recall are domain-agnostic. BUT: the comparison between DC-based and procedural GPS rules is underspecified — what is the formal relationship? |
 | Clarity | 3 | DC formalism is complex. The idea requires careful explanation for non-DB theorists. |
-| Related Work | 5 | Weever (VLDB 2024), Fan & Geerts (PVLDB 2014), FACET (VLDB 2022) are perfectly cited. |
+| Related Work | 5 | [REMOVED: [] citation pending verification], Fan & Geerts (PVLDB 2014), FACET (VLDB 2022) are perfectly cited. |
 | **Overall** | **4/5** | **Accept** — Theoretically the strongest idea. The formal DC expression of GPS constraints is a genuine theoretical contribution. Primary concern: the evaluation methodology (DC-based vs. procedural GPS rules) must be formally defined. What does "DC-based GPS validation is tractable" mean, and how do you measure it? |
 
 **Strengths**:
 1. Most theoretically novel idea — DC expression of GPS constraints is at PODS/ICDT level
 2. Directly addresses GAP-01 with formal rigor — cross-record validation semantics are grounded in DC theory
-3. Weever (VLDB 2024) is the most recent and relevant prior work
+3. [REMOVED: [] citation pending verification] is the most recent and relevant prior work
 
 **Weaknesses**:
-1. **[W1: Major]** The "simplified DC evaluator" is not formally specified. What is lost relative to Weever's full implementation? If the simplified evaluator can't handle GPS-scale data, the approach fails.
+1. **[W1: Major]** The "simplified DC evaluator" is not formally specified. What is lost relative to 's full implementation? If the simplified evaluator can't handle GPS-scale data, the approach fails.
 2. **[W2: Major]** DC-based vs. procedural GPS rules: the formal relationship is not defined. Are DCs more expressive? More efficient? More correct? The evaluation must answer this.
 3. **[W3: Minor]** This is a PODS/ICDT paper, not VLDB/SIGMOD. If the target venue is VLDB, the theoretical contribution may be insufficient for a full paper.
 
@@ -525,7 +525,7 @@
 | Technical Depth | 3 | The DC formalism is technically sound but operationally opaque. Transit operators need interpretable results, not formal constraint expressions. |
 | Experimental Validity | 3 | Detection metrics are operationally relevant. BUT: the DC-based approach must produce the same violations as procedural GPS rules to be operationally useful. |
 | Clarity | 2 | DC formalism is inaccessible to transit operators. This is a researcher-facing contribution, not an operator-facing tool. |
-| Related Work | 3 | Wong (2025) is the operationally relevant reference, not Weever (VLDB 2024). |
+| Related Work | 3 | Wong (2025) is the operationally relevant reference, not [REMOVED: [] citation pending verification]. |
 | **Overall** | **2/5** | **Reject** — Transit operators cannot use this. DCs are a researcher-facing formalism. The operational output (violations detected) is the same as procedural GPS rules. The theoretical contribution is valuable to researchers but has no direct operational impact. |
 
 **Strengths**:
@@ -548,18 +548,18 @@
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
 | Novelty | 5 | GPS-specific DC predicates are genuinely novel. |
-| Technical Depth | 3 | The simplified DC evaluator must be implemented and tested. Weever's framework is complex. GPS spatial predicates require careful engineering. |
-| Experimental Validity | 3 | Formal evaluation methodology exists (Weever). GPS-specific adaptation requires defining new evaluation metrics. |
+| Technical Depth | 3 | The simplified DC evaluator must be implemented and tested. 's framework is complex. GPS spatial predicates require careful engineering. |
+| Experimental Validity | 3 | Formal evaluation methodology exists (). GPS-specific adaptation requires defining new evaluation metrics. |
 | Clarity | 3 | DC formalism requires careful explanation. The GPS adaptation must be documented step-by-step. |
-| Related Work | 5 | Weever, Fan & Geerts, FACET all properly cited. |
-| **Overall** | **3/5** | **Borderline** — The theoretical contribution is strong, but the engineering complexity is high. Reproducibility depends on publishing the simplified DC evaluator, which may not be Weever itself. |
+| Related Work | 5 | , Fan & Geerts, FACET all properly cited. |
+| **Overall** | **3/5** | **Borderline** — The theoretical contribution is strong, but the engineering complexity is high. Reproducibility depends on publishing the simplified DC evaluator, which may not be [] itself. |
 
 **Strengths**1. GPS-specific DC predicates are reproducible if the simplified DC evaluator is published
-2. Formal evaluation methodology (Weever) provides standard metrics
+2. Formal evaluation methodology () provides standard metrics
 3. GPS rules expressed as DCs are more maintainable than procedural code
 
-**Weaknesses**1. **[W1: Major]** The simplified DC evaluator must be published for reproducibility — but it is not Weever. If the simplified evaluator has bugs or approximations, results are not reproducible.
-2. **[W2: Major]** Weever's formal evaluation methodology is for general DCs. GPS-specific metrics (Haversine-based DC violation rate, spatial DC precision) require new definitions.
+**Weaknesses**1. **[W1: Major]** The simplified DC evaluator must be published for reproducibility — but it is not . If the simplified evaluator has bugs or approximations, results are not reproducible.
+2. **[W2: Major]** 's formal evaluation methodology is for general DCs. GPS-specific metrics (Haversine-based DC violation rate, spatial DC precision) require new definitions.
 3. **[W3: Minor]** Haversine distance computation is expensive — reproducibility requires specifying the Haversine implementation (which ellipsoid? what precision?).
 
 **Decisive Question**: "Will the simplified DC evaluator be published as open source? Without it, the GPS-specific DC approach is not reproducible."
@@ -682,7 +682,7 @@
 
 | Idea | R1 (Systems) | R2 (Methodology) | R3 (Application) | R4 (Data Eng) | **Average** | **Recommendation** |
 |------|:------------:|:----------------:|:-----------------:|:-------------:|:-----------:|:------------------:|
-| **IDEA-NEW-2** (T-Assess × StreamDQ) | 4 | 4 | 4 | 4 | **4.00** | Accept |
+| **IDEA-NEW-2** (T-Assess × ContextAware-DQ) | 4 | 4 | 4 | 4 | **4.00** | Accept |
 | **IDEA-07** (Benchmark) | 4 | 3 | 3 | 4 | **3.50** | Weak Accept |
 | **IDEA-04** (GTFS-RT Cross-Entity) | 3 | 3 | 5 | 3 | **3.50** | Weak Accept |
 | **IDEA-02** (Physics-Constrained) | 3 | 4 | 4 | 4 | **3.75** | Accept |
@@ -697,7 +697,7 @@
 
 | Idea | Consensus Level | Strongest Reviewer | Weakest Reviewer | Key Disagreement |
 |------|----------------|--------------------|--------------------|------------------|
-| **IDEA-NEW-2** (T-Assess × StreamDQ) | **HIGH** | All reviewers | — | None — unanimous Accept. Minor disagreement: R1 concerns TQS weighting scheme; R2 concerns ground truth quality definition; R3 concerns actionable thresholds. All resolvable. |
+| **IDEA-NEW-2** (T-Assess × ContextAware-DQ) | **HIGH** | All reviewers | — | None — unanimous Accept. Minor disagreement: R1 concerns TQS weighting scheme; R2 concerns ground truth quality definition; R3 concerns actionable thresholds. All resolvable. |
 | **IDEA-07** (Benchmark) | **MEDIUM** | R1 (Systems), R4 (Data Eng) | R2 (Methodology), R3 (Application) | R1/R4 → Accept (infrastructure contribution is sound); R2 → Weak Accept (methodology is not novel, NUMOSIM mapping unverified); R3 → Borderline (no direct operational value). Gap: is infrastructure enough for a thesis? |
 | **IDEA-04** (GTFS-RT Cross-Entity) | **LOW** | R3 (Application — 5/5 Strong Accept) | R2 (Methodology — 3/5 Borderline) | R3 is enthusiastic (operational need verified by Wong 2025, clear end-user benefit). R2 is skeptical (CUTR audit not done, cross-entity evaluation metrics undefined). Disagreement: is CUTR audit a prerequisite? |
 | **IDEA-02** (Physics-Constrained) | **MEDIUM** | R2 (Methodology), R3 (Application), R4 (Data Eng) | R1 (Systems — 3/5) | R2/R3/R4 → Accept (directly addresses Martin et al. FP crisis, operationally meaningful). R1 → Weak Accept (cold-start on sparse cells is unresolved). Disagreement: does physics prior solve cold-start? |
@@ -709,7 +709,7 @@
 ## Summary
 
 **Cross-Reviewer Agreement (Consensus High)**:
-- **IDEA-NEW-2 (T-Assess × StreamDQ)** is the only idea with unanimous Accept across all four reviewer types. The integration is genuinely novel (no prior work connects trajectory quality scoring with rule-based DQ validation), highly feasible (both systems exist, API-level integration), and evaluable (synthetic ground truth, measurable degradation curves). The three minor concerns — TQS weighting scheme, ground truth quality definition, and actionable thresholds — are all resolvable design choices, not fundamental blockers. All reviewers agree this is the strongest candidate.
+- **IDEA-NEW-2 (T-Assess × ContextAware-DQ)** is the only idea with unanimous Accept across all four reviewer types. The integration is genuinely novel (no prior work connects trajectory quality scoring with rule-based DQ validation), highly feasible (both systems exist, API-level integration), and evaluable (synthetic ground truth, measurable degradation curves). The three minor concerns — TQS weighting scheme, ground truth quality definition, and actionable thresholds — are all resolvable design choices, not fundamental blockers. All reviewers agree this is the strongest candidate.
 
 **Divisive Ideas (Consensus Low)**:
 - **IDEA-NEW-3 (Incremental DCs for GPS)** has the widest disagreement: R2 (Methodology) scores it 4/5 Accept because it is the most theoretically novel idea (DC expression of GPS constraints is PODS/ICDT-level), while R3 (Application) scores it 2/5 Reject because DCs are researcher-facing with no direct operational value for transit operators. This is a fundamental tension: the idea is excellent for a theoretical database venue but poorly matched to a transportation application thesis.

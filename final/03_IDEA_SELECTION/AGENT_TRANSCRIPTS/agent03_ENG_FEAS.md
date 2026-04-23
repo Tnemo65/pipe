@@ -2,8 +2,8 @@
 
 **Date**: Wednesday Apr 22, 2026
 **Agent**: ENG_FEAS (Engineering Feasibility)
-**Project**: StreamDQ — Context-Aware Framework for Streaming Data Quality Monitoring
-**Integration Target**: IDEA-NEW-2 (T-Assess × StreamDQ) + IDEA-05 (Contextual Calibration)
+**Project**: ContextAware-DQ — Context-Aware Framework for Streaming Data Quality Monitoring
+**Integration Target**: IDEA-NEW-2 (T-Assess × ContextAware-DQ) + IDEA-05 (Contextual Calibration)
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### What Already Exists
 
-The StreamDQ codebase has a surprisingly mature context-aware infrastructure. Here is the complete picture of what is already built:
+The ContextAware-DQ codebase has a surprisingly mature context-aware infrastructure. Here is the complete picture of what is already built:
 
 #### 1. `streamdq/rules/context_adaptive.py` — ContextAwareAdaptiveThresholdEngine
 
@@ -301,7 +301,7 @@ But there is no TQS aggregation function, no dimension mapper (SYN/SEM/CRS → T
 **Rationale**:
 1. **Option C is the fastest path to TQS evaluation** — TQS layer doesn't need context-aware thresholds; it just needs violation counts by context cell
 2. **Option A is the correct implementation of IDEA-05** — wiring ContextAwareAdaptiveThresholdEngine properly creates genuinely context-aware thresholds (not just hardcoded multipliers)
-3. **Option B can be deferred** — T-Assess API audit is a gate condition; if T-Assess is incompatible, fall back to StreamDQ-only TQS
+3. **Option B can be deferred** — T-Assess API audit is a gate condition; if T-Assess is incompatible, fall back to ContextAware-DQ-only TQS
 4. **Option A's changes are low-risk** — the infrastructure exists, just needs wiring
 
 **Critical path**: T-Assess API audit (must happen Week 1 in parallel). If T-Assess fails audit, Option B's TQS layer becomes custom-built, extending Option A's timeline.
@@ -411,7 +411,7 @@ TQS Degradation Curves (against ground truth injection level)
 | **State management explosion** | MEDIUM | HIGH | `max_contexts=200` limit + LRU eviction already in code. Context key cardinality bounded by: 24 hours × 4 zone categories × 2 (week/weekend) = 192 possible L0 keys (within limit). |
 | **Breaking existing rule behavior** | MEDIUM | HIGH | Backward compatibility: if `get_threshold_with_fallback()` returns None (no stats), rules must fall back to static thresholds. Ablation test: static vs. context-aware thresholds must show measurable improvement. |
 | **TQS recalculation on context change** | MEDIUM | LOW | Incremental update in violation_store. TQS layer reads from stored violations, not in-memory. |
-| **T-Assess API incompatibility** | MEDIUM | HIGH | Gate condition: must audit T-Assess GitHub API within Week 1. If incompatible, fall back to custom TQS built from StreamDQ violations. |
+| **T-Assess API incompatibility** | MEDIUM | HIGH | Gate condition: must audit T-Assess GitHub API within Week 1. If incompatible, fall back to custom TQS built from ContextAware-DQ violations. |
 | **TQS weighting circularity** | MEDIUM | MEDIUM | Pre-register exactly 3 variants before running experiments. Report all 3. Select primary post-hoc only if all 3 are valid. Multiple comparisons correction (Bonferroni). |
 | **Duplicate injection no-op (B2)** | MEDIUM | HIGH | CRS003 recall unmeasurable until B2 fixed. CRS dimension of TQS will be incomplete. B2 fix is prerequisite for Option B CRS evaluation. |
 | **Processing latency hardcoded to 0 (B6)** | LOW | MEDIUM | Fixed in semantic.py rules (uses `time.perf_counter()`). Check cross_record.py still uses `start_time` parameter. |
@@ -493,7 +493,7 @@ TQS Degradation Curves (against ground truth injection level)
 ```
 Week 1: Option C — TQS Layer (rules unchanged)
 ├── Day 1-2: Audit T-Assess GitHub API
-│   └── If incompatible → build custom TQS from StreamDQ violations
+│   └── If incompatible → build custom TQS from ContextAware-DQ violations
 ├── Day 2-4: Build TQS aggregation function
 │   ├── Dimension mapper: SYN→Validity, SEM→Accuracy, CRS→Consistency
 │   └── 3 pre-registered weighting variants
@@ -529,7 +529,7 @@ Week 3: Option A — Polish + Integration
 ```
 Week 1: Option C with custom TQS (no T-Assess)
 ├── Day 1: T-Assess audit → INCOMPATIBLE
-├── Day 2-3: Design custom TQS from StreamDQ violations
+├── Day 2-3: Design custom TQS from ContextAware-DQ violations
 └── Day 3-5: Build custom TQS aggregation
 
 Week 2-3: Option A (unchanged)
@@ -550,7 +550,7 @@ Week 4: Evaluation + TQS validation
 
 ## Summary
 
-The StreamDQ codebase has a mature, well-tested context-aware infrastructure that is **created and updated but never used**. The gap is purely integration — wiring `ContextAwareAdaptiveThresholdEngine.get_threshold_with_fallback()` into semantic rules and adding context metadata to Violations.
+The ContextAware-DQ codebase has a mature, well-tested context-aware infrastructure that is **created and updated but never used**. The gap is purely integration — wiring `ContextAwareAdaptiveThresholdEngine.get_threshold_with_fallback()` into semantic rules and adding context metadata to Violations.
 
 **Estimated effort**: 2-3 weeks for full IDEA-05 integration (Option A), with 1 week for TQS layer (Option C) that can run in parallel.
 

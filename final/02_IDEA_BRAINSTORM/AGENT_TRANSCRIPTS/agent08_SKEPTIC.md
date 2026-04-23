@@ -21,7 +21,7 @@ I give credit only where evidence supports it.
 
 ---
 
-### AGAINST IDEA-NEW-2: T-Assess × StreamDQ Integration
+### AGAINST IDEA-NEW-2: T-Assess × ContextAware-DQ Integration
 
 **Attack 1: "This is integration work, not research."**
 
@@ -29,7 +29,7 @@ The brainstorm itself admits it: "Both systems exist. Integration is API-level."
 
 **Counter from brainstorm**: "Rule violations explain which quality dimensions are failing. Quality scores aggregate violations into an operational signal." This creates "a closed-loop quality system: rules detect violations → violations degrade scores → scores explain quality."
 
-**SKEPTIC RESPONSE**: The "closed loop" claim is compelling marketing, but what does it *produce* that neither T-Assess nor StreamDQ alone could produce? T-Assess already scores validity, completeness, consistency, and fairness using statistical methods. StreamDQ already detects rule violations. The integration maps one to the other. But the evaluation — "TQS degradation curves correlated with ground truth quality" — is exactly what T-Assess already does, just using rule violations instead of statistical deviation. The novel output is unclear. The closed loop is a diagram, not a result.
+**SKEPTIC RESPONSE**: The "closed loop" claim is compelling marketing, but what does it *produce* that neither T-Assess nor ContextAware-DQ alone could produce? T-Assess already scores validity, completeness, consistency, and fairness using statistical methods. ContextAware-DQ already detects rule violations. The integration maps one to the other. But the evaluation — "TQS degradation curves correlated with ground truth quality" — is exactly what T-Assess already does, just using rule violations instead of statistical deviation. The novel output is unclear. The closed loop is a diagram, not a result.
 
 **Attack 2: "TQS weighting is arbitrary."**
 
@@ -39,17 +39,17 @@ The brainstorm acknowledges this: "The weighting scheme must be validated empiri
 
 **SKEPTIC RESPONSE**: This is the multiple comparisons problem. If you test 5 formulations on your synthetic dataset and report the one that performed best, your reported performance is optimistically biased. Proper methodology requires holding out data, pre-registering the formulation, or using nested cross-validation. The brainstorm does not address this. A VLDB reviewer who has sat on a PC will immediately ask: "How do you know the weighting wasn't overfitted to the synthetic ground truth?"
 
-**Attack 3: "T-Assess (VLDB 2025) is one paper. By thesis time, it might be superseded."**
+**Attack 3: "T-Assess (under review at VLDB 2025) is one paper. By thesis time, it might be superseded."**
 
 T-Assess is the entire empirical foundation for IDEA-NEW-2. If T-Assess is wrong, the integration is wrong. If T-Assess has bugs, the integration has bugs. If T-Assess is superseded by T-Assess-v2 at SIGMOD 2026, the thesis becomes immediately outdated. The brainstorm does not audit T-Assess's implementation. It takes T-Assess's GitHub at face value.
 
-**Counter from brainstorm**: "T-Assess code is on GitHub; StreamDQ rules are implemented; integration is API-level."
+**Counter from brainstorm**: "T-Assess code is on GitHub; ContextAware-DQ rules are implemented; integration is API-level."
 
 **SKEPTIC RESPONSE**: "API-level integration" is not a research contribution. And "on GitHub" is not "independently verified to be correct." The entire idea rests on trusting ZJU-DAILY's implementation without auditing it.
 
-**Attack 4: "The 'novel integration' claim requires proving T-Assess and StreamDQ are complementary, not redundant."**
+**Attack 4: "The 'novel integration' claim requires proving T-Assess and ContextAware-DQ are complementary, not redundant."**
 
-The gap analysis claims: "T-Assess uses statistics, StreamDQ uses rules — no prior work connects them." But are they actually complementary? Could T-Assess's statistical scoring subsume StreamDQ's rule violations? If statistical deviation is a better predictor of ground truth quality than rule violations, then StreamDQ adds noise, not signal. The brainstorm does not test this hypothesis. It assumes complementarity.
+The gap analysis claims: "T-Assess uses statistics, ContextAware-DQ uses rules — no prior work connects them." But are they actually complementary? Could T-Assess's statistical scoring subsume ContextAware-DQ's rule violations? If statistical deviation is a better predictor of ground truth quality than rule violations, then ContextAware-DQ adds noise, not signal. The brainstorm does not test this hypothesis. It assumes complementarity.
 
 **VERDICT ON IDEA-NEW-2**: The idea is feasible and marketable. But the research contribution is thin: it's an integration of two existing systems, validated by synthetic ground truth that may be circular. The TQS weighting problem is methodologically fragile. The "closed loop" framing is a narrative device, not a scientific result. **Survival confidence: MEDIUM** — conditional on auditing T-Assess, pre-registering the weighting scheme, and proving complementarity rather than assuming it.
 
@@ -63,7 +63,7 @@ The strongest version of this attack: benchmarks are tools for doing research, n
 
 **Counter from brainstorm**: "A benchmark is a methodology contribution — Exathlon (VLDB 2021) is still cited 3 years later. The benchmark enables comparative research that wasn't possible before."
 
-**SKEPTIC RESPONSE**: The Exathlon paper contributed both the benchmark *and the methodology for evaluating stream processing fault tolerance*. It was cited because multiple research groups adopted it and published results on it. The question is: who will adopt StreamDQ's benchmark? The transportation DQ community is small. Most transit agencies use CUTR's batch validator. Most academic DQ researchers use generic datasets. The benchmark is most useful for the thesis author to evaluate their own system — which is valuable but is not an independent research contribution.
+**SKEPTIC RESPONSE**: The Exathlon paper contributed both the benchmark *and the methodology for evaluating stream processing fault tolerance*. It was cited because multiple research groups adopted it and published results on it. The question is: who will adopt ContextAware-DQ's benchmark? The transportation DQ community is small. Most transit agencies use CUTR's batch validator. Most academic DQ researchers use generic datasets. The benchmark is most useful for the thesis author to evaluate their own system — which is valuable but is not an independent research contribution.
 
 **Attack 2: "NUMOSIM doesn't map to DQ."**
 
@@ -80,15 +80,15 @@ Injecting a GPS spoofing anomaly does not produce the same signal as injecting a
 
 **Attack 3: "Reproducibility requires publishing everything. Without community adoption, this is self-referential."**
 
-The benchmark produces numbers for StreamDQ. StreamDQ is the thesis. The benchmark is used to evaluate the thesis. This is circular evaluation: the benchmark is built by the thesis author, used by the thesis author, and reported in the thesis. A VLDB reviewer will ask: "How do we know these numbers aren't optimistic?" The answer requires independent replication, which requires community adoption.
+The benchmark produces numbers for ContextAware-DQ. ContextAware-DQ is the thesis. The benchmark is used to evaluate the thesis. This is circular evaluation: the benchmark is built by the thesis author, used by the thesis author, and reported in the thesis. A VLDB reviewer will ask: "How do we know these numbers aren't optimistic?" The answer requires independent replication, which requires community adoption.
 
-**Counter from brainstorm**: "Reproducibility documentation is achievable. Community adoption is a social process, but the first evaluation of StreamDQ on the benchmark is achievable regardless of adoption."
+**Counter from brainstorm**: "Reproducibility documentation is achievable. Community adoption is a social process, but the first evaluation of ContextAware-DQ on the benchmark is achievable regardless of adoption."
 
 **SKEPTIC RESPONSE**: This is the weakest defense in the document. "Achievable regardless of adoption" means the benchmark enables self-evaluation, which is valuable for the thesis but does not constitute an independent research contribution. The contribution is the *evaluation methodology*, not the benchmark itself. But the evaluation methodology is only novel if it enables *others* to evaluate *their* systems — which requires adoption.
 
 **Attack 4: "Building a comprehensive benchmark is unbounded. The scope creep risk is severe."**
 
-What is the scope of "streaming transportation DQ benchmark"? Does it cover NYC taxi only? GTFS-RT only? Both? What anomaly types? What rule types? What latency metrics? What throughput metrics? The brainstorm says "scope to StreamDQ internal evaluation first," but this undermines the "durable contribution" claim. An internal evaluation harness is infrastructure, not a paper.
+What is the scope of "streaming transportation DQ benchmark"? Does it cover NYC taxi only? GTFS-RT only? Both? What anomaly types? What rule types? What latency metrics? What throughput metrics? The brainstorm says "scope to ContextAware-DQ internal evaluation first," but this undermines the "durable contribution" claim. An internal evaluation harness is infrastructure, not a paper.
 
 **VERDICT ON IDEA-07**: The benchmark is the most *honest* idea in the set — it does not overclaim novelty or theoretical depth. But it is also the most *incremental* contribution. The research contribution is "we built an evaluation harness and used it to evaluate our system." The durable value is in the infrastructure, not the methodology. **Survival confidence: MEDIUM** — if scoped tightly to "first evaluation methodology for streaming transportation DQ with ground truth," it could survive. If it expands to "comprehensive benchmark," it will not be finished in the thesis timeline.
 
@@ -106,7 +106,7 @@ The brainstorm acknowledges this and responds: "Must prove CUTR lacks cross-enti
 
 **Attack 2: "Protobuf complexity will consume the entire timeline."**
 
-The brainstorm says: "Protobuf parsing in Spark streaming is non-trivial." This is an understatement. The current StreamDQ pipeline uses Python producers. Moving to protobuf parsing in Spark means:
+The brainstorm says: "Protobuf parsing in Spark streaming is non-trivial." This is an understatement. The current ContextAware-DQ pipeline uses Python producers. Moving to protobuf parsing in Spark means:
 
 1. Integrating `gtfs-realtime-bindings` into the Spark pipeline
 2. Defining the schema evolution policy
@@ -140,7 +140,7 @@ The research contribution in IDEA-04 is the *gap identification* (cross-entity c
 
 **Attack 1: "This is 'smart thresholds' rebranded."**
 
-The strongest version: Martin et al.'s 95% FP result is about *discovery* of DCs from data. StreamDQ does not discover rules — it has pre-defined rules (SYN001, CRS001, etc.). The calibration problem is: given a rule (e.g., "no vehicle exceeds X km/h"), what is the best value of X?
+The strongest version: Martin et al.'s 95% FP result is about *discovery* of DCs from data. ContextAware-DQ does not discover rules — it has pre-defined rules (SYN001, CRS001, etc.). The calibration problem is: given a rule (e.g., "no vehicle exceeds X km/h"), what is the best value of X?
 
 This is a standard threshold optimization problem. Physics constraints define the *search space*. But the search space is not the novelty — the search algorithm is. What search algorithm? Rolling P10/P90? Bayesian optimization? Grid search with cross-validation?
 
@@ -150,7 +150,7 @@ This is a standard threshold optimization problem. Physics constraints define th
 
 **Attack 2: "Martin et al.'s 95% FP is about DC *discovery*, not threshold calibration."**
 
-The brainstorm uses Martin et al. (95% FP) to justify the "false positive crisis," then proposes physics-constrained calibration as the solution. But Martin et al. is about *discovering* DCs from data (which DCs are true in this dataset?). StreamDQ already has rules — the question is *threshold calibration* (what value of the threshold best separates valid from invalid?). These are different problems.
+The brainstorm uses Martin et al. (95% FP) to justify the "false positive crisis," then proposes physics-constrained calibration as the solution. But Martin et al. is about *discovering* DCs from data (which DCs are true in this dataset?). ContextAware-DQ already has rules — the question is *threshold calibration* (what value of the threshold best separates valid from invalid?). These are different problems.
 
 **Counter from brainstorm**: "The 'discovery' task becomes: 'Given these physical constraints, what thresholds best separate valid from invalid?' This is a *calibration* problem, not a discovery problem."
 
@@ -174,13 +174,13 @@ The brainstorm acknowledges: "The improvement over rolling P10/P90 might be < 5%
 
 ### AGAINST IDEA-NEW-3: Incremental DCs for GPS
 
-**Attack 1: "Weever does this already."**
+**Attack 1: "[] does this already."**
 
-Weever (VLDB 2024) is "the first incremental DC detection system." It processes 200,000 insertions. GPS-specific predicate optimization is mentioned as non-trivial, but Weever's general framework can express GPS constraints. The only remaining contribution is the GPS-specific mapping of StreamDQ rules to formal DC notation.
+[REMOVED: [] citation pending verification] is "the first incremental DC detection system." It processes 200,000 insertions. GPS-specific predicate optimization is mentioned as non-trivial, but 's general framework can express GPS constraints. The only remaining contribution is the GPS-specific mapping of ContextAware-DQ rules to formal DC notation.
 
 **Counter from brainstorm**: "A simplified DC evaluator for GPS data is achievable as proof-of-concept. Express GPS rules as formal DCs, implement a simple DC evaluator, demonstrate formal enforcement is tractable for streaming GPS data."
 
-**SKEPTIC RESPONSE**: "Proof of concept" is not a research contribution. The brainstorm explicitly says "full Weever implementation is not required." But if you don't implement Weever, what *do* you implement? A simplified DC evaluator that doesn't use Weever's novel index structure is just a naive nested-loop evaluation of DCs over GPS data. That is not incrementally better than StreamDQ's procedural rules — it's procedurally equivalent but in a different formalism.
+**SKEPTIC RESPONSE**: "Proof of concept" is not a research contribution. The brainstorm explicitly says "full [] implementation is not required." But if you don't implement , what *do* you implement? A simplified DC evaluator that doesn't use 's novel index structure is just a naive nested-loop evaluation of DCs over GPS data. That is not incrementally better than ContextAware-DQ's procedural rules — it's procedurally equivalent but in a different formalism.
 
 **Attack 2: "DC formalism adds complexity without operational benefit."**
 
@@ -194,7 +194,7 @@ The entire value proposition of formal DCs over procedural rules is expressivene
 
 If the contribution is the formal DC expression of GPS constraints, then the thesis needs to prove: (a) the DC correctly captures the GPS constraint, (b) the incremental evaluation algorithm is correct, (c) the complexity bounds are known. This is theoretical computer science work — specifically, database theory. A thesis that implements a system *and* does formal proofs is doing two PhDs.
 
-**VERDICT ON IDEA-NEW-3**: Most theoretically interesting idea, but the gap between "proof of concept" and "research contribution" is large. The "simplified DC evaluator" is not publishable. The full Weever-style implementation is too much work. The GPS-specific DC expression is too thin. **Survival confidence: LOW** — defer as a theoretical appendix if IDEA-NEW-2 is chosen, but not as a standalone idea.
+**VERDICT ON IDEA-NEW-3**: Most theoretically interesting idea, but the gap between "proof of concept" and "research contribution" is large. The "simplified DC evaluator" is not publishable. The full -style implementation is too much work. The GPS-specific DC expression is too thin. **Survival confidence: LOW** — defer as a theoretical appendix if IDEA-NEW-2 is chosen, but not as a standalone idea.
 
 ---
 
@@ -236,7 +236,7 @@ For each idea, the single failure mode that would make it fail entirely:
 
 | Idea | Failure Mode | Probability | Detection | Recovery |
 |------|-------------|-------------|-----------|----------|
-| **IDEA-NEW-2** | T-Assess integration fails at API level (incompatible data model, missing trajectory reconstruction, licensing issue) | MEDIUM | Week 1-2 of integration work | Fall back to StreamDQ-only evaluation with TQS as future work |
+| **IDEA-NEW-2** | T-Assess integration fails at API level (incompatible data model, missing trajectory reconstruction, licensing issue) | MEDIUM | Week 1-2 of integration work | Fall back to ContextAware-DQ-only evaluation with TQS as future work |
 | **IDEA-07** | Benchmark scope creep (trying to cover too many anomaly types, too many datasets) delays thesis by 4+ months | HIGH | Monthly scope review | Cut to single dataset (NYC TLC only), single evaluation metric (precision/recall) |
 | **IDEA-04** | GTFS Malaysia data quality is too poor for cross-entity validation (systemic broken links) | MEDIUM-HIGH | Pre-audit before committing to idea | Switch to NYC TLC trajectory cross-validation (same semantic idea, different data) |
 | **IDEA-02** | Improvement over rolling P10/P90 baseline is < 2pp (below operationally meaningful threshold) | MEDIUM | First evaluation run (month 2) | Report negative result, frame as "physics constraints provide stable thresholds without adaptation" |
@@ -255,7 +255,7 @@ For each idea, the single failure mode that would make it fail entirely:
 
 All six surviving ideas are about **adaptive threshold calibration**:
 
-- IDEA-NEW-2: T-Assess × StreamDQ — calibration via quality score aggregation
+- IDEA-NEW-2: T-Assess × ContextAware-DQ — calibration via quality score aggregation
 - IDEA-07: Benchmark — calibration of evaluation methodology
 - IDEA-04: GTFS-RT Cross-Entity — calibration of cross-entity consistency thresholds
 - IDEA-02: Physics-Constrained — calibration of thresholds within physics constraints
@@ -270,7 +270,7 @@ The only genuinely different idea is IDEA-07 (Benchmark) — but it's classified
 
 **Yes. The T-Assess finding in REACH_PUSHER dominated the entire synthesis.**
 
-T-Assess (VLDB 2025) was discovered late and immediately promoted to "TOP CANDIDATE." The reasoning: it's the newest, it's on GitHub, it integrates easily. But:
+T-Assess (under review at VLDB 2025) was discovered late and immediately promoted to "TOP CANDIDATE." The reasoning: it's the newest, it's on GitHub, it integrates easily. But:
 
 1. VLDB 2025 is a future conference (as of April 2026, the 2025 proceedings exist but the paper is not peer-reviewed until VLDB 2026 at the earliest)
 2. One T-Assess paper (VLDB 2025) with no independent replication is a thin empirical foundation for a thesis
@@ -284,14 +284,14 @@ The brainstorm's own CRITERIA_JUDGE noted: "Paper is a preprint [Stream DaQ] —
 
 **Yes. And it was never seriously considered.**
 
-The original StreamDQ thesis plan had three concrete outputs:
+The original ContextAware-DQ thesis plan had three concrete outputs:
 1. The three-layer rule taxonomy (SYN/SEM/CRS)
 2. The GTFS GPS validation implementation
 3. The evaluation framework with ground-truth tracking
 
 All three of these are achievable in the remaining thesis timeline. None of the six new ideas adds to these outputs without replacing some of them. The opportunity cost of pursuing any of the six ideas is: time not spent on the core thesis deliverables.
 
-**The question nobody asked**: What is the minimum viable thesis without any new ideas? Answer: complete the evaluation framework (blocks all evaluation), run the existing StreamDQ rules on NYC TLC with synthetic injection, report precision/recall with bootstrap CI. This is a complete, honest thesis. It is not flashy. But it is achievable and defensible.
+**The question nobody asked**: What is the minimum viable thesis without any new ideas? Answer: complete the evaluation framework (blocks all evaluation), run the existing ContextAware-DQ rules on NYC TLC with synthetic injection, report precision/recall with bootstrap CI. This is a complete, honest thesis. It is not flashy. But it is achievable and defensible.
 
 **IDEA-NEW-2's risk is precisely this**: it replaces core thesis work with integration work. If the T-Assess integration fails (API incompatibility, data model mismatch), the thesis has spent 2-3 months on a failed integration and has no fallback.
 
@@ -326,16 +326,16 @@ This timeline is realistic for **one idea**, executed perfectly. Every idea in t
 | IDEA-07 | Infrastructure, not research; self-referential evaluation | Moderate (methodology contribution) | 5/10 |
 | IDEA-04 | CUTR could add cross-entity; data quality too poor | Weak (engineering, not research framing) | 4/10 |
 | IDEA-02 | Smart thresholds rebranded; cold-start not solved | Moderate (constrain-and-calibrate is sound) | 5/10 |
-| IDEA-NEW-3 | Weever does this; proof-of-concept not publishable | Weak (admits "simplified" is insufficient) | 3/10 |
+| IDEA-NEW-3 | [] does this; proof-of-concept not publishable | Weak (admits "simplified" is insufficient) | 3/10 |
 | IDEA-05 | Stream DaQ already does this; 3D histogram is obvious | Weak (no new method, just domain-specific context) | 3/10 |
 
 ### The Core Problem
 
-Every idea in this brainstorm suffers from the same structural weakness: **it adds a new component to StreamDQ without changing StreamDQ's fundamental research contribution**. The original thesis is about a context-aware framework with a three-layer rule taxonomy, GTFS GPS validation, and an evaluation framework. Adding T-Assess integration, or a benchmark, or physics-constrained calibration extends StreamDQ but does not change what StreamDQ *is*.
+Every idea in this brainstorm suffers from the same structural weakness: **it adds a new component to ContextAware-DQ without changing ContextAware-DQ's fundamental research contribution**. The original thesis is about a context-aware framework with a three-layer rule taxonomy, GTFS GPS validation, and an evaluation framework. Adding T-Assess integration, or a benchmark, or physics-constrained calibration extends ContextAware-DQ but does not change what ContextAware-DQ *is*.
 
 A VLDB reviewer will ask: "What is the core contribution?" The answers currently on offer:
 - "A taxonomy of rules" (weak — taxonomies are descriptive, not novel methods)
-- "Integration of T-Assess and StreamDQ" (weak — integration is engineering)
+- "Integration of T-Assess and ContextAware-DQ" (weak — integration is engineering)
 - "A benchmark for streaming transportation DQ" (weak — infrastructure)
 - "Physics-constrained calibration" (weak — threshold optimization)
 
@@ -345,33 +345,33 @@ None of these answers is a strong VLDB contribution on its own. The thesis needs
 
 **NO-SELECT** for any idea as a *primary* thesis direction.
 
-**RECOMMEND**: Pursue the original StreamDQ plan with the following additions as **secondary components**:
+**RECOMMEND**: Pursue the original ContextAware-DQ plan with the following additions as **secondary components**:
 
-1. **T-Assess integration as an evaluation layer** (not a primary idea) — Use T-Assess to validate that StreamDQ's rule violations correlate with trajectory quality degradation. This is an evaluation methodology, not a contribution. Frame it as: "we validate our rule-based approach by showing it correlates with statistical quality scoring."
+1. **T-Assess integration as an evaluation layer** (not a primary idea) — Use T-Assess to validate that ContextAware-DQ's rule violations correlate with trajectory quality degradation. This is an evaluation methodology, not a contribution. Frame it as: "we validate our rule-based approach by showing it correlates with statistical quality scoring."
 
-2. **Benchmark as the evaluation infrastructure** (not a primary idea) — Build the benchmark because you need it, not because it's a contribution. The contribution is the StreamDQ rules and evaluation results. The benchmark is how you produced reproducible results.
+2. **Benchmark as the evaluation infrastructure** (not a primary idea) — Build the benchmark because you need it, not because it's a contribution. The contribution is the ContextAware-DQ rules and evaluation results. The benchmark is how you produced reproducible results.
 
 3. **GTFS-RT cross-entity validation as a case study** (not a primary idea) — If GTFS Malaysia data quality passes audit, implement cross-entity validation as an application of the CRS framework to a new domain. Frame the contribution as: "demonstrating that CRS rules extend naturally to cross-entity consistency checking in GTFS-RT."
 
-4. **Physics-constrained calibration as an ablation study** (not a primary idea) — Show that StreamDQ's thresholds are well-calibrated against physical constraints. This validates the rules, not the thesis.
+4. **Physics-constrained calibration as an ablation study** (not a primary idea) — Show that ContextAware-DQ's thresholds are well-calibrated against physical constraints. This validates the rules, not the thesis.
 
 The original thesis plan is **stronger** than any single new idea because it is complete, achievable, and honest. The six ideas are all **additions**, not replacements.
 
 ### If the orchestrator insists on selecting one idea
 
-**CONDITIONAL SELECT: IDEA-NEW-2 (T-Assess × StreamDQ)**
+**CONDITIONAL SELECT: IDEA-NEW-2 (T-Assess × ContextAware-DQ)**
 
 **Conditions**:
 1. Audit T-Assess GitHub within 1 week. Verify API compatibility, data model, and implementation correctness. If T-Assess has fundamental issues, abort.
 2. Pre-register the TQS weighting scheme before running any experiments. State the exact formulation in the thesis proposal. Do not select the best-performing variant post-hoc.
-3. Prove complementarity, not just correlation. Run T-Assess alone, StreamDQ alone, and T-Assess × StreamDQ. Show that the combination detects things neither detects alone. If it doesn't, the contribution is evaluation methodology, not integration.
+3. Prove complementarity, not just correlation. Run T-Assess alone, ContextAware-DQ alone, and T-Assess × ContextAware-DQ. Show that the combination detects things neither detects alone. If it doesn't, the contribution is evaluation methodology, not integration.
 4. Treat T-Assess integration as 20% of the thesis, not 80%. The core contribution remains the rule taxonomy and evaluation framework.
 
 **Timeline to verify**: 2 weeks for T-Assess audit. If audit fails, fall back to original plan.
 
 **Best reason**: Highest feasibility among ideas with a genuine novelty claim (integration of rule-based and statistical DQ).
 
-**Biggest concern**: The integration may be correlation without causation — T-Assess scores and StreamDQ violations may track the same ground truth without either adding value over the other. The "closed loop" narrative is compelling but unproven.
+**Biggest concern**: The integration may be correlation without causation — T-Assess scores and ContextAware-DQ violations may track the same ground truth without either adding value over the other. The "closed loop" narrative is compelling but unproven.
 
 ---
 
@@ -379,7 +379,7 @@ The original thesis plan is **stronger** than any single new idea because it is 
 
 Credit where it is due:
 
-1. **T-Assess discovery** (REACH_PUSHER): Genuinely important finding. T-Assess (VLDB 2025) is the most recent trajectory quality framework. Integrating it is the right instinct.
+1. **T-Assess discovery** (REACH_PUSHER): Genuinely important finding. T-Assess (under review at VLDB 2025) is the most recent trajectory quality framework. Integrating it is the right instinct.
 
 2. **Elimination discipline**: IDEA-01, IDEA-03, IDEA-06, IDEA-08, IDEA-09 were correctly eliminated. The fatal flaws were real.
 

@@ -45,7 +45,7 @@
 
 | Idea | Suitability | Notes |
 |------|-------------|-------|
-| IDEA-NEW-2 (T-Assess x StreamDQ) | ✅ EXCELLENT | Trajectories of 50+ points easily constructible; T-Assess compatible |
+| IDEA-NEW-2 (T-Assess x ContextAware-DQ) | ✅ EXCELLENT | Trajectories of 50+ points easily constructible; T-Assess compatible |
 | IDEA-02 (Physics-Constrained) | ✅ EXCELLENT | 150K–300K per context cell; sufficient for calibration |
 | IDEA-NEW-3 (Incremental DCs) | ✅ EXCELLENT | GPS rules (Haversine, speed) expressible over consecutive trips |
 | IDEA-05 (Contextual Calibration) | ✅ EXCELLENT | Same power as IDEA-02; multi-dimensional context available |
@@ -141,7 +141,7 @@
 
 | Dimension | Assessment |
 |-----------|------------|
-| **Accessibility** | ✅ ON_GITHUB — ZJU-DAILY/T-Assess (VLDB 2025) |
+| **Accessibility** | ✅ ON_GITHUB — ZJU-DAILY/T-Assess (under review at VLDB 2025) |
 | **Paper** | "An Efficient Data Quality Assessment System Tailored for Trajectory Data" — VLDB 2025 |
 | **GitHub** | https://github.com/ZJU-DAILY/T-Assess |
 | **Dataset** | Trajectory data with labeled quality dimensions |
@@ -149,7 +149,7 @@
 
 **T-Assess Quality Dimensions**:
 
-| T-Assess Dimension | StreamDQ Rule Mapping | TQS Contribution |
+| T-Assess Dimension | ContextAware-DQ Rule Mapping | TQS Contribution |
 |-------------------|----------------------|------------------|
 | **Validity** | SYN001 (null), SYN002 (range) | Field-level validity |
 | **Completeness** | SEM001 (required fields), SEM003 (passenger count) | Record-level completeness |
@@ -157,7 +157,7 @@
 | **Fairness** | (not directly mapped) | Requires bias detection |
 
 **Integration Approach**:
-1. StreamDQ processes trajectories → produces violation records
+1. ContextAware-DQ processes trajectories → produces violation records
 2. Violation records fed into T-Assess quality dimension calculator
 3. TQS computed per trajectory, per batch, per context cell
 4. TQS degradation curves measured against ground truth injection
@@ -171,18 +171,18 @@
 
 ## Phase B — Ground Truth Methods Assessment
 
-### B.1 — IDEA-NEW-2: T-Assess x StreamDQ Integration
+### B.1 — IDEA-NEW-2: T-Assess x ContextAware-DQ Integration
 
 | Dimension | Assessment |
 |-----------|------------|
-| **GT Method** | Synthetic injection (existing StreamDQ methodology) + T-Assess ground truth trajectories |
-| **GT Available** | ✅ YES — StreamDQ injection already implemented; T-Assess has labeled benchmark data |
+| **GT Method** | Synthetic injection (existing ContextAware-DQ methodology) + T-Assess ground truth trajectories |
+| **GT Available** | ✅ YES — ContextAware-DQ injection already implemented; T-Assess has labeled benchmark data |
 | **GT Quality** | ✅ HIGH — Synthetic injection with known ground truth; T-Assess benchmark validated |
 | **Evaluation Complexity** | ✅ LOW — Standard precision/recall on TQS degradation; correlation with ground truth |
 
 **Ground Truth Mechanism**:
-1. Inject known anomalies into NYC TLC trajectories (5% injection rate, per StreamDQ protocol)
-2. Run StreamDQ SYN/SEM/CRS rules → get violation records
+1. Inject known anomalies into NYC TLC trajectories (5% injection rate, per ContextAware-DQ protocol)
+2. Run ContextAware-DQ SYN/SEM/CRS rules → get violation records
 3. Map violations to T-Assess quality dimensions → compute TQS per trajectory
 4. Compare TQS degradation curve against ground truth injection level
 
@@ -204,14 +204,14 @@
 | Dimension | Assessment |
 |-----------|------------|
 | **GT Method** | Synthetic injection via NUMOSIM + custom GTFS-RT generator |
-| **GT Available** | ⚠️ PARTIAL — StreamDQ injection works; NUMOSIM not integrated |
-| **GT Quality** | ✅ HIGH for StreamDQ part; ❓ UNKNOWN for GTFS-RT part |
+| **GT Available** | ⚠️ PARTIAL — ContextAware-DQ injection works; NUMOSIM not integrated |
+| **GT Quality** | ✅ HIGH for ContextAware-DQ part; ❓ UNKNOWN for GTFS-RT part |
 | **Evaluation Complexity** | ⚠️ MEDIUM — NUMOSIM → DQ rule mapping must be validated |
 
 **Ground Truth Mechanism**:
 - NUMOSIM generates trajectories with labeled anomaly types
 - GTFS-RT encoder converts trajectories to protobuf messages
-- StreamDQ processes stream → violations correlated against labeled anomalies
+- ContextAware-DQ processes stream → violations correlated against labeled anomalies
 - Per-rule precision/recall computed across all datasets
 
 **Specific Concerns**:
@@ -284,7 +284,7 @@
 
 **Ground Truth Mechanism**:
 1. Express CRS001 (GPS jump) and CRS002 (speed range) as formal DCs
-2. Build simplified DC evaluator (proof-of-concept, not full Weever implementation)
+2. Build simplified DC evaluator (proof-of-concept, not full [] implementation)
 3. Run both DC-based and procedural rule evaluation on same synthetic dataset
 4. Compare detection rate, latency, and state size
 
@@ -297,7 +297,7 @@
 **Specific Concerns**:
 - GPS-specific predicate optimization (spatial indexing) is significant engineering beyond proof-of-concept
 - Haversine DC requires sequential access to previous position — state management is non-trivial
-- Formal DC evaluation methodology from Weever (VLDB 2024) is for general databases; GPS adaptation needs validation
+- Formal DC evaluation methodology from [REMOVED: [] citation pending verification] is for general databases; GPS adaptation needs validation
 
 ---
 
@@ -416,7 +416,7 @@ If running multiple hypothesis tests (e.g., 6 ideas × 9 rules = 54 comparisons 
 
 | Idea | Dataset Ready | GT Available | Power | Eval Complexity | Overall Readiness | Blockers |
 |------|-------------|-------------|-------|---------------|-----------------|---------|
-| **IDEA-NEW-2** (T-Assess x StreamDQ) | ✅ READY | ✅ YES (HIGH) | ✅ SUFFICIENT | ✅ LOW | **✅ READY** | None — T-Assess audit recommended |
+| **IDEA-NEW-2** (T-Assess x ContextAware-DQ) | ✅ READY | ✅ YES (HIGH) | ✅ SUFFICIENT | ✅ LOW | **✅ READY** | None — T-Assess audit recommended |
 | **IDEA-05** (Contextual Calibration) | ✅ READY | ✅ YES (HIGH) | ✅ SUFFICIENT | ✅ LOW | **✅ READY** | Run as ablation alongside IDEA-02 |
 | **IDEA-02** (Physics-Constrained) | ✅ READY | ✅ YES (HIGH) | ✅ SUFFICIENT | ✅ LOW | **✅ READY** | Run as refined version of IDEA-05 |
 | **IDEA-04** (GTFS-RT Cross-Entity) | ⚠️ PARTIAL | ⚠️ PARTIAL | ⚠️ CHECK | ⚠️ MEDIUM | **⚠️ NOT READY** | CRS unverified, trip_id missing 30%, B2 bug, entity types unknown |
@@ -427,7 +427,7 @@ If running multiple hypothesis tests (e.g., 6 ideas × 9 rules = 54 comparisons 
 
 ```
 NYC TLC (READY)
-├── IDEA-NEW-2 ✅ → T-Assess x StreamDQ
+├── IDEA-NEW-2 ✅ → T-Assess x ContextAware-DQ
 ├── IDEA-02 ✅ → Physics-Constrained Calibration
 ├── IDEA-05 ✅ → Contextual Calibration
 └── IDEA-NEW-3 ✅ → Incremental DCs
@@ -462,13 +462,13 @@ Synthetic GTFS-RT (MUST_BUILD)
 
 ### D.4 — Evaluation Design Recommendations
 
-#### For IDEA-NEW-2 (T-Assess x StreamDQ)
+#### For IDEA-NEW-2 (T-Assess x ContextAware-DQ)
 
 **Recommended evaluation protocol**:
 1. Use NYC TLC 2023 data (post-COVID normalization, clean schema)
 2. Construct trajectories: group by `hack_license` + temporal ordering
 3. Inject 5 anomaly types at 3 severity levels (low/medium/high)
-4. Run StreamDQ rules → violations
+4. Run ContextAware-DQ rules → violations
 5. Map to T-Assess dimensions → compute TQS per trajectory
 6. Pre-register 3 TQS weighting variants:
    - V1: Equal weight (1/4 each dimension)
@@ -559,7 +559,7 @@ Synthetic GTFS-RT (MUST_BUILD)
 
 | Rank | Idea | Dataset Status | Time to Eval Ready |
 |------|------|---------------|-------------------|
-| **1** | IDEA-NEW-2 (T-Assess x StreamDQ) | ✅ READY | ~1 week (T-Assess audit + integration) |
+| **1** | IDEA-NEW-2 (T-Assess x ContextAware-DQ) | ✅ READY | ~1 week (T-Assess audit + integration) |
 | **2** | IDEA-05 (Contextual Calibration) | ✅ READY | ~1 week (already have NYC TLC) |
 | **3** | IDEA-02 (Physics-Constrained) | ✅ READY | ~2 weeks (calibration framework) |
 | **4** | IDEA-NEW-3 (Incremental DCs) | ✅ READY | ~3 weeks (DC evaluator build) |
@@ -580,4 +580,4 @@ Synthetic GTFS-RT (MUST_BUILD)
 ---
 
 *Report prepared by AGENT-6: DATA_CHECK (data-scientist skill) — April 22, 2026*
-*Sources: audit_transportation_datasets.md, 02_IDEA_BRAINSTORM.md, NYC TLC Data Dictionary (March 2025), Wong (2025) arXiv:2506.06479, T-Assess (ZJU-DAILY, VLDB 2025)*
+*Sources: audit_transportation_datasets.md, 02_IDEA_BRAINSTORM.md, NYC TLC Data Dictionary (March 2025), Wong (2025) arXiv:2506.06479, T-Assess (ZJU-DAILY, under review at VLDB 2025)*

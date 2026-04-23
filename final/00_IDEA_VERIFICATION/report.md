@@ -49,9 +49,9 @@
 
 2. **Deequ** (Schelter et al., VLDB 2018) is the highest-venue academic paper on batch DQ. Key insight: automated constraint suggestion reduces manual effort. **Limitation confirmed**: Batch-only, no streaming.
 
-3. **False DC Discovery Problem**: Martin et al. (PVLDB 2025, doi:10.14778/3748191.3748209) demonstrates that DC auto-discovery has **95%+ false positive rate**. Validates that hand-crafted rules (like StreamDQ's SYN/SEM/CRS taxonomy) are more reliable than automated discovery.
+3. **False DC Discovery Problem**: Martin et al. (PVLDB 2025, doi:10.14778/3748191.3748209) demonstrates that DC auto-discovery has **95%+ false positive rate**. Validates that hand-crafted rules (like ContextAware-DQ's SYN/SEM/CRS taxonomy) are more reliable than automated discovery.
 
-4. **METER** (PVLDB 2024) on concept drift adaptation for streaming: addresses temporal distribution shift but does NOT address cross-record validation.
+4. **METER** (Zhu et al., PVLDB Vol.17, No.4, 2023, doi:10.14778/3636218.3636233) on concept drift adaptation for streaming: addresses temporal distribution shift but does NOT address cross-record validation.
 
 ### 1B. Transportation-Specific DQ Frameworks
 
@@ -115,7 +115,7 @@
 └────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────┐
-│ GAP-G2: Adaptive Thresholds Unvalidated in Streaming        │
+│ GAP-03: Adaptive Thresholds Unvalidated in Streaming        │
 │                                                            │
 │ Description: Rolling statistical baselines for adaptive      │
 │ thresholds in streaming are described in Stream DaQ and     │
@@ -290,7 +290,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ GAP-I1: No Streaming + Domain-Specific GPS Combination     │
+│ GAP-07: No Streaming + Domain-Specific GPS Combination     │
 │                                                            │
 │ Description: All streaming DQ frameworks are generic. All   │
 │ transportation DQ tools are batch. No framework combines   │
@@ -311,7 +311,7 @@
 └────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────┐
-│ GAP-I2: Cross-Record GPS Validation in Streaming            │
+│ GAP-08: Cross-Record GPS Validation in Streaming            │
 │                                                            │
 │ Description: Cross-record GPS validation (GPS jump          │
 │ detection across consecutive positions) requires stateful  │
@@ -389,7 +389,7 @@
 
 | Dataset | Accessibility | Academic Precedent | Ground Truth | Notes |
 |---------|--------------|-------------------|-------------|-------|
-| **NYC TLC Yellow Taxi** | Public, Parquet, monthly | Q3+ (VLDB, SIGMOD, KDD) | NO labeled anomalies | Best academic precedent; StreamDQ injection-based methodology is novel |
+| **NYC TLC Yellow Taxi** | Public, Parquet, monthly | Q3+ (VLDB, SIGMOD, KDD) | NO labeled anomalies | Best academic precedent; ContextAware-DQ injection-based methodology is novel |
 | **GTFS Malaysia** | CC BY 4.0, api.data.gov.my | ZERO prior academic use | NO | Novel dataset for research; ~30% documented errors; CRS must be verified |
 | **NUMOSIM** | ACM SIGSPATIAL 2024 | Yes (synthetic benchmark) | YES (injected) | Wrong task: AD benchmark, not DQ validation |
 | **Porto Taxi** | Kaggle | Yes (multiple papers) | NO | Less academic precedent than NYC TLC |
@@ -405,7 +405,7 @@
 
 | Contribution | Type | Strength | Evidence |
 |---|---|---|---|
-| GTFS GPS trajectory validation in streaming | New domain application | **Strong** | GAP-I1, GAP-I2 verified — no prior work |
+| GTFS GPS trajectory validation in streaming | New domain application | **Strong** | GAP-07, GAP-08 verified — no prior work |
 | Three-layer taxonomy for transportation | New domain application | Moderate | Organizing framework, mirrors Deequ's row/aggregate distinction |
 | Hierarchical context-aware fallback | New method | Weak | Algorithmic variants exist (Ada-Context DMKD 2025) |
 | Ground-truth evaluation framework | New evaluation | Moderate | Follows Exathlon (VLDB 2021) precedent |
@@ -475,7 +475,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ FRAMEWORK NAME: StreamDQ-Transport                          │
+│ FRAMEWORK NAME: ContextAware-DQ-Transport                          │
 │ DOMAIN: Transportation — GPS Trajectory + GTFS Realtime     │
 │                                                            │
 │ CORE CONTRIBUTION:                                          │
@@ -547,12 +547,12 @@
 │ rates during atypical conditions (rush hour, weekends).    │
 │ Context-aware thresholds could reduce these false alarms.  │
 │                                                            │
-│ From Gap: GAP-G2 (adaptive thresholds unvalidated)         │
+│ From Gap: GAP-03 (adaptive thresholds unvalidated)         │
 │                                                            │
 │ Literature Support:                                       │
 │ → Stream DaQ (arXiv:2506.06147, 2025) [Q3+]             │
 │ → Martin et al. (PVLDB 2025) — 95%+ false DC rate       │
-│ → METER (PVLDB 2024) — concept drift adaptation          │
+│ → METER (Zhu et al., PVLDB Vol.17, No.4, 2023, doi:10.14778/3636218.3636233) — concept drift adaptation          │
 │                                                            │
 │ Method:                                                    │
 │ → Ablation: SYN+SEM with static vs. context-aware         │
@@ -579,7 +579,7 @@
 │ RQ2: How does hierarchical fallback quality degrade as    │
 │      temporal-spatial context cells become sparser?        │
 │                                                            │
-│ From Gap: GAP-G2 (sparse context handling)                │
+│ From Gap: GAP-03 (sparse context handling)                │
 │                                                            │
 │ Literature Support:                                       │
 │ → Scheltinga et al. (EDBT 2025) — temporally dependent   │
@@ -599,10 +599,10 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ RQ3: Can StreamDQ's GPS trajectory rules generalize from  │
+│ RQ3: Can ContextAware-DQ's GPS trajectory rules generalize from  │
 │      NYC taxi to GTFS Malaysia realtime without retuning?  │
 │                                                            │
-│ From Gap: GAP-I1 (no streaming + domain GPS combination)   │
+│ From Gap: GAP-07 (no streaming + domain GPS combination)   │
 │                                                            │
 │ Literature Support:                                       │
 │ → Wong (2025, arXiv) — 30% GTFS-RT error rate           │
@@ -629,7 +629,7 @@
 │ RQ4: Does the three-layer taxonomy (SYN/SEM/CRS) provide  │
 │      measurably better anomaly coverage than SYN-only?      │
 │                                                            │
-│ From Gap: GAP-I2 (cross-record GPS in streaming)           │
+│ From Gap: GAP-08 (cross-record GPS in streaming)           │
 │                                                            │
 │ Literature Support:                                       │
 │ → Stream DaQ (arXiv:2506.06147) — layered approach       │
@@ -768,7 +768,7 @@
 │ 1. Honest positioning ("research and education platform")   │
 │ 2. Tier 2 labeling discipline for all unbenchmarked       │
 │    estimates                                               │
-│ 3. Comprehensive gap analysis (GAP-I1 is genuinely novel)  │
+│ 3. Comprehensive gap analysis (GAP-07 is genuinely novel)  │
 │                                                            │
 │ Top risks that could cause failure:                        │
 │ 1. Evaluation module not built — no metrics to publish    │
@@ -800,7 +800,7 @@
 1. **Stream DaQ**: Papastergios & Gounaris. "Stream DaQ: A Streaming Data Quality Monitoring Framework." arXiv:2506.06147, 2025. [Q3+]
 2. **Deequ**: Schelter et al. "Automated Test-Database Generation." VLDB 2018. doi:10.14778/3275366.3275572. [Q1/VLDB]
 3. **False DCs**: Martin et al. "False Data Constraints: The Silent Danger in ML Pipelines." PVLDB 2025. doi:10.14778/3748191.3748209. [Q1/PVLDB]
-4. **METER**: Koner et al. "METER: Model Lifecycle Tracking with Event-driven Reactive Services." PVLDB 2024. doi:10.14778/3684126. [Q1/PVLDB]
+4. **METER**: Zhu et al. "METER: A Streaming Framework for Real-time Concept Drift Adaptation." PVLDB Vol.17, No.4, 2023. doi:10.14778/3636218.3636233. [Q1/PVLDB]
 5. **AutoDQM**: Brinkerhoff et al. "AutoDQM: Automated Data Quality Management." arXiv:2501.13789, 2025. [Q3+]
 6. **CETrajAD**: Liu et al. "CETrajAD: Context-Enhanced Trajectory Anomaly Detection." SDM 2025. [Q2]
 7. **GTFS-RT Quality**: Wong et al. "Data Quality of GTFS-Realtime Public Transit Feeds." arXiv, 2025. [Q3+]

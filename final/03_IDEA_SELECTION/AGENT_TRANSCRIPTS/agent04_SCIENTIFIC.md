@@ -17,7 +17,7 @@ This document frames the Context-Aware Upgrade (IDEA-NEW-2 + IDEA-05 integration
 
 ### 1.1 Bad Framings and Why They Fail
 
-**BAD Framing 1: "We add context-aware thresholds to StreamDQ"**
+**BAD Framing 1: "We add context-aware thresholds to ContextAware-DQ"**
 
 - **Why it fails**: Sounds like incremental feature addition. Every DQ framework eventually adds adaptive thresholds. No reviewer will find this compelling without a stronger "so what" statement.
 - **Missing**: Why does context matter? What specifically changes when thresholds are context-aware?
@@ -32,7 +32,7 @@ This document frames the Context-Aware Upgrade (IDEA-NEW-2 + IDEA-05 integration
 - **Why it fails**: "Improved accuracy" is a claim that requires evidence. Without specifying the mechanism and the conditions under which improvement occurs, this is an unsupported assertion.
 - **Missing**: The causal mechanism. Improvement under what conditions? By how much? Compared to what baseline?
 
-**BAD Framing 4: "We integrate T-Assess with StreamDQ"**
+**BAD Framing 4: "We integrate T-Assess with ContextAware-DQ"**
 
 - **Why it fails**: API-level integration is engineering, not research. A reviewer will dismiss this as "we connected two existing systems." The contribution must be in the *how*, not just the *what*.
 - **Missing**: The integration methodology. How do rule violations map to quality dimensions? How is the aggregation performed? Why this mapping and not another?
@@ -58,7 +58,7 @@ This framing succeeds because it connects the technical mechanism to an operatio
 > **"Why is quality low?"**
 > → "Because rush-hour downtown violations exceed thresholds calibrated on night-time suburban data."
 
-This is the explainability angle that T-Assess (VLDB 2025) pioneered at the aggregate level. StreamDQ extends it to the **per-violation level** by attaching context metadata to every violation:
+This is the explainability angle that T-Assess (under review at VLDB 2025) pioneered at the aggregate level. ContextAware-DQ extends it to the **per-violation level** by attaching context metadata to every violation:
 
 - **Which context** triggered the threshold: `context_key: "hour_17_midtown_weekday"`
 - **Which calibration level** was used: `calibration_level: 2 (borough-wide)`
@@ -91,7 +91,7 @@ The upgrade has three layers of contribution, each with different novelty levels
 
 - Stream DaQ (Papastergios & Gounaris, 2025): Adaptive thresholds are temporal-only (rolling μ±kσ). No spatial or operational context.
 - AutoDQM (Brinkerhoff et al., 2025): Per-channel statistics, no spatial/temporal decomposition for GPS data.
-- METER (Zhu et al., PVLDB 2024): Dynamic concept adaptation for time series, not GPS-specific.
+- METER (Zhu et al., PVLDB Vol.17, No.4, 2023): Dynamic concept adaptation for time series, not GPS-specific.
 - No prior work was found that combines temporal, spatial, and operational context dimensions for GPS trajectory quality validation.
 
 **Risk: MEDIUM**
@@ -123,12 +123,12 @@ The upgrade has three layers of contribution, each with different novelty levels
 
 ### 2.3 Claim 3: "Context-aware TQS enables explainable quality reporting"
 
-**Claim**: The integration of rule-based DQ validation (StreamDQ) with trajectory quality scoring (T-Assess) produces quality reports that are decomposable by context, enabling operators to answer "why is quality low?"
+**Claim**: The integration of rule-based DQ validation (ContextAware-DQ) with trajectory quality scoring (T-Assess) produces quality reports that are decomposable by context, enabling operators to answer "why is quality low?"
 
 **Evidence**:
 
 - T-Assess (VLDB 2025, ZJU-DAILY): Produces aggregate trajectory quality scores per quality dimension (validity, completeness, consistency). No context decomposition.
-- StreamDQ: Produces per-violation records with context metadata (via ContextRegistry). No aggregate quality scoring.
+- ContextAware-DQ: Produces per-violation records with context metadata (via ContextRegistry). No aggregate quality scoring.
 - **Gap**: No system produces context-decomposed trajectory quality scores that explain *why* quality is low in specific operational contexts.
 
 **Risk: LOW**
@@ -179,10 +179,10 @@ The upgrade has three layers of contribution, each with different novelty levels
 > Streaming GPS data quality is critical for transit operations — erroneous vehicle positions can misroute passengers, delay response to incidents, and erode trust in real-time transit information. Existing streaming data quality frameworks validate GPS data using static thresholds, which produce false positives during rush hour (legitimate high-speed highway segments) and false negatives at night (when even moderate GPS errors are anomalous in low-traffic zones).
 
 **1.2 Gap (1 paragraph)**
-> No existing framework implements multi-dimensional context-aware thresholds for streaming GPS data quality validation. Stream DaQ (2025) provides temporal-adaptive thresholds but no spatial or operational context. AutoDQM (2025) uses per-channel statistics without domain-specific GPS bounds. T-Assess (VLDB 2025) produces trajectory quality scores at aggregate level but lacks context decomposition. There is no framework that combines context-aware threshold calibration with physics-informed fallback and explainable quality reporting for streaming GPS data.
+> No existing framework implements multi-dimensional context-aware thresholds for streaming GPS data quality validation. Stream DaQ (2025) provides temporal-adaptive thresholds but no spatial or operational context. AutoDQM (2025) uses per-channel statistics without domain-specific GPS bounds. T-Assess (under review at VLDB 2025) produces trajectory quality scores at aggregate level but lacks context decomposition. There is no framework that combines context-aware threshold calibration with physics-informed fallback and explainable quality reporting for streaming GPS data.
 
 **1.3 Approach (1 paragraph)**
-> We present a context-aware framework for streaming GPS data quality monitoring that extends StreamDQ with hierarchical threshold calibration. The framework extracts 5D context (temporal, spatial, entity, source, policy) from incoming events and maintains context-keyed statistics. When context data is sparse, the framework falls back to physics-informed bounds (e.g., [0, 200] km/h for vehicle speed). Rule violations are aggregated into trajectory quality scores decomposed by context, producing explainable quality reports that answer "why is quality low?"
+> We present a context-aware framework for streaming GPS data quality monitoring that extends ContextAware-DQ with hierarchical threshold calibration. The framework extracts 5D context (temporal, spatial, entity, source, policy) from incoming events and maintains context-keyed statistics. When context data is sparse, the framework falls back to physics-informed bounds (e.g., [0, 200] km/h for vehicle speed). Rule violations are aggregated into trajectory quality scores decomposed by context, producing explainable quality reports that answer "why is quality low?"
 
 **1.4 Contributions (bullet list)**
 
@@ -192,7 +192,7 @@ The upgrade has three layers of contribution, each with different novelty levels
 
 3. **Explainable quality reporting**: A reporting methodology that attaches context metadata, calibration level, and fallback reason to every violation, enabling transit operators to diagnose quality degradation by context.
 
-4. **Open-source implementation**: ContextAwareAdaptiveThresholdEngine and ContextRegistry integrated into StreamDQ, evaluated on NYC TLC Yellow Taxi data with synthetic ground truth injection.
+4. **Open-source implementation**: ContextAwareAdaptiveThresholdEngine and ContextRegistry integrated into ContextAware-DQ, evaluated on NYC TLC Yellow Taxi data with synthetic ground truth injection.
 
 ---
 
@@ -214,7 +214,7 @@ Theme: What exists, what they lack.
 Theme: Academic methods for threshold adaptation.
 
 - AutoDQM (Brinkerhoff et al., arXiv 2025): Beta-binomial thresholds for particle physics DQ. Per-channel, no spatial decomposition.
-- METER (Zhu et al., PVLDB 2024): Dynamic concept adaptation for online anomaly detection. General time series, not GPS-specific.
+- METER (Zhu et al., PVLDB Vol.17, No.4, 2023): Dynamic concept adaptation for online anomaly detection. General time series, not GPS-specific.
 - Martin et al. (PVLDB 2025): False denial constraints. 95%+ false positive rate for unconstrained discovery. Our physics-constrained approach addresses this directly.
 - **Positioning**: Adaptive threshold research focuses on statistical adaptation. Our contribution adds physics-informed bounds as terminal fallback, which no prior work combines with data-driven calibration.
 
@@ -222,14 +222,14 @@ Theme: Academic methods for threshold adaptation.
 
 Theme: T-Assess and GPS anomaly detection.
 
-- T-Assess (ZJU-DAILY, VLDB 2025): First trajectory quality scoring system. Produces aggregate quality scores per dimension. No context decomposition.
+- T-Assess (ZJU-DAILY, under review at VLDB 2025): First trajectory quality scoring system. Produces aggregate quality scores per dimension. No context decomposition.
 - CETrajAD (Cao & Akoglu, SDM 2025): ML-based trajectory anomaly detection. Batch/offline, no rule-based validation.
 - NUMOSIM (ACM SIGSPATIAL 2024): Synthetic mobility benchmark. No streaming validation.
 - **Positioning**: T-Assess provides the quality dimension framework. Our contribution is decomposing quality scores by operational context to enable explainability.
 
 **2.4 Comparison Table**
 
-| Dimension | StreamDQ + Context | Stream DaQ | AutoDQM | T-Assess |
+| Dimension | ContextAware-DQ + Context | Stream DaQ | AutoDQM | T-Assess |
 |-----------|:------------------:|:----------:|:-------:|:--------:|
 | Architecture | Streaming (Spark) | Stream-native | Batch | Batch/Streaming |
 | Adaptive thresholds | Context-aware (multi-dim) | Temporal-only | Per-channel | None |
@@ -348,7 +348,7 @@ The `fallback_reason` field is NULL when L0-L4 calibration is used, and contains
 **4.1 Research Questions**
 
 - **RQ1**: Does context-aware threshold calibration improve detection precision/recall compared to static thresholds?
-  - Baseline: Static P90/P95 thresholds from StreamDQ (no context)
+  - Baseline: Static P90/P95 thresholds from ContextAware-DQ (no context)
   - Treatment: Context-aware thresholds from ContextAwareAdaptiveThresholdEngine
   - Metric: Precision, recall, F1 per anomaly type (SYN, SEM, CRS), per context cell
   - Hypothesis: Context-aware improves precision by reducing false positives in high-variance contexts (rush-hour downtown)
@@ -513,7 +513,7 @@ Rationale: The explainability angle is the strongest operational hook and the cl
 
 ### 5.1 The Core Narrative
 
-The upgrade is NOT "adding adaptive thresholds to StreamDQ."
+The upgrade is NOT "adding adaptive thresholds to ContextAware-DQ."
 
 The upgrade IS: **A framework that explains WHY data quality varies by context, using hierarchical threshold calibration with physics-informed fallback.**
 

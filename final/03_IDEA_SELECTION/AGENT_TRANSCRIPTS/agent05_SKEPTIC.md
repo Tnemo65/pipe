@@ -219,7 +219,7 @@ These are **unresolvable** within the scope of this upgrade. They must be acknow
 
 ### Limitation 1: Completely New Contexts (Never Seen Before)
 
-**Scenario**: A new route opens on April 15. On April 16, StreamDQ processes events for this route. There is NO historical data for this context (hour_9_new_route_weekday). The system falls back to L3 (time category only) or L4 (global).
+**Scenario**: A new route opens on April 15. On April 16, ContextAware-DQ processes events for this route. There is NO historical data for this context (hour_9_new_route_weekday). The system falls back to L3 (time category only) or L4 (global).
 
 **Status**: UNRESOLVABLE without physics priors. The system will always fall back to L3/L4 for genuinely new contexts because there is no data to calibrate from.
 
@@ -231,7 +231,7 @@ These are **unresolvable** within the scope of this upgrade. They must be acknow
 
 ### Limitation 2: External Context (Weather, Events, Traffic) Not Modeled
 
-**Scenario**: A major snowstorm hits NYC on January 20. GPS accuracy degrades systemically — all vehicles report positions with ±50m noise instead of ±10m. StreamDQ flags all GPS points as violations (correct: positions ARE outside expected range). But the TQS for all routes drops to near-zero, even though data quality has not degraded from the operator's perspective.
+**Scenario**: A major snowstorm hits NYC on January 20. GPS accuracy degrades systemically — all vehicles report positions with ±50m noise instead of ±10m. ContextAware-DQ flags all GPS points as violations (correct: positions ARE outside expected range). But the TQS for all routes drops to near-zero, even though data quality has not degraded from the operator's perspective.
 
 **Status**: PARTIAL. External context is acknowledged as a dimension in `ContextDimension.policy()` but is not actively modeled. Weather, traffic density, and special events are not incorporated into threshold calibration.
 

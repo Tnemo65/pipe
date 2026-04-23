@@ -11,7 +11,7 @@
 
 This literature review analyzes how existing academic work handles "context-aware" adaptation in streaming data quality monitoring, maps the confirmed literature gaps, and assesses how each prior paper contributes to the IDEA-NEW-2 + IDEA-05 integration. Five dimensions of context-awareness are examined: temporal, spatial, operational, hierarchical fallback, and multi-dimensional combination.
 
-**Key finding**: Multi-dimensional context-aware thresholds (temporal × spatial × operational) for streaming GPS data quality is **genuinely unexplored in literature**. The hierarchical fallback mechanism in StreamDQ's `ContextAwareAdaptiveThresholdEngine` is **novel** — no prior work combines a 5-level fallback hierarchy (zone → borough → time category → global, with physics priors at each level) for data quality threshold calibration. T-Assess (VLDB 2025) provides quality dimensions at the aggregate trajectory level but does not decompose them by context cells. This creates a clear integration opportunity.
+**Key finding**: Multi-dimensional context-aware thresholds (temporal × spatial × operational) for streaming GPS data quality is **genuinely unexplored in literature**. The hierarchical fallback mechanism in ContextAware-DQ's `ContextAwareAdaptiveThresholdEngine` is **novel** — no prior work combines a 5-level fallback hierarchy (zone → borough → time category → global, with physics priors at each level) for data quality threshold calibration. T-Assess (under review at VLDB 2025) provides quality dimensions at the aggregate trajectory level but does not decompose them by context cells. This creates a clear integration opportunity.
 
 ---
 
@@ -23,7 +23,7 @@ This literature review analyzes how existing academic work handles "context-awar
 
 **Citation**: V. Papastergios and A. Gounaris, "Stream DaQ: Stream-First Data Quality Monitoring," arXiv:2506.06147, 2025.
 
-**What it does**: Stream DaQ is the most directly relevant academic framework to StreamDQ's problem space. It introduces a **stream-first DQ monitoring model** with three core concepts: (1) configurable windowing mechanisms (tumbling, sliding, session-based windows with late-arrival handling), (2) dynamic constraint adaptation via rolling statistical baselines (μ ± kσ over configurable time horizons), and (3) continuous assessment producing quality meta-streams of (start_ts, end_ts, measurement, assessment) tuples.
+**What it does**: Stream DaQ is the most directly relevant academic framework to ContextAware-DQ's problem space. It introduces a **stream-first DQ monitoring model** with three core concepts: (1) configurable windowing mechanisms (tumbling, sliding, session-based windows with late-arrival handling), (2) dynamic constraint adaptation via rolling statistical baselines (μ ± kσ over configurable time horizons), and (3) continuous assessment producing quality meta-streams of (start_ts, end_ts, measurement, assessment) tuples.
 
 **Method**: Rolling P10/P90 adaptation over temporal windows. Constraints adapt based on contextual information from prior windows. The k multiplier (number of standard deviations from the mean) is configurable but not context-sensitive — the same k applies globally.
 
@@ -35,7 +35,7 @@ This literature review analyzes how existing academic work handles "context-awar
 
 ---
 
-#### METER (PVLDB 2024)
+#### METER (PVLDB Vol.17, No.4, 2023)
 
 **Citation**: J. Zhu et al., "METER: A Dynamic Concept Adaptation Framework for Online Anomaly Detection," *Proceedings of the VLDB Endowment* 17:794–807, 2024. DOI: 10.14778/3636218.3636233. GitHub: zjiaqi725/METER.
 
@@ -79,9 +79,9 @@ This literature review analyzes how existing academic work handles "context-awar
 - AccelData (2025): Context-Coupled Matrix Factorization (CCMF) for fusing POI, taxi OD, and traffic flow to understand regional functional characteristics — no threshold calibration application
 - ScienceDirect 2025: "A data-driven approach to spatial zoning and anomaly detection in the dynamic real estate network" — spatial clustering with DBSCAN for real estate anomalies, not DQ validation
 
-**StreamDQ's spatial context capture**: `ContextDimension.spatial()` extracts zone (263 NYC TLC zones), borough (Manhattan, Brooklyn, Queens, Bronx, Staten Island, EWR, Unknown), and zone_category (midtown, airport, manhattan_other, outer). The `ContextKey` hierarchy uses zone_category at L0-L1 and borough at L2.
+**ContextAware-DQ's spatial context capture**: `ContextDimension.spatial()` extracts zone (263 NYC TLC zones), borough (Manhattan, Brooklyn, Queens, Bronx, Staten Island, EWR, Unknown), and zone_category (midtown, airport, manhattan_other, outer). The `ContextKey` hierarchy uses zone_category at L0-L1 and borough at L2.
 
-**Integration with IDEA-NEW-2 + IDEA-05**: StreamDQ's ContextRegistry (zone_category, borough) **fills the spatial gap directly**. The spatial dimension is extracted per event and passed to the context-aware threshold engine. For NYC TLC, this means separate fare thresholds for midtown vs. airport vs. outer borough — a genuine novel capability with no prior art.
+**Integration with IDEA-NEW-2 + IDEA-05**: ContextAware-DQ's ContextRegistry (zone_category, borough) **fills the spatial gap directly**. The spatial dimension is extracted per event and passed to the context-aware threshold engine. For NYC TLC, this means separate fare thresholds for midtown vs. airport vs. outer borough — a genuine novel capability with no prior art.
 
 ---
 
@@ -95,7 +95,7 @@ This literature review analyzes how existing academic work handles "context-awar
 - ISAICS 2025 (Zhong): Adaptive anomaly detection thresholds for **financial data quality** using sliding window statistics + Bayesian change point detection + Isolation Forest + DBSCAN ensemble — domain-specific (finance), not operational-context-based
 - Martin et al. (PVLDB 2025): False Denial Constraints — 95%+ false positive rate from unconstrained discovery. Does not address operational context decomposition.
 
-**StreamDQ's operational context capture**: `ContextDimension.entity()` extracts entity_type (nyc_taxi), payment_type (credit, cash, no_charge, dispute, unknown). `ContextDimension.source()` extracts source_id, source_type, is_replay. The ContextKey hierarchy does **not currently use entity_type or payment_type** as context dimensions — they are extracted but not used in the threshold key generation.
+**ContextAware-DQ's operational context capture**: `ContextDimension.entity()` extracts entity_type (nyc_taxi), payment_type (credit, cash, no_charge, dispute, unknown). `ContextDimension.source()` extracts source_id, source_type, is_replay. The ContextKey hierarchy does **not currently use entity_type or payment_type** as context dimensions — they are extracted but not used in the threshold key generation.
 
 **Integration with IDEA-NEW-2 + IDEA-05**: The entity_type and payment_type dimensions are captured but not yet integrated into threshold calibration. IDEA-05 can extend the ContextKey hierarchy to include entity_type (yellow_taxi vs. green_taxi vs. FHV) as an additional context dimension. This would enable: separate speed thresholds for airport runs vs. downtown trips; separate fare validation ranges by vendor type; separate passenger count expectations by payment type.
 
@@ -119,7 +119,7 @@ This literature review analyzes how existing academic work handles "context-awar
 
 5. **Stream DaQ keyed streams**: Enables partitioned statistics (e.g., per-taxi fare monitoring) but **no hierarchical fallback** when a specific key has insufficient data.
 
-**StreamDQ's hierarchical fallback (L0-L4)**:
+**ContextAware-DQ's hierarchical fallback (L0-L4)**:
 
 ```python
 # From context_adaptive.py + context_registry.py
@@ -132,7 +132,7 @@ This literature review analyzes how existing academic work handles "context-awar
 
 The fallback chain tries L0 first (most specific, highest confidence=1.0), then L1, L2, L3, L4 in order. Each level has decreasing confidence (1.0 → 0.9 → 0.8 → 0.7 → 0.5). If no level has sufficient samples (min_sample_size=100), the method returns None and the rule falls back to a static configured threshold.
 
-**Integration with IDEA-NEW-2 + IDEA-05**: The hierarchical fallback mechanism is the **most novel component** of StreamDQ's context-aware architecture. It addresses the **cold-start problem** that undermines all other adaptive threshold approaches: when a specific context cell has insufficient data, it gracefully falls back to broader categories rather than either (a) using a stale global threshold or (b) returning no threshold at all. IDEA-05 inherits and extends this mechanism.
+**Integration with IDEA-NEW-2 + IDEA-05**: The hierarchical fallback mechanism is the **most novel component** of ContextAware-DQ's context-aware architecture. It addresses the **cold-start problem** that undermines all other adaptive threshold approaches: when a specific context cell has insufficient data, it gracefully falls back to broader categories rather than either (a) using a stale global threshold or (b) returning no threshold at all. IDEA-05 inherits and extends this mechanism.
 
 ---
 
@@ -150,7 +150,7 @@ The fallback chain tries L0 first (most specific, highest confidence=1.0), then 
 
 3. **AccelData (2025) "Adaptive Data Quality Thresholds"**: Discusses context-sensitive adjustments using ML models that account for seasonal and business event variations. Mentions "contextual features" but does not provide a multi-dimensional decomposition methodology. No implementation details.
 
-**StreamDQ's multi-dimensional combination**: The ContextRegistry resolves 5 dimensions simultaneously (temporal, spatial, source, entity, policy) and the ContextKey combines them into a composite key string. The combination is additive: hour + zone_category + weekend at L0; morning_bucket + zone_category + weekday at L1; morning_bucket + borough + weekday at L2; morning at L3; global at L4.
+**ContextAware-DQ's multi-dimensional combination**: The ContextRegistry resolves 5 dimensions simultaneously (temporal, spatial, source, entity, policy) and the ContextKey combines them into a composite key string. The combination is additive: hour + zone_category + weekend at L0; morning_bucket + zone_category + weekday at L1; morning_bucket + borough + weekday at L2; morning at L3; global at L4.
 
 **Integration with IDEA-NEW-2 + IDEA-05**: The multi-dimensional combination enables IDEA-05 to calibrate separate thresholds for, e.g., "midnight airport weekday FHV trips" vs. "afternoon midtown weekend yellow taxi trips" — a combination of temporal (midnight), spatial (airport), entity (FHV), and temporal (weekday) dimensions. No prior work computes thresholds for such specific context combinations.
 
@@ -161,13 +161,13 @@ The fallback chain tries L0 first (most specific, highest confidence=1.0), then 
 | Dimension | Found in Literature? | Paper(s) | Method | Gap for Our Work |
 |-----------|:-------------------:|----------|--------|-----------------|
 | **Temporal adaptive** | YES | Stream DaQ (arXiv 2025) | Rolling μ±kσ over temporal windows | Existing, integrate as baseline |
-| **Temporal adaptive (per-category)** | PARTIAL | METER (PVLDB 2024) | Per-input concept drift detection, hypernetwork adaptation | Use WITHIN each context cell for drift-triggered recomputation |
-| **Spatial adaptive** | NO | — | — | **NEW opportunity** — StreamDQ ContextRegistry (zone_category, borough) fills this gap |
-| **Operational adaptive** | NO | — | — | **NEW opportunity** — StreamDQ entity_type, payment_type available but not yet integrated into ContextKey |
-| **Hierarchical fallback** | NO | — | — | **NOVEL** (StreamDQ only) — no prior work on multi-level fallback for DQ thresholds |
+| **Temporal adaptive (per-category)** | PARTIAL | METER (PVLDB Vol.17, No.4, 2023) | Per-input concept drift detection, hypernetwork adaptation | Use WITHIN each context cell for drift-triggered recomputation |
+| **Spatial adaptive** | NO | — | — | **NEW opportunity** — ContextAware-DQ ContextRegistry (zone_category, borough) fills this gap |
+| **Operational adaptive** | NO | — | — | **NEW opportunity** — ContextAware-DQ entity_type, payment_type available but not yet integrated into ContextKey |
+| **Hierarchical fallback** | NO | — | — | **NOVEL** (ContextAware-DQ only) — no prior work on multi-level fallback for DQ thresholds |
 | **Multi-dimensional (temporal × spatial × operational)** | NO | — | — | **NOVEL** — no prior work combines these three dimensions in single threshold calibration |
 | **GPS zone-level calibration** | NO | — | — | **NOVEL** — no prior work on zone-specific thresholds for streaming GPS DQ |
-| **Context-decomposed TQS** | NO | T-Assess (VLDB 2025) = aggregate only | Aggregate quality scores per trajectory | **NOVEL** — T-Assess computes aggregate TQS, not decomposed by context cells |
+| **Context-decomposed TQS** | NO | T-Assess (under review at VLDB 2025) = aggregate only | Aggregate quality scores per trajectory | **NOVEL** — T-Assess computes aggregate TQS, not decomposed by context cells |
 | **Beta-binomial thresholds per context cell** | PARTIAL | AutoDQM (arXiv 2025) | Per-channel beta-binomial thresholds | Use for per-context-cell threshold estimation |
 | **Physics priors as fallback** | NO | — | — | **NOVEL** — no prior work uses physics constraints as fallback priors for DQ thresholds |
 
@@ -210,7 +210,7 @@ The fallback chain tries L0 first (most specific, highest confidence=1.0), then 
 
 ---
 
-### METER (Zhu et al., PVLDB 2024)
+### METER (Zhu et al., PVLDB Vol.17, No.4, 2023)
 
 **Method**: Evidential deep learning for per-input concept drift detection + hypernetwork for dynamic parameter generation + candidate window for threshold recalibration. DyMETER extension adds dynamic threshold optimization module.
 
@@ -225,7 +225,7 @@ The fallback chain tries L0 first (most specific, highest confidence=1.0), then 
 
 ---
 
-### T-Assess (ZJU-DAILY, VLDB 2025)
+### T-Assess (ZJU-DAILY, under review at VLDB 2025)
 
 **Citation**: "T-Assess: An Efficient Data Quality Assessment System Tailored for Trajectory Data," *Proceedings of the VLDB Endowment* 18:1859–1871, 2025. DOI: 10.14778/3712221.3712233. GitHub: ZJU-DAILY/T-Assess.
 
@@ -233,7 +233,7 @@ The fallback chain tries L0 first (most specific, highest confidence=1.0), then 
 
 **Dimension captured**: Aggregate per-trajectory quality scores. No context decomposition — a trajectory gets one validity score, one completeness score, etc.
 
-**What is MISSING**: T-Assess computes aggregate quality scores per trajectory but does not: (1) decompose scores by context cell (time-of-day, zone, vehicle type), (2) calibrate thresholds by context, (3) use rule-based violations as input features to the quality scoring. T-Assess is a **scoring system** — IDEA-NEW-2 connects StreamDQ's **rule violations** to T-Assess's **quality dimensions**.
+**What is MISSING**: T-Assess computes aggregate quality scores per trajectory but does not: (1) decompose scores by context cell (time-of-day, zone, vehicle type), (2) calibrate thresholds by context, (3) use rule-based violations as input features to the quality scoring. T-Assess is a **scoring system** — IDEA-NEW-2 connects ContextAware-DQ's **rule violations** to T-Assess's **quality dimensions**.
 
 **Integration into IDEA-NEW-2 + IDEA-05**: T-Assess is IDEA-NEW-2's **scoring layer**. The integration mapping is:
 - SYN001/SYN002 violations → **Validity** dimension (invalid GPS, out-of-range values)
@@ -259,7 +259,7 @@ IDEA-05's context-aware thresholds feed into IDEA-NEW-2: when a context cell's t
 
 ---
 
-### Weever (VLDB 2024)
+### Weever (PVLDB Vol.18 No.4 2024, doi:10.14778/3717755.3717761)
 
 **Citation**: "Incremental Detection of Denial Constraint Violations," *Proceedings of the VLDB Endowment* 18(4):1862–1873, 2024. DOI: 10.14778/3717755.3717761.
 
@@ -282,7 +282,7 @@ IDEA-05's context-aware thresholds feed into IDEA-NEW-2: when a context cell's t
 | **Hierarchical fallback (L0-L4) for DQ thresholds** | NONE | HIGH | No prior work implements a multi-level fallback chain for data quality threshold calibration. Stream DaQ uses flat rolling windows. AutoDQM uses per-channel without fallback. METER adapts per-input but not hierarchically. |
 | **Multi-dimensional context-aware thresholds (temporal × spatial × operational)** | NONE | HIGH | No prior work combines these three dimensions in a single threshold calibration system for streaming GPS DQ. Stream DaQ is temporal only. AutoDQM is per-channel only. Agentic platforms suppress alerts but don't calibrate thresholds. |
 | **Context-decomposed Trajectory Quality Scoring** | NONE (T-Assess = aggregate only) | HIGH | T-Assess computes aggregate TQS per trajectory. IDEA-NEW-2 decomposes TQS by context cell, enabling per-zone, per-time-of-day, per-vehicle-type quality scores. |
-| **GPS zone-level threshold calibration** | NONE | MEDIUM | No prior work on zone-specific thresholds for streaming GPS DQ. AccelData discusses "contextual calibration" but no spatial decomposition methodology. StreamDQ's ContextRegistry enables this directly. |
+| **GPS zone-level threshold calibration** | NONE | MEDIUM | No prior work on zone-specific thresholds for streaming GPS DQ. AccelData discusses "contextual calibration" but no spatial decomposition methodology. ContextAware-DQ's ContextRegistry enables this directly. |
 | **Physics priors as threshold fallback** | NONE | MEDIUM | No prior work uses physics constraints (max speed, max fare rate) as fallback priors for DQ thresholds. Martin et al. discusses constraint validity but not as threshold priors. |
 | **Beta-binomial threshold estimation per context cell** | PARTIAL (AutoDQM per-channel) | MEDIUM | AutoDQM uses beta-binomial per channel but without hierarchical fallback or multi-dimensional decomposition. IDEA-05 extends this with context-cell-level beta-binomial estimation and L0-L4 fallback. |
 
@@ -341,7 +341,7 @@ IDEA-05 provides the threshold calibration engine:
 
 5. **Physics priors as ultimate fallback**: When no level has sufficient samples, fall back to physics-constrained static thresholds (e.g., max_speed = 120 km/h for all contexts). This is the ultimate fallback that no prior work implements.
 
-### IDEA-NEW-2 (T-Assess × StreamDQ Integration) Integration
+### IDEA-NEW-2 (T-Assess × ContextAware-DQ Integration) Integration
 
 IDEA-NEW-2 provides the quality scoring layer:
 
