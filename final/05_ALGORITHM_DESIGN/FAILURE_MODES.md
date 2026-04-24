@@ -18,7 +18,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 
 **The power analysis for L0 min-samples (100 events) is sound, but L4 is not analyzed.** What is the false positive rate at L4 when the global mean and std are computed from heterogeneous contexts? No power analysis is provided for L4.
 
-**The L5 (physics priors) is NOT affected** by this dilution problem — [2, 120] km/h are hardcoded physics bounds, not data-driven. CRS001/CRS002 operate on NYC MTA Bus GPS data, which does not have zone-level sparsity.
+**The L5 (physics priors) is NOT affected** by this dilution problem — [0.5, 100] km/h are hardcoded physics bounds, not data-driven. CRS001/CRS002 operate on NYC MTA Bus GPS data, which does not have zone-level sparsity.
 
 ### Failure Mode
 
@@ -84,9 +84,9 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 
 ### Assessment
 
-**Lower bound (2 km/h) — creeping vehicle problem:** NYC MTA Bus vehicles in urban traffic regularly creep forward at 1–3 km/h. The 2 km/h threshold incorrectly flags creeping vehicles as violations. The fix: for GTFS-realtime at 30s update intervals, minimum distance at 2 km/h is ~17m. A creeping vehicle moves ~17m between updates — well below CRS002's 100m threshold. A creeping vehicle would fail CRS001 but pass CRS002.
+**Lower bound (updated: 0.5 km/h with 60s sustained-violation requirement):** Consumer GPS error (±3–5m) produces apparent speeds of 0.3–1.2 km/h between two stationary fixes 30s apart. A naive 2 km/h threshold would flag every red-light stop and bus dwell as a violation. The fix: lower bound lowered to 0.5 km/h with a requirement that the vehicle remain below 0.5 km/h for > 60s (two consecutive position updates). A creeping vehicle moving at 1–3 km/h is unaffected. A vehicle stuck at a stop for 60+ seconds with GPS jitter may still trigger — this is acceptable as it indicates an anomalous sustained stop.
 
-**Upper bound (120 km/h) — permissive for spoofing detection:** 120 km/h is extremely permissive. A GPS spoofing attack reporting 90 km/h (realistic highway speed, impossible for urban buses) would pass CRS001. CRS002 (>100m/30s) partially fills this gap — but only for vehicles moving >100m between updates.
+**Upper bound (100 km/h) — updated from 120 km/h to close B3 gap for spoofing detection:** 100 km/h is less permissive than 120 km/h but still allows spoofing attacks reporting 90 km/h (realistic highway speed, impossible for NYC urban buses) to pass CRS001. CRS002 (>400m/30s) partially fills this gap — but only for vehicles moving >400m between updates.
 
 **CRS002 — wrong threshold for 30s update intervals:** At 30 km/h for 30s, a vehicle moves 250m. CRS002's 100m/30s threshold would fire on ALL urban-speed vehicles at 30s update intervals. This is a **critical calibration error**.
 
@@ -98,7 +98,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 | Moderate GPS spoofing (20–90 km/h) invisible to both CRS001 and CRS002 | **CRITICAL** | **MEDIUM** | Detection gap; most realistic spoofing attacks undetected |
 | Creeping vehicles (1–2 km/h) flagged by CRS001 | **MAJOR** | **HIGH** | False positives on congested urban routes |
 | First GPS fix cold start produces erroneous position | **MAJOR** | **HIGH** | Systematic false positives at stream start |
-| Boundary GPS noise at 120 km/h causes intermittent violations | **MINOR** | **MEDIUM** | Unstable borderline cases |
+| Boundary GPS noise at 100 km/h causes intermittent violations | **MINOR** | **MEDIUM** | Unstable borderline cases |
 
 ### Mitigation
 
@@ -116,22 +116,22 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 
 **TTL expiry — the silent false negative:** A duplicate arriving 310s after the original is NOT detected. The hash has expired from state. This is a silent false negative — the algorithm fails without any indication.
 
-**CRS003 recall is [UNMEASURABLE] (B2):** The duplicate injection must emit TWO records (original + duplicate) for CRS003 to detect the duplicate. If it only emits one, recall is 0% by construction. This is a P0 blocker.
+**CRS003 recall is [UNMEASURABLE] (NG-4):** The duplicate injection must emit TWO records (original + duplicate) for CRS003 to detect the duplicate. If it only emits one, recall is 0% by construction. This is a P0 blocker.
 
 ### Failure Mode
 
 | Mode | Severity | Likelihood | Impact |
 |------|:--------:|:----------:|--------|
 | TTL expiry at T=310s causes silent false negatives | **CRITICAL** | **LOW** | Recall systematically underestimated; cannot be measured without fix |
-| CRS003 recall UNMEASURABLE — B2 blocks evaluation | **CRITICAL** | **HIGH** | CRS layer evaluation incomplete; PC reviewer kill shot |
+| CRS003 recall UNMEASURABLE — NG-4 blocks evaluation | **CRITICAL** | **HIGH** | CRS layer evaluation incomplete; PC reviewer kill shot |
 
 ### Mitigation
 
-**Option A (P0)**: Fix B2 — verify synthetic injector emits both original and duplicate records.
+**Option A (P0)**: Fix NG-4 — tag synthetic duplicates `is_replay=False` to bypass the replay suppression gate.
 
 **Option B**: Increase TTL to 600s (10 minutes) to cover most GTFS trip durations.
 
-**Option C**: Explicitly scope RQ5 to CRS001/CRS002 only; exclude CRS003 until B2 is fixed.
+**Option C**: Explicitly scope RQ5 to CRS001/CRS002 only; exclude CRS003 until NG-4 is fixed.
 
 ---
 
@@ -141,7 +141,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 
 **CRS002 100m/30s calibrated for 1s GPS updates, applied to 30s update data.** The document says "GTFS-realtime default update interval = 1s" but the 100m/30s threshold is calibrated for 1s intervals. At 30s intervals, a vehicle moving at 20 km/h travels 167m in 30s — above the 100m threshold. CRS002 would fire on all urban-speed vehicles.
 
-**CRS001 [2, 120] km/h calibrated for highway maximum, not urban minimum.** The lower bound (2 km/h) is below the relevant range for urban segments (5–15 km/h). The upper bound (120 km/h) is justified for highway segments.
+**CRS001 [2, 100] km/h calibrated for highway maximum, not urban minimum.** The lower bound (2 km/h) is below the relevant range for urban segments (5–15 km/h). The upper bound (100 km/h) is justified for highway segments.
 
 ### Failure Mode
 
@@ -170,7 +170,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 |----|-------------|:----------:|------------|
 | FM-01 | L4 global fallback dilutes context thresholds for 20–40% of events | **HIGH** | Option B: Weighted Context Pool for L4 |
 | FM-02 | CRS002 fires on ALL urban-speed vehicles at 30s intervals | **HIGH** | Recalibrate threshold to 200–250m |
-| FM-03 | CRS003 recall UNMEASURABLE (B2) — duplicate injection broken | **HIGH** | Fix B2 (P0, Week 8) |
+| FM-03 | CRS003 recall UNMEASURABLE (NG-4) — replay suppression gate | **HIGH** | Fix NG-4 (P0, Week 8) |
 | FM-04 | TQS V2 weights unprincipled — no derivation | **HIGH** | Adopt V1 (equal weights) as primary |
 | FM-05 | RQ3 TQS correlation is circular by construction | **HIGH** | Redesign RQ3 with independent signal |
 | FM-06 | C dimension dead on NYC TLC (0.20 weight wasted) | **HIGH** | Acknowledge; renormalize weights |
@@ -185,7 +185,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 | FM-10 | L5 physics priors calibrated for highway, not urban minimum | **HIGH** | Context-aware CRS thresholds |
 | FM-11 | V3 rewards datasets without GPS over datasets with GPS violations | **HIGH** | Remove V3 from primary claims |
 | FM-12 | First GPS fix cold start produces erroneous position | **HIGH** | Warm-up period (ignore first 5 positions) |
-| FM-13 | Creeping vehicles (1–2 km/h) flagged by CRS001 | **HIGH** | Adaptive lower bound |
+| FM-13 | Creeping vehicles (1–2 km/h) flagged by CRS001 | ~~**HIGH**~~ | Resolved (0.5 km/h + 60s requirement) |
 | FM-14 | CRS002 100m/30s assumes 1s updates, NYC MTA Bus uses 30s | **HIGH** | Recalibrate for 30s intervals |
 
 ### Minor Severity
@@ -193,7 +193,7 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 | ID | Failure Mode | Likelihood | Mitigation |
 |----|-------------|:----------:|------------|
 | FM-15 | TQS score variation <1.5pp between V1/V2/V3 | **MEDIUM** | Report sensitivity analysis in appendix |
-| FM-16 | Boundary GPS noise at 120 km/h causes intermittent violations | **MEDIUM** | Add 5 km/h tolerance (125 km/h) |
+| FM-16 | Boundary GPS noise at 100 km/h causes intermittent violations | **MEDIUM** | Add 5 km/h tolerance (105 km/h) |
 | FM-17 | TTL expiry at T=310s causes silent false negatives | **LOW** | Increase TTL to 600s |
 | FM-18 | Hash collision probability negligible (SHA-256) | **NEGLIGIBLE** | Document and dismiss |
 
@@ -205,11 +205,11 @@ The L4 dilution problem is structural and unavoidable. The document quantifies t
 
 | # | Recommendation | Reason |
 |---|---------------|--------|
-| **R1** | Fix CRS003 duplicate injection (B2, P0) | CRS003 recall is UNMEASURABLE; CRS layer evaluation incomplete |
+| **R1** | Fix CRS003 replay suppression gate (NG-4, P0) | CRS003 recall is UNMEASURABLE; CRS layer evaluation incomplete |
 | **R2** | Fix CRS002 threshold for 30s update intervals | 100m/30s fires on all urban-speed vehicles; destroys precision |
 | **R3** | Redesign RQ3 with independent quality signal | Correlation with injection rate is circular |
 | **R4** | Adopt V1 (equal weights) as primary TQS variant | V2 weights unprincipled; V3 creates backwards incentive |
-| **R5** | Explicitly scope RQ5 to CRS001/CRS002 only | CRS003 excluded until B2 is fixed |
+| **R5** | Explicitly scope RQ5 to CRS001/CRS002 only | CRS003 excluded until NG-4 is fixed |
 
 ### Priority 2 — Major (Should Fix Before Evaluation)
 
@@ -247,7 +247,7 @@ The ContextAware-DQ algorithm design is **technically sound in its core architec
 |------|--------|-----|
 | L4 dilution | **Critical** | Redesign L4 as Weighted Context Pool |
 | CRS002 threshold | **Critical** | Recalibrate for 30s intervals (200–250m) |
-| CRS003 recall | **Critical** | Fix B2 (P0, Week 8) |
+| CRS003 recall | **Critical** | Fix NG-4 (P0, Week 8) |
 | TQS weights | **Critical** | Adopt V1 (equal weights); redesign RQ3 |
 | CRS002 GPS jitter | **Major** | Kalman filter + warm-up period |
 

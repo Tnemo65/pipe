@@ -1,55 +1,176 @@
 % =============================================================================
 % INTRODUCTION
-% Chapter: MỞ ĐẦU
+% Chapter-level intro — NOT a numbered chapter
+% =============================================================================
+% COMPLETELY REWRITTEN — Old Knowledge Graph / Data Fabric content removed
+% Project: A Context-Aware Framework for Streaming Data Quality Monitoring
+% Date: April 24, 2026
 % =============================================================================
 
-\section{Bối cảnh nghiên cứu}
-\label{sec:context}
+\section{Motivation and Problem Statement}
+\label{sec:intro-motivation}
 
-% PLACEHOLDER: Write your research context here
-Trong thời đại công nghệ số hiện nay, dữ liệu đóng vai trò then chốt trong mọi lĩnh vực đời sống và sản xuất. Sự phát triển mạnh mẽ của các công nghệ như điện toán đám mây, Internet vạn vật (IoT), và trí tuệ nhân tạo (AI) đã tạo ra một lượng dữ liệu khổng lồ. Việc quản lý, lưu trữ và khai thác dữ liệu một cách hiệu quả trở thành thách thức lớn đối với các tổ chức và doanh nghiệp.
+Modern transportation systems — including urban bus fleets, taxi services, and
+rail networks — generate continuous streams of Global Positioning System (GPS)
+position records at update intervals ranging from seconds to minutes. These records
+constitute the primary data source for real-time operations such as arrival-time
+prediction, fleet management, and service scheduling. The quality of these records
+directly determines the reliability of downstream applications; erroneous or
+anomalous GPS data can propagate through the entire operational pipeline,
+degrading predictive accuracy and compromising service quality.
 
-\addref Để hiểu rõ hơn về bối cảnh này, vui lòng xem các nghiên cứu liên quan~\citep{}.
+GPS position records in public transit systems are susceptible to multiple classes of
+data quality defects. Sensor noise produces implausible speed measurements;
+GPS spoofing can inject fabricated vehicle positions separated by hundreds of meters
+within seconds; transmission errors cause duplicate event records; and stale
+position updates may propagate outdated location information to downstream
+applications. These defects are not merely theoretical concerns — the NYC MTA Bus
+system, for example, operates hundreds of vehicles updating at approximately
+30-second intervals across the five boroughs of New York City, generating
+millions of records per day that must be continuously monitored for quality.
 
-\section{Thách thức nghiên cứu}
-\label{sec:challenges}
+Existing data quality frameworks were designed primarily for batch processing
+environments. Great Expectations \citep{great_expectations} and Soda Core
+\citep{soda-core} provide sophisticated constraint specification and validation
+pipelines, but both operate in batch mode: data must be written to a warehouse
+before quality checks can execute. In batch processing, anomalies are detected
+hours after they occur, making these tools unsuitable for real-time transit
+monitoring where immediate detection is operationally critical. Great Expectations
+and Soda Core additionally lack cross-record validation capabilities that would
+enable detection of GPS trajectory anomalies such as impossible speed jumps.
 
-% PLACEHOLDER: Write your research challenges here
-Mặc dù đã có nhiều nỗ lực trong việc xây dựng các hệ thống quản lý dữ liệu, vẫn còn tồn tại nhiều thách thức chính:
+Stream DaQ \citep{streamdaq2025} represents the most closely related prior work,
+providing a streaming-native data quality framework with real-time violation
+detection. However, Stream DaQ was designed for generic data streams and lacks
+GPS trajectory validation capabilities; it cannot detect physically implausible
+vehicle speeds or coordinate jumps in transit GPS data. METER \citep{meter2024}
+addresses concept drift in streaming machine learning models but does not implement
+data quality validation for trajectory data. GTFS Validator \citep{gtfs_validator}
+validates static GTFS schedule data but operates in batch mode and does not
+support real-time GTFS-realtime feeds.
 
-\begin{itemize}
-    \item \textbf{Không đồng nhất về định dạng:} Dữ liệu từ nhiều nguồn khác nhau có định dạng, cấu trúc và ngữ nghĩa không thống nhất.
-    \item \textbf{Chi phí lưu trữ cao:} Việc lưu trữ dữ liệu lớn đòi hỏi chi phí hạ tầng đáng kể.
-    \item \textbf{Khó khăn trong phân tích:} Việc trích xuất thông tin có giá trị từ dữ liệu đa dạng và phân tán gặp nhiều khó khăn.
-    \item \textbf{Thiếu khả năng tích hợp:} Các hệ thống dữ liệu hiện tại thường hoạt động độc lập, thiếu khả năng tương tác.
-\end{itemize}
+The gap we identify is the absence of a streaming data quality framework that
+implements cross-record GPS trajectory validation on real-time GTFS-realtime
+feeds. No surveyed framework — among Great Expectations, Soda Core, Stream DaQ,
+METER, Ada-Context \citep{adacontext2025}, Deequ \citep{deequ2018}, GTFS Validator,
+or any of 14 others surveyed in our literature review — implements Haversine-based
+GPS speed and jump detection on streaming vehicle positions with context-aware
+threshold adaptation. This gap is operationally significant: erroneous GPS data
+in public transit directly degrades arrival-time predictions and fleet management
+decisions that affect thousands of passengers daily.
 
-\section{Mục tiêu và nội dung}
-\label{sec:objectives}
+We present \textbf{StreamDQ}: a context-aware framework for streaming data quality
+monitoring that validates GPS trajectory quality on real GTFS-realtime feeds in
+real time. StreamDQ is not a production-grade system; it is a research and
+education platform designed to demonstrate that streaming GPS validation is feasible,
+measurable, and more effective than batch tools for real-time transit data quality.
 
-% PLACEHOLDER: Write your research objectives here
-Mục tiêu chính của luận văn này là:
+\section{Research Objectives}
+\label{sec:intro-objectives}
 
-\begin{enumerate}
-    \item Nghiên cứu và đề xuất kiến trúc nền tảng dữ liệu thông minh dựa trên knowledge graph và data fabric.
-    \item Thiết kế và triển khai hệ thống với các tầng chức năng bao gồm: thu nạp, lưu trữ, biến đổi, và phân tích dữ liệu.
-    \item Xây dựng tầng metadata và knowledge graph để quản lý và truy vấn dữ liệu hiệu quả.
-    \item Phát triển mô-đun phân tích thông minh sử dụng LLM để hỗ trợ ra quyết định.
-    \item Đánh giá hiệu quả của hệ thống đề xuất thông qua các thực nghiệm cụ thể.
-\end{enumerate}
+We formulate six research questions that address the core claims of this work.
+Each question is stated with a measurable hypothesis and a target threshold;
+all thresholds are labeled \texttt{[TIER-2\ ESTIMATED]} because they require
+benchmark validation.
 
-\section{Cấu trúc luận văn}
-\label{sec:structure}
+\textbf{RQ1.} Do hierarchical context-aware thresholds (L0--L4) improve detection F1
+over static global thresholds? We hypothesize a target improvement of
+$\Delta\text{F1} \geq 5$ percentage points for events falling into L0 context
+cells (fine-grained hour--zone--weekday), assessed via Wilcoxon signed-rank test
+with Holm--Bonferroni correction ($\alpha_{\text{adj}} = 0.0083$).
+\texttt{[TIER-2\ ESTIMATED]}
 
-% PLACEHOLDER: Write your thesis structure here
-Luận văn này được tổ chức theo cấu trúc sau:
+\textbf{RQ2.} Does the L4 global fallback reduce threshold specificity
+detectably compared to L0 context-specific thresholds? We assess whether the
+false-negative rate at L4 is higher than at L0 by more than 10\%,
+measured by Friedman's test across context cells.
+\texttt{[TIER-2\ ESTIMATED]}
 
-\begin{description}
-    \item[\textbf{Chương 1: Cơ sở lý thuyết}] Trình bày các khái niệm nền tảng về knowledge graph, data fabric, data lakehouse và các công nghệ liên quan.
-    
-    \item[\textbf{Chương 2: Kiến trúc hệ thống đề xuất}] Mô tả chi tiết kiến trúc tổng thể, các tầng chức năng, và các thành phần công nghệ của nền tảng.
-    
-    \item[\textbf{Chương 3: Thực nghiệm và đánh giá}] Trình bày môi trường thực nghiệm, quá trình triển khai, và kết quả đánh giá hệ thống.
-    
-    \item[\textbf{Kết luận}] Tổng kết các đóng góp, hạn chế của luận văn và hướng phát triển tiếp theo.
-\end{description}
+\textbf{RQ3.} Does Trajectory Quality Scoring (TQS) correlate with a
+downstream quality signal? We measure Pearson correlation $\rho > 0.70$ between
+TQS composite scores and independent downstream prediction error. Critically,
+we redesign RQ3 to avoid circularity: TQS is computed from raw event properties
+alone (not from rule violation counts), and correlation is measured against
+ETA prediction error on NYC MTA Bus, not against injection rate.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{RQ4.} Does the cross-record (CRS) rule layer provide incremental F1
+beyond what syntactic and semantic rules achieve alone? We target
+$\Delta\text{F1} \geq 5$ percentage points from adding CRS rules to the SYN+SEM
+baseline, measured via Wilcoxon signed-rank test.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{RQ5.} Do CRS rules achieve precision $> 0.70$ on synthetically injected
+GPS anomalies in the NYC MTA Bus GTFS-realtime stream? We assess both CRS001
+(GPS speed bounds) and CRS002 (GPS jump detection) using Wilson score confidence
+intervals at 95\% confidence level.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{RQ6.} Does ML-augmented threshold calibration (Bayesian Optimization)
+improve F1 over rule-only thresholds? This is a measured contribution:
+positive, negative, and mixed results are all scientifically valuable and will
+be reported as such. Phase 3 implementation is mandatory.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\section{Contributions}
+\label{sec:intro-contributions}
+
+We implement four primary contributions for the StreamDQ research platform.
+
+\textbf{C1: First streaming GPS trajectory validation on real GTFS-realtime
+feeds.} We implement CRS001 (Haversine-based GPS speed bounds $[2.0,\ 100.0]$
+km/h) and CRS002 (GPS jump detection $>400$ m in 30 s) as Java
+\texttt{KeyedProcessFunction} operators in Apache Flink, evaluated on the live
+NYC MTA Bus GTFS-realtime public feed. No prior framework implements cross-record
+GPS validation on streaming transit data.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{C2: Hierarchical context-aware threshold fallback (L0--L5).} We design
+a five-level hierarchical threshold system that traverses from the finest-grained
+context cell (L0: hour $\times$ zone $\times$ weekday/weekend, $\geq 100$
+samples) to physics priors (L5), gracefully degrading through intermediate levels
+(L1--L4). We validate that this fallback mechanism is absent from all
+surveyed frameworks.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{C3: Ground-truth evaluation methodology with explicit limitations.}
+We implement a complete evaluation pipeline comprising synthetic anomaly injection,
+per-entity ground-truth tracking in PostgreSQL, and precision/recall/F1 metrics
+with 95\% bootstrap confidence intervals (1,000 iterations). Uniquely, we
+explicitly label what cannot be measured: CRS003 recall is blocked by a known
+evaluation bug (NG-4), and distributed Flink latency is not benchmarked.
+\texttt{[TIER-1\ VERIFIED\ for\ methodology;\ TIER-2\ ESTIMATED\ for\ results]}
+
+\textbf{C4: ML-augmented threshold calibration.} We design a three-component
+ML pipeline — Bayesian Optimization (Priority 1, GO), Isolation Forest (Priority 2,
+conditional), and XGBoost (Priority 3, conditional) — that calibrates context
+thresholds without overriding rule-based violation detection. LSTM is explicitly
+excluded (Priority 4, NO-GO) due to unconfirmed training data and high
+redundancy with CRS002.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\section{Thesis Structure}
+\label{sec:intro-structure}
+
+The remainder of this thesis is organized as follows.
+
+\textbf{Chapter 1} presents the literature review and theoretical background,
+covering streaming data quality definitions and frameworks, context-aware data
+quality methods, GPS trajectory validation for transportation systems, and the
+role of machine learning in data quality calibration.
+
+\textbf{Chapter 2} describes the StreamDQ system architecture and algorithm
+design, including the three-layer rule taxonomy (syntactic, semantic, and
+cross-record), the hierarchical context-aware threshold system, the Trajectory
+Quality Scoring mechanism, and the ML augmentation pipeline.
+
+\textbf{Chapter 3} details the experimental evaluation methodology, including
+datasets, synthetic anomaly injection, ground-truth tracking, statistical tests,
+and the ablation study design. Result sections contain placeholder tables
+labeled \texttt{[TIER-2\ ESTIMATED]} pending benchmark execution. A mandatory
+limitations section explicitly acknowledges seven documented constraints.
+
+The \textbf{Conclusion} summarizes the contributions and key findings, and
+identifies five directions for future work, including fixing the CRS003
+evaluation blocker, implementing the external context stub, and deploying a
+distributed Flink cluster for full-scale benchmarks.

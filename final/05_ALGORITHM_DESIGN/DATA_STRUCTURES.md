@@ -73,6 +73,15 @@ class ThresholdStats:
     entropy: float
     computed_at: float      # Unix timestamp
     snapshot_date: date
+    # ML-calibrated fields (updated by Bayesian Optimization hourly)
+    k_multiplier: float    # calibrated k-multiplier (default 3.0, range [1.5, 5.0])
+    ml_alpha: float        # Isolation Forest sensitivity (default 0.0, range [0.0, 0.5])
+    lstm_threshold_m: float # LSTM deviation threshold in meters (default 100.0, range [50.0, 250.0])
+    weekend_discount: float # k reduction for weekends (default 0.0, range [0.0, 0.5])
+    context_weight: float   # context vs. global weight (default 0.5, range [0.0, 1.0])
+    calibration_version: int # increments each BO calibration run
+    if_model_version: str   # e.g. "if_v2.3" — broadcast with thresholds
+    lstm_model_version: str # e.g. "lstm_v1.7" — broadcast with thresholds
 ```
 
 **Context key composition rules**:
@@ -88,14 +97,16 @@ class ThresholdStats:
 
 ### State Backend
 
-**BroadcastState** — for threshold lookup (read by all parallel instances):
+**BroadcastState** — for threshold lookup and ML-calibrated threshold values (read by all parallel instances):
 
 ```
 BroadcastState<ContextLevel, ContextKey, ThresholdStats>
 ```
 
 - **Why BroadcastState**: Thresholds are read-only and identical across all task instances. O(1) lookup per event without key shuffling.
-- **Update mechanism**: Periodic background job (every 1h) computes new thresholds from `context_statistics` PostgreSQL table and broadcasts the updated map to all instances.
+- **ML calibration**: Thresholds are updated hourly by Bayesian Optimization, which calibrates k_multiplier, ml_alpha (Isolation Forest sensitivity), lstm_threshold_m, weekend_discount, and context_weight. ML model versions (if_model_version, lstm_model_version) are broadcast alongside thresholds to track model freshness.
+  - **Single global IF model**: One Isolation Forest model is trained on all NYC TLC contexts (not per-cell). `if_model_version` tracks the global model version — a single version string applies to all context cells. Per-cell models (~10,000+) are computationally infeasible per ML_MODEL_ANALYSIS.md §1.4.
+- **Update mechanism**: Hourly BO calibration job computes optimized parameters from the 1-hour calibration window and broadcasts the updated map to all instances. Thresholds are versioned by calibration_version.
 
 **MapState** — for collecting rolling statistics (per context cell):
 
@@ -145,6 +156,14 @@ record ThresholdStats {
     double entropy;
     long computed_at;   # Unix timestamp ms
     string snapshot_date; # ISO date string
+    double k_multiplier; # calibrated by Bayesian Optimization
+    double ml_alpha;     # Isolation Forest sensitivity
+    double lstm_threshold_m; # LSTM deviation threshold (meters)
+    double weekend_discount;
+    double context_weight;
+    int calibration_version;
+    string if_model_version;
+    string lstm_model_version;
 }
 ```
 
@@ -171,6 +190,8 @@ record ThresholdStats {
 
 **Total state size**: 908 active cells × 8.25 KB ≈ **7.5 MB**
 
+**Note on ML calibration**: Each ThresholdStats entry includes 6 additional ML fields (~48 bytes): k_multiplier, ml_alpha, lstm_threshold_m, weekend_discount, context_weight, calibration_version. BroadcastState size ≈ 10,000 cells × ~1.25 KB ≈ **12.5 MB** replicated across TaskManagers. `if_model_version` and `lstm_model_version` are string fields broadcast with thresholds — single global model version string only (~20 bytes).
+
 ### RocksDB-Specific Considerations
 
 1. **Incremental checkpoints**: Enable `RocksDBStateBackend` with incremental checkpointing.
@@ -186,7 +207,13 @@ record ThresholdStats {
 | T2: Weekend key | Saturday 3pm, PULocationID 230 | Level=0, Key="H15_midtown_WE" |
 | T3: L0→L1 fallback (insufficient samples) | L0 count=50 < 100; L1 count=80 > 50 | Level=L1 |
 | T4: L4 global fallback | All levels below min_samples | Level=L4 |
-| T5: L5 physics prior | All levels empty | Level=L5, threshold=[2,120] km/h |
+| T5: L5 physics prior | All levels empty | Level=L5, threshold=[2,100] km/h |
+| T7: ML calibration version | Calibration run at t=3600s | ThresholdStats.calibration_version incremented; if_model_version updated |
+| T8: ML fallback on timeout | IF service unavailable | anomaly_score=0.0; k_multiplier unchanged; pipeline continues |
+
+*Note: ML integration tests require the IF gRPC service (Algorithm G in FORMULATION.md) and LSTM gRPC service (Algorithm H in FORMULATION.md, CONDITIONAL/NO-GO per ML_MODEL_ANALYSIS.md §3) to be running. Fallback behavior (anomaly_score=0.0) must be tested independently. BO calibration test requires evaluation infrastructure with synthetic injection (Phase 1); BO objective is F1, not violation_rate.*
+
+
 | T6: Null zone | PULocationID=NULL | Fallback to L4 |
 
 ---
@@ -303,10 +330,10 @@ message JumpStateProto {
 | Test | Setup | Input | Expected |
 |------|-------|-------|----------|
 | T1: Normal speed | prev pos at t=970s | pos at t=1000s, ~300m (speed ~36 km/h) | No violation; state updated |
-| T2: Speed > 120 km/h | prev pos | pos 1.5km in 30s → speed ~180 km/h | Violation(CRS001, ABOVE_UPPER_BOUND, speed=180) |
+| T2: Speed > 100 km/h | prev pos | pos 1.5km in 30s → speed ~180 km/h | Violation(CRS001, ABOVE_UPPER_BOUND, speed=180) |
 | T3: First position | No prior state | Any valid position | No violation; state initialized |
 | T4: Null vehicle_id | — | e.vehicle_id=NULL | Violation(SYN001, NULL_KEY) |
-| T5: GPS jump > 100m | prev pos at t=970s | pos 1.3km away at t=1000s | Violation(CRS002, GPS_SPOOFING, dist=1300m) |
+| T5: GPS jump > 400m | prev pos at t=970s | pos 1.3km away at t=1000s | Violation(CRS002, GPS_SPOOFING, dist=1300m) |
 | T6: Normal movement | prior pos 30s ago | pos 200m away | No violation; position added to buffer |
 
 ---
@@ -375,43 +402,105 @@ message DedupStateProto {
 | T3: Different hash | Hash "abc123" in state | `{trip_id: "T1", hash: "def456"}` | No violation; hash added |
 | T4: TTL expiry | Hash "abc123", oldest=now-310s | `{trip_id: "T1", hash: "abc123"}` | No violation; hash re-added |
 | T5: Cross-trip isolation | Hash "abc123" for T1 | `{trip_id: "T2", hash: "abc123"}` | No violation; T2 state created |
-| T6: B2 verification | Two events with same hash | Emit both | First=no violation; second=Violation(CRS003) |
+| T6: NG-4 verification | Two events with same hash | Emit both | First=no violation; second=Violation(CRS003) |
 
 ---
 
-## Data Structure 4: TQS Aggregation State
+## Data Structure 4: TQS Aggregation State — Revised (Non-Circular Design)
+
+> ⚠️ **This section supersedes the original TQSCellState design.** The original (§4 prior to this revision) defined TQS from rule violation counts (`V/C/Cn/P`) — which is **circular by construction** for evaluation runs where ground truth is injection rate. This revised design uses **stream-intrinsic dimensions** computed directly from raw event properties, independent of rule outcomes.
 
 ### Data Model
+
+The TQS Cell State stores raw aggregates needed to compute five non-circular quality dimensions:
 
 ```python
 @dataclass
 class TQSCellState:
-    context_key: str
-    context_level: int              # L0–L4
-    total_events: int
-    syn001_violations: int
-    syn002_violations: int
-    syn003_violations: int
-    crs001_violations: int
-    crs002_violations: int
-    crs003_violations: int
-    sem001_violations: int
-    sem002_violations: int
-    sem003_violations: int
+    context_key: str                    # e.g. "H14_midtown_WD"
+    context_level: int                  # L0–L4
+
+    # ── Event counts ──────────────────────────────────────────────────────────────
+    total_events: int                   # N events in this cell
+
+    # ── Timeliness (Tm): inter-event time statistics ────────────────────────────
+    sum_dt: int                        # Σ Δt_i = Σ (e_i.ts − e_{i−1}.ts), ms
+    sum_dt2: int                       # Σ Δt_i² — for population variance
+    n_intervals: int                   # Number of Δt intervals (N−1)
+
+    # ── Completeness (Cn): null/NaN counts per required field ─────────────────
+    # Stored as dict of field_name → null_count
+    null_counts: dict[str, int]
+
+    # ── Accuracy (Ac): plausibility counters per field ─────────────────────────
+    # NYC TLC: fare_amount, trip_distance, passenger_count, PULocationID, DOLocationID
+    # GTFS: lat, lon, ts, schedule_relationship
+    plausibility_counts: dict[str, int]  # field → n_plausible (per-field score = n_plausible / N)
+
+    # ── Consistency (Cs): GPS trajectory coherence (GTFS only) ─────────────────
+    # Timestamp monotonicity: events should arrive in ts order
+    n_reversed: int                    # count of (e_i.ts > e_{i+1}.ts) — reversed order
+    n_gps_outlier: int                 # count of events flagged by CRS001/CRS002
+
+    # ── Uniqueness (Uv): dedup statistics ─────────────────────────────────────
+    n_distinct_hashes: int              # cardinality of hash set in dedup window
+    n_total_hashes: int                # total hashes added to dedup window
+    # Uv = n_distinct / n_total (higher = fewer duplicates)
+
+    # ── Severity summary (for alerting, not for TQS computation) ────────────────
     violations_by_severity: dict[str, int]
 ```
 
-**Derived TQS components** (computed on read):
+**Critical design note**: All dimensions (Tm, Cn, Ac, Cs, Uv) are computed from **raw event fields only**, not from rule violation outcomes. This ensures TQS is non-circular with respect to injection-based ground truth.
 
-| Component | Formula |
-|-----------|---------|
-| V (Validity) | `1 - (syn001 + syn002) / total` |
-| C (Consistency) | `1 - (crs001 + crs002) / total` (GTFS only) |
-| Cn (Completeness) | `1 - sem003 / total` |
-| P (Plausibility) | `1 - (sem001 + sem002) / total` |
-| TQS_V1 (Equal) | `0.25×V + 0.25×C + 0.25×Cn + 0.25×P` |
-| TQS_V2 (Domain) | `0.40×V + 0.20×C + 0.30×Cn + 0.10×P` **[PRIMARY]** |
-| TQS_V3 (Consist) | `0.20×V + 0.35×C + 0.25×Cn + 0.20×P` |
+### Derived TQS Dimensions (computed on read from stored raw aggregates)
+
+**Tm — Timeliness**: From inter-event time variance.
+```
+Δt_i     = e_i.ts − e_{i−1}.ts      (ms)
+σ²_Δt    = [ΣΔt_i² / n_intervals] − [ΣΔt_i / n_intervals]²   (population variance)
+Tm        = exp(−λ · σ²_Δt) · (1 − stale_rate)
+           where λ = 1×10⁻⁸ ms⁻²   (recalibrated from 0.01 for ms-scale)
+           stale_rate = #{e : current_time − e.ts > 300,000} / N
+Tm ∈ [0, 1]. Tm → 1 when variance is low and few events are stale.
+```
+
+**Cn — Completeness**: From null/NaN counts.
+```
+Cn = 1 − Σ_field null_counts[field] / (N · |required_fields|)
+Cn ∈ [0, 1]. Cn = 1 when all required fields are present for all events.
+```
+
+**Ac — Accuracy (Plausibility)**: From raw field plausibility checks.
+```
+NYC TLC: fare ∈ [0, 1000], distance ∈ [0, 500], passenger ∈ [1, 9], zones ∈ [1, 263]
+GTFS: |lat| ≤ 90, |lon| ≤ 180, ts > 0
+Ac = (1/N) · Σ_i [n_plausible_fields_i / |measured_fields_i|]
+Ac ∈ [0, 1]. Ac = 1 when all measured fields are within plausible ranges.
+```
+
+**Cs — Consistency**: From timestamp monotonicity and GPS coherence.
+```
+Cs_ts = 1 − n_reversed / N           (timestamp monotonicity)
+# GPS speed coherence: CRS001/CRS002 violations flag GPS anomalies
+# Cs = f(gps_anomaly_rate) — computed in CRS layer, stored here as summary
+Cs ∈ [0, 1]. Cs = 1 when trajectory is temporally and spatially coherent.
+```
+
+**Uv — Uniqueness**: From deduplication cardinality.
+```
+Uv = n_distinct_hashes / n_total_hashes
+Uv ∈ [0, 1]. Uv = 1 when all events are unique (no duplicates).
+```
+
+### TQS Composite Variants
+
+Both variants use the same five dimensions (Tm, Cn, Ac, Cs, Uv). V1 and V2 are **design choices**, not correctness claims.
+
+| Variant | Weights | Justification |
+|---------|---------|---------------|
+| **TQS_V1 (Equal)** | 0.20·Tm + 0.20·Cn + 0.20·Ac + 0.20·Cs + 0.20·Uv | Principled baseline: no domain assumptions |
+| **TQS_V2 (Domain)** | 0.20·Tm + 0.25·Cn + 0.20·Ac + 0.25·Cs + 0.10·Uv **[PRIMARY]** | Domain-informed: Cn and Cs weighted higher (null fields and GPS coherence most critical for NYC TLC and NYC MTA Bus) |
 
 ### State Backend
 
@@ -433,23 +522,28 @@ KeyedStream[Event, String] → Window(TumblingEventTimeWindows.of(Time.minutes(5
 ### State Size Estimate
 
 | Component | Size |
-|-----------|------|
+|-----------|-----------|
 | context_key (String) | ~50 bytes |
-| 9 rule violation counters | ~36 bytes |
-| violations_by_severity map (4 entries) | ~100 bytes |
-| **Per cell total** | **~200 bytes** |
+| total_events, n_intervals, sum_dt, sum_dt2 (4×8 bytes) | ~32 bytes |
+| null_counts dict (9 fields × ~16 bytes each) | ~144 bytes |
+| plausibility_counts dict (9 fields × ~16 bytes each) | ~144 bytes |
+| n_reversed, n_gps_outlier, n_distinct_hashes, n_total_hashes (4×8 bytes) | ~32 bytes |
+| violations_by_severity map (4 entries × ~50 bytes) | ~200 bytes |
+| **Per cell total** | **~600 bytes** |
 
-**Total**: 908 cells × 200 bytes ≈ **180 KB** (window flushed every 5 min)
+**Total**: 908 cells × 600 bytes ≈ **545 KB** (window flushed every 5 min)
+
 
 ### Unit Test Outline
 
 | Test | Setup | Expected |
+| Test | Setup | Expected |
 |------|-------|----------|
-| T1: Perfect quality | 100 events, 0 violations | TQS=1.0 |
-| T2: Mixed violations | 100 events, 5 SYN001, 3 SYN002, 2 CRS001 | V=0.92; TQS_V2≈0.964 |
+| T1: Perfect quality | 100 events, all fields valid, Δt=30s±5s | Tm≈0.98, Cn=1.0, Ac=1.0, Cs=1.0, Uv=1.0, TQS≈0.99 |
+| T2: Mixed quality | 100 events, 5 null fields, 3 implausible fares, Δt=30s±90s | Tm≈0.67, Cn≈0.94, Ac≈0.97, Cs=1.0, Uv=1.0, TQS≈0.90 |
 | T3: Empty window | 0 events | TQS=null |
-| T4: GTFS (CRS applicable) | 50 GTFS events, 2 CRS001, 1 CRS002 | C=0.94 |
-| T5: NYC TLC (CRS not applicable) | 50 NYC TLC events | C=1.0 (always) |
+| T4: GTFS GPS outliers | 50 GTFS events, 2 CRS001, 1 CRS002 | Cs≈0.94 (GPS coherence degraded) |
+| T5: NYC TLC (CRS not applicable) | 50 NYC TLC events, no GPS | Cs=1.0 (no GPS); Cn, Ac, Tm from TLC fields |
 | T6: Late data (within allowedLateness) | 5 events at t=10:06, window closes t=10:06:01 | Included in window; total=105 |
 | T7: Late data (beyond allowedLateness) | 5 events at t=10:07 | Sent to LateDataOutputTag; not in main window |
 

@@ -37,7 +37,7 @@ Periodic (every 1 hour), off the event-processing critical path. The ML layer ru
 | Compute L0 key string | O(1) | String interpolation of 3 values (hour, zone_category, weekend flag) |
 | BroadcastState lookup (L0) | O(1) | HashMap lookup in Flink BroadcastState |
 | Fallback L1–L4 | O(1) each | Conditional sequence, short-circuits on first hit |
-| L5 physics prior | O(1) | No lookup; return hardcoded `[2, 120]` km/h or similar |
+| L5 physics prior | O(1) | No lookup; return hardcoded `[2, 100]` km/h or similar |
 | **Per-event (all paths)** | **O(1)** | **Short-circuits; bounded by ≤6 sequential O(1) lookups** |
 
 ### Space Complexity
@@ -79,7 +79,7 @@ Broadcast state is **replicated to all TaskManagers** — not partitioned. At sc
 | Keyed state lookup (vehicleId) | O(1) | RocksDB hash lookup; JVM-native, no Python serialization |
 | Haversine distance computation | O(1) | 6 trig operations (sin, cos, atan2, sqrt) + arithmetic; Java Math library |
 | Time delta | O(1) | Timestamp subtraction |
-| Speed check (bounds ∈ [2, 120]) | O(1) | Two comparisons |
+| Speed check (bounds ∈ [2, 100]) | O(1) | Two comparisons |
 | State update | O(1) | Write prev position, prev timestamp; append to fixed-size speed deque |
 | TTL management | O(1) amortized | Flink TTL background cleanup; not on critical path |
 | **Per-event** | **O(1)** | **All operations constant-time; no iteration** |
@@ -99,17 +99,17 @@ Broadcast state is **replicated to all TaskManagers** — not partitioned. At sc
 
 | Property | Value | Notes |
 |----------|:------:|-------|
-| Bias | **Zero** | Hard-coded physics bounds `[2, 120]` km/h — no learned parameters. No statistical bias possible. |
+| Bias | **Zero** | Hard-coded physics bounds `[2, 100]` km/h — no learned parameters. No statistical bias possible. |
 | Variance | Binomial | For violation rate: Var(p̂) = p(1−p)/n_per_vehicle. n = number of speed measurements per vehicle. |
 | Convergence | O(1/√n) | For speed distribution estimation; single-event violation is deterministic — no convergence needed for flag. |
-| Min samples | **1** | A single speed measurement outside `[2, 120]` km/h triggers a violation. No sample-count threshold required. |
-| False positive risk | **Low** | `[2, 120]` km/h is well above walking pace (2 km/h) and below highway speed (120 km/h for NYC buses). Urban buses rarely exceed 80 km/h. |
+| Min samples | **1** | A single speed measurement outside `[2, 100]` km/h triggers a violation. No sample-count threshold required. |
+| False positive risk | **Low** | `[2, 100]` km/h is well above walking pace (2 km/h) and below highway speed (100 km/h for NYC buses). Urban buses rarely exceed 80 km/h. |
 
 ### Bottleneck
 
 **Bottleneck**: `KeyedState` RocksDB I/O for the state lookup/update on every event. With 1,000–5,000 active vehicles and 10-min TTL, state is hot (L1/L2 cache-resident). The Java `KeyedProcessFunction` hot path is JIT-compiled and lock-free. The actual bottleneck is **checkpointing**: every 30s, Flink serializes all keyed state to HDFS/S3 — state size × checkpoint interval determines checkpoint duration. With ~1 MB total keyed state, checkpoint is negligible.
 
-**Known limitation (B3)**: There is a **gap** in the `[2, 120]` km/h range — speeds between 2–20 km/h are not validated. GPS spoofing that keeps speed within this range will not be detected. CRS002 partially covers this gap.
+**Known limitation (B3)**: There is a **gap** in the `[2, 100]` km/h range — speeds between 2–20 km/h are not validated. GPS spoofing that keeps speed within this range will not be detected. CRS002 partially covers this gap.
 
 ---
 
@@ -124,7 +124,7 @@ Broadcast state is **replicated to all TaskManagers** — not partitioned. At sc
 | Prior-position iteration | O(b) | b = number of positions in buffer; b ≤ 3 (fixed size) |
 | Prior-position time filter | O(b) | Check timestamp < 30s; constant per prior position |
 | Haversine distance (per prior) | O(1) | Same Haversine as CRS001 |
-| Jump threshold check (>100m) | O(1) | Distance comparison |
+| Jump threshold check (>400m) | O(1) | Distance comparison |
 | Buffer eviction (>10 min) | O(1) | Ring buffer eviction on append; mark-based, not scan-based |
 | **Per-event** | **O(1)** | **b is bounded by fixed buffer size (≤3); no unbounded iteration** |
 
@@ -141,11 +141,11 @@ Broadcast state is **replicated to all TaskManagers** — not partitioned. At sc
 
 | Property | Value | Notes |
 |----------|:------:|-------|
-| Bias | **Zero** | Hard-coded threshold (>100m/30s) — no learned parameters. |
+| Bias | **Zero** | Hard-coded threshold (>400m/30s) — no learned parameters. |
 | Variance | Decreases with buffer size | With b=3 positions, 3 comparisons possible per event. Variance in jump detection rate decreases as 1/b. |
 | Convergence | **Minimum 2 positions required** | Cannot detect a jump with only 1 position. Buffer fills within 2–3 update intervals (GTFS-RT: every 30s → buffer fills in ≤90s). |
 | Min samples | **2 positions in buffer** | First position always passes (no prior to compare). Detection active from event 3 onwards. |
-| False negative risk | **Low** | 100m threshold is conservative (10% of max 1,000m possible in 30s at 120 km/h). Low probability of missing real jumps. |
+| False negative risk | **Low** | 400m threshold is calibrated (40% of max 1,000m possible in 30s at 100 km/h). Low probability of missing real jumps. |
 
 ### Bottleneck
 
@@ -194,7 +194,7 @@ Broadcast state is **replicated to all TaskManagers** — not partitioned. At sc
 
 **Bottleneck**: State growth if a single trip generates many events in 310s. NYC MTA Bus: typical trip generates 10–60 GTFS-RT positions (at 30s intervals, 5–30 min trip = 10–60 positions). State per trip is bounded. However, if a vehicle is stationary and reporting every 30s, a trip_id persists → state grows unbounded for that trip until TTL eviction.
 
-**Known limitation (B2)**: The duplicate injection mechanism must emit **two records** (original + duplicate) for CRS003 recall to be measurable. Current implementation may emit only one — this is a bug that must be fixed (P0, Week 8).
+**Known limitation (NG-4)**: CRS003 evaluation is blocked by the replay suppression gate. Synthetic duplicates are tagged `is_replay=True` by `_enrich_with_lineage()`, which triggers the gate in `evaluate_duplicate_event()` and suppresses violation emission. Additionally: NG-1 (low-confidence suppression) and NG-2 (temporal clustering) reduce recall for low-confidence and repeated duplicates. All three are evaluation bugs, not dedup logic bugs.
 
 **RoaringBitmap vs HashSet**: For high-throughput dedup (1,000+ events/sec per trip), RoaringBitmap is more memory-efficient. For low-throughput, HashSet is simpler. The choice affects memory, not throughput.
 
@@ -279,6 +279,6 @@ TQS is **window-based** (emitted every 5 min), not per-event. The per-event cost
 4. **Bias is minimal for CRS rules** (hard-coded physics thresholds) and moderate for SYN/SEM rules (rolling percentiles have known lower/upper bound bias). The L5 physics fallback has zero bias by construction.
 
 5. **Known limitations affecting complexity**:
-   - **B2 (CRS003 duplicate injection)**: Blocks CRS003 recall measurement — must emit two records (original + duplicate)
+   - **NG-4 (replay suppression gate)**: Blocks CRS003 recall measurement on replay data — synthetic duplicates must be tagged `is_replay=False`
    - **B3 (CRS002 speed range gap)**: Speeds 2–20 km/h are not validated — CRS002 compensates partially
    - **RQ3 circularity**: TQS is defined as 1 − violation_rate, making TQS–injection_rate correlation guaranteed — not a meaningful RQ

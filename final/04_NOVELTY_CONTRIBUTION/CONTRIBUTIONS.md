@@ -18,9 +18,11 @@ Every claim in this document is classified into one of three tiers:
 
 No numbers are invented. Every estimate is labeled `[ESTIMATED]`. Every unmeasurable claim is labeled `[UNMEASURABLE]`. Every claim requiring benchmark is labeled `[NEEDS BENCHMARK]`.
 
-**Known unmeasurable claims** (B2 — CRS003 duplicate injection broken):
+**Known unmeasurable claims** (NG-4 — CRS003 replay suppression gate):
 - CRS003 recall = `[UNMEASURABLE]` — duplicate injection does not emit original + duplicate
-- RQ6 (ML augmentation ΔF1) = `[UNMEASURABLE]` — Phase 3 optional; CRS003 broken
+- RQ6 (ML augmentation ΔF1) = `[TIER-2 ESTIMATED]` — Phase 3 is mandatory; CRS003 blocked by NG-4 (affects only CRS-dedup; IF on SYN/SEM unaffected)
+- LSTM GPS training data = `[UNMEASURABLE]` — 6-month NYC MTA Bus GPS archive not confirmed
+- XGBoost training target = `[UNMEASURABLE]` — "optimal threshold" label undefined per ML_MODEL_ANALYSIS.md §5.5
 
 ---
 
@@ -28,9 +30,9 @@ No numbers are invented. Every estimate is labeled `[ESTIMATED]`. Every unmeasur
 
 Streaming data pipelines for transportation — buses, taxis, and transit — generate GPS position records that existing data quality frameworks cannot validate. Great Expectations and Soda Core are batch tools; Stream DaQ (the closest academic framework) lacks GPS trajectory rules; GTFS validators are batch-only. No streaming framework combines cross-record GPS validation, hierarchical context-aware thresholds, and a reproducible evaluation methodology.
 
-This dissertation presents **A Context-Aware Framework for Streaming Data Quality Monitoring**: a Flink-native streaming DQ framework that validates GPS trajectory quality on real GTFS-realtime feeds using three-layer rule taxonomy (syntactic, semantic, cross-record) with hierarchical context-aware thresholds (L0–L5 fallback) and a ground-truth evaluation framework with explicit measurement of what is and is not measurable.
+This dissertation presents **A Context-Aware Framework for Streaming Data Quality Monitoring**: a Flink-native streaming DQ framework that validates GPS trajectory quality on real GTFS-realtime feeds using three-layer rule taxonomy (syntactic, semantic, cross-record) with hierarchical context-aware thresholds (L0–L5 fallback) and ML-augmented threshold calibration, together with a ground-truth evaluation framework with explicit measurement of what is and is not measurable.
 
-The framework's **primary contribution** is the first streaming implementation of GPS trajectory quality validation on real GTFS-realtime vehicle positions — using Haversine-based speed bounds (2–120 km/h), GPS jump detection (>100m/30s), and event deduplication — evaluated on NYC MTA Bus live GTFS-realtime feed. No surveyed framework (Stream DaQ, METER, Great Expectations, GTFS Validator, GTFS-rt Validator, Ada-Context, CETrajAD, or any of 14 others) implements cross-record GPS trajectory validation on streaming transit data.
+The framework's **primary contribution** is the first streaming implementation of GPS trajectory quality validation on real GTFS-realtime vehicle positions — using Haversine-based speed bounds (2–100 km/h), GPS jump detection (>400m/30s), and event deduplication — evaluated on NYC MTA Bus live GTFS-realtime feed. No surveyed framework (Stream DaQ, METER, Great Expectations, GTFS Validator, GTFS-rt Validator, Ada-Context, CETrajAD, or any of 14 others) implements cross-record GPS trajectory validation on streaming transit data.
 
 The framework's **secondary contribution** is hierarchical context-aware threshold calibration with L0–L5 fallback, enabling context-specific thresholds (fine-grained: `hour_10_midtown_weekday`) that gracefully degrade to global fallback when context cells are sparse. This is verified absent from all surveyed frameworks: Stream DaQ uses single-level rolling μ±kσ; Ada-Context uses fixed grid cells; METER addresses concept drift without context decomposition.
 
@@ -46,13 +48,13 @@ This is a **research and education platform** — not production-ready, not faul
 
 #### Claim 1: GPS Trajectory Validation on Streaming GTFS-Realtime Vehicles
 
-**What is claimed**: CRS001 (GPS speed bounds 2–120 km/h), CRS002 (GPS jump >100m/30s), and CRS003 (event deduplication, 300s window) implemented as Java `KeyedProcessFunction` on Flink, evaluated on NYC MTA Bus GTFS-realtime (public feed, no API key). Uses watermarks + idle stream detection (5 min timeout) for event-time semantics.
+**What is claimed**: CRS001 (GPS speed bounds 2–100 km/h), CRS002 (GPS jump >400m/30s), and CRS003 (event deduplication, 300s window) implemented as Java `KeyedProcessFunction` on Flink, evaluated on NYC MTA Bus GTFS-realtime (public feed, no API key). Uses watermarks + idle stream detection (5 min timeout) for event-time semantics.
 
 **Evidence tier**: `[Tier 2 — Estimated]`
 
-- CRS001 lower bound (2 km/h) is physically justified: eliminates stationary vehicles. Upper bound (120 km/h) is safety margin above highway limit. Both are hardcoded and require no calibration.
-- CRS002 (>100m/30s) is calibrated for GTFS-realtime update intervals. [NEEDS BENCHMARK] on real NYC MTA Bus feed.
-- CRS003 is [UNMEASURABLE] due to B2 (duplicate injection broken).
+- CRS001 lower bound (2 km/h) is physically justified: eliminates stationary vehicles. Upper bound (100 km/h) is physically implausible for NYC MTA Bus; updated from 120 km/h to close the B3 detection gap (moderate spoofing 20–100 km/h). Both are hardcoded and require no calibration.
+- CRS002 (>400m/30s) is calibrated for GTFS-realtime update intervals. [NEEDS BENCHMARK] on real NYC MTA Bus feed.
+- CRS003 is [UNMEASURABLE] due to NG-4 (replay suppression gate blocks synthetic duplicates).
 
 **What would validate this**: Run CRS001/CRS002 on NYC MTA Bus GTFS-realtime with synthetic injection (GPS speed spike, GPS jump, duplicate), compute precision per rule with 95% bootstrap CI.
 
@@ -68,7 +70,7 @@ This is a **research and education platform** — not production-ready, not faul
 
 - Methodology is rigorous and follows Exathlon (VLDB 2021) precedent.
 - [NEEDS BENCHMARK] — evaluation infrastructure is planned, not yet implemented.
-- CRS003 recall is [UNMEASURABLE] due to B2.
+- CRS003 recall is [UNMEASURABLE] due to NG-4 (replay suppression gate).
 - LocalPipeline evaluation is not equivalent to distributed Flink evaluation.
 
 **What would validate this**: Run full evaluation suite on NYC TLC SYN/SEM rules; report P/R/F1 with 95% CI for each rule.
@@ -84,7 +86,7 @@ This is a **research and education platform** — not production-ready, not faul
 **Evidence tier**: `[Tier 2 — Estimated]`
 
 - L0–L4 fallback is verified absent from all surveyed frameworks (Stream DaQ, Ada-Context, METER).
-- L5 (physics priors: [2, 120] km/h) requires no data.
+- L5 (physics priors: [2, 100] km/h) requires no data.
 - Power analysis (Cohen's d ≈ 0.30, α=0.01, power=0.80) justifies min-samples.
 - [NEEDS BENCHMARK] for actual ΔF1 on NYC TLC.
 
@@ -134,19 +136,26 @@ This is a **research and education platform** — not production-ready, not faul
 
 ### Optional Claims (Phase 3 — Requires Evaluation)
 
-#### Claim 6: ML-Augmented Threshold Calibration
+#### Claim 6: ML-Augmented Threshold Calibration (Phase 3 — CORE)
 
-**What is claimed**: Isolation Forest (Cao & Akoglu, SDM 2025) anomaly scores as confidence weights; Bayesian Optimization (AutoDQM, arXiv 2025) for k-multiplier calibration; METER (Zhu et al., PVLDB 2024) for concept drift detection per context cell.
+**What is claimed**: Three ML components integrated with StreamDQ's rule-based framework, prioritized by feasibility analysis (ML_MODEL_ANALYSIS.md):
 
-**Evidence tier**: `[Tier 3 — Unmeasurable]`
+1. **Bayesian Optimization** (Priority 1) — GP surrogate tunes k_multiplier, if_alpha, weekend_discount on F1 objective (not violation_rate). Addresses genuine gap: L0–L5 computes rolling stats but cannot optimize k.
+2. **Isolation Forest** (Priority 2, conditional) — Single global model (NOT per-cell) computes anomaly_score per event → adjusts effective_k = base_k × (1 + α × anomaly_score). Captures multivariate anomalies P10/P90 misses. GO only if IF↔P90 correlation ρ < 0.8.
+3. **XGBoost threshold predictor** (Priority 3, conditional) — Scaffold exists; training target undefined. GO only after "optimal threshold" label is defined.
 
-- ML methods are standard; novelty is the integration.
-- **Phase 3 is optional** — this claim disappears if Phase 3 is not completed.
-- CRS003 broken (B2) blocks Isolation Forest calibration for deduplication.
+~~**LSTM trajectory model**~~ — **NO-GO** (Priority 4): 6-month GPS archive unconfirmed; LSTM↔CRS002 HIGHLY correlated; alert elevation marginal in research platform.
+
+~~**LightGBM**~~ — **REMOVED**: no confirmed use case (ML_MODEL_ANALYSIS.md §4).
+
+**Evidence tier**: `[Tier 2 — Estimated]`
+
+- Phase 3 is **mandatory** — ML is a core pipeline component, not optional.
+- CRS003 blocked (NG-4) affects Isolation Forest calibration for deduplication only; IF on SYN/SEM layer is unaffected.
 - [NEEDS BENCHMARK] for ΔF1 vs. rule-only thresholds (RQ6).
-- **No evidence that ML integration actually improves F1 over rule-only thresholds.**
+- **This is a measured contribution**: if ML provides no improvement, the negative result is scientifically valuable and will be reported as such.
 
-**PC review score**: Novelty=2, Correctness=2, Significance=2. **B** (borderline — standard methods, thin integration novelty, Phase 3 optional).
+**PC review score**: Novelty=2, Correctness=2, Significance=2. **B** (borderline — standard methods, thin integration novelty, but Phase 3 now mandatory).
 
 ---
 
@@ -196,9 +205,9 @@ This is a **research and education platform** — not production-ready, not faul
 
 | Claim | Why | Blocker |
 |-------|-----|---------|
-| **CRS003 recall** | Duplicate injection does not emit original + duplicate | B2 — implementation bug |
-| **CRS003 precision** | Duplicate injection does not emit original + duplicate | B2 — implementation bug |
-| **ML augmentation ΔF1** | Phase 3 optional; CRS003 broken | Phase 3 + B2 |
+| **CRS003 recall** | Replay suppression gate blocks synthetic duplicates | NG-4 — evaluation bug |
+| **CRS003 precision** | Replay suppression gate blocks synthetic duplicates | NG-4 — evaluation bug |
+| **ML augmentation ΔF1** | Phase 3 mandatory (BO→IF→XGBoost→LSTM cond); CRS003 blocked by NG-4 | Phase 3 + NG-4 |
 | **Distributed Flink latency** | Only LocalPipeline profiled | Infrastructure not deployed |
 | **Real-world GPS precision** | No labeled ground truth for authentic errors | Manual labeling required |
 
@@ -221,7 +230,7 @@ The following must be completed to support the contribution statement:
 
 1. **Build evaluation infrastructure**: `evaluation/` directory with `synthetic_injector.py`, `ground_truth_tracker.py`, `metrics.py` (1,000 bootstrap), `run_evaluation.py`, `README.md`.
 2. **Run SYN/SEM evaluation on NYC TLC**: Report precision, recall, F1 per rule with 95% bootstrap CI. These are the paper's primary results.
-3. **Fix B2 (CRS003 duplicate injection)**: Emit both original and duplicate. Without this, CRS003 recall is labeled [UNMEASURABLE] in the paper.
+3. **Fix NG-4 (CRS003 replay gate)**: Tag synthetic duplicates `is_replay=False` to bypass the gate. Without this, CRS003 recall is labeled [UNMEASURABLE] in the paper.
 4. **Run CRS001/CRS002 evaluation on NYC MTA Bus**: Report precision per rule with 95% bootstrap CI.
 5. **Run L0 vs. L4 fallback ablation**: Report ΔF1 for events in L0 cells separately from aggregate ΔF1.
 
@@ -233,8 +242,9 @@ The following must be completed to support the contribution statement:
 
 ### P2 — Nice to Have (can be omitted with honest caveats)
 
-9. **Phase 3 ML augmentation**: Isolation Forest + Bayesian Optimization + METER integration.
+~~9. **Phase 3 ML augmentation**: Isolation Forest + Bayesian Optimization + METER integration.~~ [MOVED TO P1 — Phase 3 is now mandatory]
 10. **Ablation: SYN-only vs. SYN+SEM vs. SYN+SEM+CRS**: Incremental F1 per layer.
+11. **LSTM trajectory model** (Priority 4, NO-GO): Only if 6-month GPS archive confirmed AND CRS002 recall < 60%.
 
 ---
 
@@ -266,7 +276,7 @@ The following must be completed to support the contribution statement:
 | Hierarchical fallback absent from all frameworks | audit_streaming_dq_frameworks.md | Verified — Stream DaQ single-level only |
 | Ada-Context no fallback | audit_streaming_dq_frameworks.md | Verified — grid cells, static boundaries |
 | CRS rules require Java | Phase 4 analysis (report.md) | Verified — JVM↔Python overhead |
-| CRS003 unmeasurable (B2) | B2 known blocker | Verified — injection bug |
+| CRS003 unmeasurable (NG-4) | NG-4 known blocker | Verified — replay gate blocks evaluation |
 | D4 External context stub | Appendix H (I16) | Verified — PARTIAL status |
 | 95%+ false DC discovery | Martin et al., PVLDB 2025 | Verified — doi:10.14778/3748191.3748209 |
 | Stream DaQ cross-record future work | Papastergios & Gounaris, 2025 | Verified — arXiv:2506.06147 |

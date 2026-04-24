@@ -1,267 +1,214 @@
-# ContextAware-DQ — Final Research Document
+# Final Project Index — A Context-Aware Framework for Streaming Data Quality Monitoring
 
-**Project**: "A Context-Aware Framework for Streaming Data Quality Monitoring"
-**Domain**: Transportation — GPS Trajectory + GTFS Realtime
-**Phase**: Phase 0 — Idea Verification (COMPLETE)
-**Generated**: 2026-04-22
+**Project**: A Context-Aware Framework for Streaming Data Quality Monitoring
+**Step**: Step 14 — Final Index
+**Date**: April 24, 2026
 
 ---
 
-## Folder Structure
+## Directory Structure
 
 ```
 final/
-  README.md                          -- This file
-  00_IDEA_VERIFICATION/
-    report.md                        -- Phase 0: full idea verification report
-    gap_analysis.md                   -- 12-gap analysis from literature research
-  01_LITERATURE_REVIEW/
-    AUDITS/                          -- Research audit reports
-      audit_streaming_dq_frameworks.md   -- General streaming DQ landscape (19 frameworks)
-      audit_transportation_dq_literature.md -- Transportation-specific DQ literature
-      audit_transportation_datasets.md     -- Dataset analysis (NYC TLC, GTFS Malaysia)
-  02_IDEA_BRAINSTORM/
-    report.md                        -- Phase 2: 12 ideas, 5-agent parallel brainstorm
-    AGENT_TRANSCRIPTS/               -- 8 agent transcripts (brainstorm phase)
-  03_IDEA_SELECTION/
-    report.md                        -- Phase 3: idea selection report
-    context_aware_upgrade.md         -- Phase 3B: context-aware upgrade evaluation
-    AGENT_TRANSCRIPTS/               -- 7 agent transcripts (selection + upgrade phases)
-  04_LAYER_INTEGRATION/             -- Phase 4: Storage (Layer 5) + Alerting (Layer 6) + ML Layer
+├── README.md                          # This file — master index
+│
+├── 00_IDEA_VERIFICATION/             # Step 1: Problem framing
+│   ├── gap_analysis.md
+│   └── report.md
+│
+├── 01_LITERATURE_REVIEW/            # Step 2: Literature review
+│   ├── AUDITS/
+│   │   ├── audit_streaming_dq_frameworks.md
+│   │   ├── audit_transportation_datasets.md
+│   │   └── audit_transportation_dq_literature.md
+│   └── ...
+│
+├── 02_IDEA_BRAINSTORM/             # Step 3: Gap identification
+│   ├── AGENT_TRANSCRIPTS/
+│   │   ├── agent01_REVIEWER.md
+│   │   ├── agent02_SCORER.md
+│   │   ├── agent03_REFINE.md
+│   │   ├── agent04_VALIDATOR.md
+│   │   ├── agent05_THREAT.md
+│   │   ├── agent06_DATA_CHECK.md
+│   │   ├── agent07_TIMELINE.md
+│   │   └── agent08_SKEPTIC.md
+│   └── report.md
+│
+├── 03_IDEA_SELECTION/               # Steps 4-6: Research questions, methods, selection
+│   ├── AGENT_TRANSCRIPTS/
+│   │   ├── agent01_ARCHITECT.md
+│   │   ├── agent02_LIT_REV.md
+│   │   ├── agent03_ENG_FEAS.md
+│   │   ├── agent04_SCIENTIFIC.md
+│   │   ├── agent05_SKEPTIC.md
+│   │   ├── agent06_VALIDATOR.md
+│   │   └── agent07_SYNTHESIZER.md
+│   └── report.md
+│
+├── 04_NOVELTY_CONTRIBUTION/         # Steps 7 & 10: Contribution + Novelty
+│   ├── COMPETITIVE_TABLE.md         # Comparison: StreamDQ vs GE, Soda, Stream DaQ, etc.
+│   ├── CONTRIBUTIONS.md              # 6 contributions (C1-C4, ML, Limitations)
+│   ├── ML_INTEGRATION_REDESIGN.md   # Phase 3 ML architecture
+│   ├── ML_POSITIONING.md            # ML strategy and priorities
+│   ├── NOVELTY_SCORES.md            # Novelty scoring table
+│   └── SIGNIFICANCE_TABLE.md        # Significance of each contribution
+│
+├── 05_ALGORITHM_DESIGN/             # Steps 8-9: Algorithm design + evaluation plan
+│   ├── COMPLEXITY_ANALYSIS.md       # O(1) analysis, state management
+│   ├── DATA_STRUCTURES.md           # Flink state design
+│   ├── FAILURE_MODES.md             # Scientific critical thinking
+│   ├── FORMULATION.md               # Mathematical formulation + pseudocode
+│   ├── HYPOTHESES.md                # RQ1-RQ6 + H1-H5
+│   ├── ML_MODEL_ANALYSIS.md        # ML feasibility analysis
+│   ├── ML_PRODUCTION_DEPLOYMENT.md  # ML deployment strategy
+│   ├── ML_THRESHOLD_CALIBRATION_ANALYSIS.md
+│   ├── QUALITY_AUDIT.md            # Code review quality audit (36 issues)
+│   └── STATISTICAL_PLAN.md         # Evaluation methodology + CI strategy
+│
+├── 06_PAPER_OUTLINE/               # Step 11: Paper thesis outline
+│   ├── thesis_outline.md           # IMRAD × VNU-UET template mapping
+│   ├── figure_specifications.md     # F1-F10 specifications (Excalidraw + matplotlib)
+│   ├── table_specifications.md     # T1-T10 specifications (LaTeX)
+│   ├── writing_assignments.md       # 6 assignments, word counts, dependencies
+│   ├── abbreviations.md             # 50+ acronyms, LaTeX \acro{} entries
+│   └── DEBATE/                     # Step 11B: Adversarial debate (5 agents, 3 rounds)
+│       ├── agent1_systems_reviewer.md
+│       ├── agent2_transportation_reviewer.md
+│       ├── agent3_statistics_reviewer.md
+│       ├── agent4_structure_critic.md
+│       ├── agent5_gap_hunter.md
+│       └── report.md               # Synthesized debate report + refined outline changes
+│
+├── 07_IMPLEMENTATION_ROADMAP/      # Step 12: Implementation plan
+│   ├── implementation_roadmap.md    # Gantt, 14 weeks, 12 milestones, risk register
+│   ├── template_chapters_mapping.md # Map thesis_outline → LaTeX .tex files
+│   └── reproducibility_checklist.md  # Environment, data, CLI, JSON schema
+│
+├── 08_ADVISOR_FEEDBACK/            # Step 13: Peer review simulation
+│   ├── feedback_triage.md           # 17 weaknesses (3 CRITICAL, 7 MAJOR, 7 MINOR)
+│   ├── rebuttal_drafts.md           # 11 rebuttal templates for reviewer objections
+│   ├── revision_plan.md            # P0/P1/P2/P3 action items, 14-week order
+│   └── consistency_check.md        # 24 consistency rules + verification commands
+│
+└── 09_FINALIZATION/                # Step 14: Final quality gate
+    ├── final_paper_review.md       # PC-style scores (overall: 3/5, Borderline Accept)
+    ├── consistency_report.md        # Claims vs. evidence, Tier 1/2/3 classification
+    └── submission_readiness.md      # Pre-submission checklist + red flag scan
 ```
 
 ---
 
-## What's Here
+## Key Facts
 
-### Phase 0 Output (Idea Verification — COMPLETE)
+### Project Identity
 
-**Verdict**: MODIFY AND PROCEED
-
-The idea is feasible for a **B+ to A- paper**. The contribution (streaming + domain-specific GPS trajectory rules for transportation) is genuine and verified. Three critical actions are required before proceeding.
-
-- `00_IDEA_VERIFICATION/report.md` — Full report: literature landscape, gap analysis, 5-criteria assessment, proposed framework, 4 research questions, feasibility, peer review
-- `00_IDEA_VERIFICATION/gap_analysis.md` — 12 gaps identified and structured with evidence
-- `01_LITERATURE_REVIEW/AUDITS/` — Supporting research from 3 parallel literature searches
-
-### What Was Deleted
-
-- `CONFLICT_RESOLUTION.md` — Old file, resolved conflicts between non-existent `finalsystem/` and `finalsystem2/`
-- `08_DRAFTS/` — Empty placeholder skeletons (23-33 lines), replaced by real drafts when Phase 1 begins
-
----
-
-## Research Summary
-
-### Key Finding
-
-No existing framework combines streaming architecture with domain-specific GPS/trajectory validation rules for transportation. This is the central verified gap (GAP-01 and GAP-07, severity: CRITICAL).
-
-### Literature Survey
-
-- **19 frameworks** surveyed across 3 categories: stream-native (Stream DaQ, Grab Coban, METER), batch-approximation (Deequ (Schelter et al., PVLDB 2018, doi:10.14778/3229863.3229867), GE, Soda, dbt, AutoDQM), observability (Monte Carlo, Metaplane)
-- **Transportation DQ**: GTFS Validator (MobilityData), GTFS-rt Validator (CUTR-USF) are batch-only; Wong (2025) documents 30% GTFS-RT error rate
-- **GPS trajectory AD**: CETrajAD (SDM 2025), TAPS, NUMOSIM (SIGSPATIAL 2024) — related but distinct task (anomaly detection, not data quality validation)
-- **Key reference**: Martin et al. (PVLDB 2025) — 95%+ false positive rate for DC auto-discovery. Validates that hand-crafted rules (like ContextAware-DQ's SYN/SEM/CRS taxonomy) are more reliable than automated discovery.
+- **Name**: A Context-Aware Framework for Streaming Data Quality Monitoring
+- **Short name**: StreamDQ
+- **NOT**: batch, ML-only, production-ready
+- **IS**: research & education platform, Flink-native
 
 ### Datasets
 
-| Dataset | Accessibility | Academic Precedent | Status |
-|---------|--------------|-------------------|--------|
-| NYC TLC Yellow Taxi | Public, Parquet | Q3+ (VLDB, SIGMOD, KDD) | Ready |
-| GTFS Malaysia | CC BY 4.0, api.data.gov.my | None (novel use) | CRS verification needed |
+- NYC TLC Yellow Taxi: parquet replay via Kafka
+- NYC MTA Bus GTFS-realtime: live public feed
+
+### Rules (10 total)
+
+| Layer | Rules | Dataset |
+|-------|-------|---------|
+| SYN | SYN001, SYN002, SYN003 | Both |
+| SEM | SEM001, SEM002, SEM003, GTFSSem002 | NYC TLC + MTA Bus |
+| CRS | CRS001, CRS002, CRS003 (Java) | NYC MTA Bus only |
+
+### CRS Bounds
+
+- CRS001: [0.5, 100] km/h (Haversine speed, 60s sustained-violation requirement)
+- CRS002: >400m/30s (Haversine jump)
+- CRS003: SHA256 hash, 300s window, 310s TTL
+
+### ML Phase 3
+
+| Priority | Model | Status |
+|:--------:|-------|--------|
+| 1 | Bayesian Optimization | GO — calibrates k_multiplier |
+| 2 | Isolation Forest | Conditional — ρ < 0.8 |
+| 3 | XGBoost | Conditional — training target undefined |
+| 4 | LSTM | NO-GO — GPS data unconfirmed + HIGH redundancy |
+
+### Known Blockers
+
+| ID | Blocker | Impact |
+|----|---------|--------|
+| NG-4 | CRS003 replay suppression gate | CRS003 = Tier 3 UNMEASURABLE |
+| B3 | CRS001 2–20 km/h gap | Moderate spoofing missed |
+| I16 | D4 External context stub | Incomplete 5D |
+
+### Tier Classification
+
+| Tier | Meaning | Requirement |
+|------|---------|-------------|
+| Tier 1 | Verified (code inspection, prior work) | Can claim with citation |
+| Tier 2 | Estimated (needs benchmark) | Must label [TIER-2 ESTIMATED] |
+| Tier 3 | Unmeasurable (known blocker) | Must label [TIER-3 UNMEASURABLE] |
 
 ---
 
-## Proposed Framework
+## Step 11B Debate — Key Changes Applied
 
-**ContextAware-DQ-Transport**: Streaming DQ monitoring for transportation with:
-- Three-layer rule taxonomy: SYN (syntactic) + SEM (semantic) + CRS (cross-record)
-- Domain-specific GPS rules: Haversine speed bounds, GPS jump detection, duplicate detection
-- Hierarchical context-aware thresholds (3D: temporal + spatial + operational)
-- **ML-augmented threshold calibration** (Isolation Forest + Bayesian Optimization + METER drift detection)
-- Datasets: NYC TLC + GTFS Malaysia
+5 agents (Systems, Transportation, Statistics, Structure, Gap) reviewed thesis_outline.md. 14 fixes applied:
 
-### Research Questions
+### P0 — CRITICAL (all applied)
+| # | Fix | Location |
+|---|-----|---------|
+| P0.1 | CRS001: < 0.5 km/h AND Δt > 60s (not < 2 km/h) | FORMULATION.md, thesis_outline.md |
+| P0.2 | Dataset-role table: CRS → NYC MTA Bus only | thesis_outline.md §2.3 |
+| P0.3 | McNemar → Wilcoxon signed-rank for per-event detection | thesis_outline.md §3.3 |
+| P0.4 | Holm-Bonferroni within RQ families (α_adj=0.0083) | thesis_outline.md §3.3 |
+| P0.5 | Bootstrap 10,000 iterations (BCa for latency) | thesis_outline.md §3.3 |
+| P0.6 | RQ2 redefined: L4↔L0 TQS correlation (Pearson ρ > 0.5) | thesis_outline.md §I.2 |
+| P0.7 | C1: "to the best of our knowledge" + "surveyed" qualifier | thesis_outline.md §I.3 |
 
-| RQ | Question | Gap | Key Metric |
-|----|----------|-----|------------|
-| RQ1 | Does context-aware threshold adaptation improve F1 over static thresholds? | GAP-03 | ΔF1 ≥ 5pp, 95% CI |
-| RQ2 | Does hierarchical fallback maintain quality on sparse context cells? | GAP-03 | Fallback accuracy < 10% error |
-| RQ3 | Does context-decomposed TQS correlate with ground truth better than aggregate TQS? | GAP-10 | Pearson ρ > 0.7 |
-| RQ4 | Does TQS accurately quantify quality degradation with injection rate? | TQS calibration | |ΔTQS − Δinjection| < 5pp, ρ > 0.9 |
-| RQ5 | Do CRS rules achieve precision > 0.70 on GTFS Malaysia? | GAP-06 | P > 0.70, 95% CI |
-| RQ6 | Does ML-augmented threshold calibration (Isolation Forest + Bayesian Opt) improve F1 over rule-only thresholds? | GAP-03 | ΔF1 ≥ 5pp, 95% CI |
+### P1 — MAJOR (all applied)
+| # | Fix | Location |
+|---|-----|---------|
+| P1.1 | GPS error model discussion added to §2.3 | thesis_outline.md |
+| P1.4 | 5D → 4D + D4 future work | thesis_outline.md §1.3 |
 
----
-
-## 3 CRITICAL Actions Before Phase 1
-
-| # | Action | Why |
-|---|--------|-----|
-| **1** | DELETE all fabricated claims from every document | "94.2%", "13x GE", "91.8%", "245K events/sec" are fabricated. Academic fraud if published. |
-| **2** | BUILD evaluation module (`streamdq/evaluation/`) | Every thesis metric depends on this. Currently missing. |
-| **3** | RESOLVE CRS002 scope honestly | CRS001/CRS002 only run on GTFS, NOT on NYC TLC. Main dataset gets zero cross-record GPS validation. |
+### Score: Borderline → Weak Accept (VNU-UET thesis standard)
 
 ---
 
-## Grade Projection
+## Citation Accuracy
 
-**B+ to A-** (conference/workshop). Achieievable if:
-- Context-aware precision shows significant improvement over static
-- Evaluation module is built and ablation study is run
-- GTFS GPS validation is demonstrated on real errors
-- All fabricated claims are purged
+Verify before submission:
 
-**B** if: marginal improvement, incomplete evaluation, unresolved CRS scope.
-
----
-
-## Skill Usage Tracker
-
-| Skill | Used For |
-|-------|----------|
-| @.cursor/skills/01-academic-writing | Contribution framing, peer review simulation |
-| @.cursor/skills/02-literature-research | General streaming DQ, transportation DQ, datasets |
-| @.cursor/skills/03-data-statistics | Evaluation design, bootstrap CI methodology |
-| @.cursor/skills/04-data-engineering | Technical feasibility, architecture assessment |
-| @.cursor/skills/05-research-analysis | Gap identification, idea verification, threat analysis |
-| @.cursor/skills/06-infrastructure-devops | Reproducibility, tech stack evaluation |
+| Paper | Correct | Common Errors |
+|-------|---------|--------------|
+| T-Assess | VLDB 2025, Vol.18, No.3, pp.666-674 | arXiv, 2024 |
+| METER | VLDB 2024, doi:10.14778/3636218.3636233 | 2023, wrong DOI |
+| CETrajAD | SDM 2025, Cao & Akoglu | Liu as author |
+| Martin et al. | PVLDB 2025, doi:10.14778/3748191.3748209 | wrong year, wrong DOI |
+| Stream DaQ | Pathway (Python), NOT Flink | Flink as engine |
+| Exathlon | VLDB 2021 | — |
 
 ---
 
-## Phase 4: Layer Integration (Storage + Alerting)
+## Verification Commands
 
-**Decision**: Selective integration of Layer 5 (Storage) + Layer 6 (Alert) from old `StreamDQ v2.0` proposal into `ContextAware-DQ`.
+```bash
+# Phase 3 mandatory?
+grep -rn "Phase 3 optional" final/ --include="*.md"
 
-### Storage: PostgreSQL Schema (5 Tables)
+# CRS001 upper bound = 100 km/h?
+grep -rn "120.*km.*h" final/ --include="*.md" | grep -i "crs001\|speed.*bound"
 
-The current proposal has minimal sink layer (Kafka + PostgreSQL + Prometheus). These tables are **ADDED** to support RQ2-RQ5 evaluation:
+# CRS003 Tier 3 labeled?
+grep -rn "CRS003.*UNMEASURABLE\|Tier 3.*CRS003" final/ --include="*.md"
 
-| Table | Purpose | Retention |
-|-------|---------|-----------|
-| `violations` (extended) | All SYN/SEM/CRS violations with context + fallback level | 90 days |
-| `context_statistics` | L0-L5 rolling stats per context cell (threshold calibration) | 365 days |
-| `metrics_summary` | Time-window aggregations (TQS scores, throughput) | 365 days |
-| `ground_truth_events` | Injected anomalies with ground truth labels (P/R/F1 matching) | 90 days |
-| `evaluation_results` | Per-run P/R/F1 with bootstrap 95% CI (permanent research artifact) | Permanent |
+# ML priorities consistent?
+grep -rn "Priority 1\|Priority 2\|Priority 3\|Priority 4" final/05_ALGORITHM_DESIGN/*.md
 
-**Deferred**: `alert_history`, `anomaly_violations`, S3, Redis, PagerDuty/Slack (out of scope for research platform).
-
-**Rejected**: S3 raw events (Kafka stores them), Redis cache (BroadcastState is O(1)), PagerDuty/Slack (production only).
-
-### Alerting: Prometheus + Grafana (Research Platform)
-
-Severity-based routing simplified for research (no PagerDuty/Slack):
-
-| Severity | Research Action |
-|:--------:|:----------------|
-| CRITICAL | Grafana red alert + log |
-| HIGH | Grafana orange alert |
-| MEDIUM | Grafana yellow alert |
-| LOW | Grafana grey (info) |
-
-**Grafana: 4 essential panels** (thesis presentation):
-1. Violations by Rule (stacked bar — shows which rules fire most)
-2. TQS Score Trend (time series + threshold — RQ3/RQ4 evaluation)
-3. Context Fallback Distribution (stacked bar — RQ2, shows L0-L5 distribution)
-4. Violations by Severity (pie chart — alert prioritization)
-
-**Additional panels** (nice-to-have): Processing Latency, Throughput, CRS State Size.
-
-**Prometheus alert rules** extend `prometheus_alerts.yml` with:
-- `StreamDQExcessiveFallback`: >50% events falling to L4 global fallback
-- `StreamDQLowTQS`: TQS drops below 0.80
-- `StreamDQGPSSpoofingDetected`: GPS jump violations > 0.1/sec
-- `StreamDQHighNullRate`: NULL violation rate > 5%
-- `StreamDQNoEvents`: No events processed for 2 minutes
-- `StreamDQStateSizeWarning`: CRS state > 500 MB
-
-### Updated Architecture (Storage Layer Integrated)
-
+# All documents consistent?
+cd final && for f in *.md **/*.md; do echo "=== $f ==="; done
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Apache Flink (Streaming Engine)                      │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  KAFKA INPUT STREAM                                                     │
-│  ├── nyc-taxi-events (NYC TLC Parquet replay → Kafka)                  │
-│  └── gtfs-vehicle-positions (GTFS Malaysia live feed)                  │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ FLINK PIPELINE                                                    │   │
-│  │  1. Watermark Generation (event-time, bounded out-of-order 60s)  │   │
-│  │  2. Parse & Route (Java ProcessFunction)                         │   │
-│  │  3. Rule Evaluation (SYN/SEM → async Python; CRS → Java)       │   │
-│  │  4. Context-Aware Threshold Engine (Broadcast State, L0-L5)       │   │
-│  │     ┌────────────────────────────────────────────────────────┐ │   │
-│  │     │  ML CALIBRATION (async, periodic every 1h):            │ │   │
-│  │     │  • Isolation Forest: anomaly score → confidence weight  │ │   │
-│  │     │  • Bayesian Optimization: k-multiplier per context cell  │ │   │
-│  │     │  • METER: concept drift detection per context cell       │ │   │
-│  │     └────────────────────────────────────────────────────────┘ │   │
-│  │  5. TQS Aggregation                                            │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-│  SINK LAYER                                                             │
-│  ├── Kafka: quality-violations (real-time alerting)                      │
-│  ├── PostgreSQL (PERSISTENT): violations, context_statistics,             │
-│  │   metrics_summary, ground_truth_events, evaluation_results         │
-│  └── Prometheus (STREAMING): violations per rule/severity,              │
-│      TQS score, context fallback, CRS counters, throughput/latency    │
-│                                                                         │
-│  OBSERVABILITY LAYER                                                     │
-│  ├── Grafana: 4 essential dashboard panels                              │
-│  └── Prometheus alerting rules                                           │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Updated Rule Taxonomy (11 Rules)
-
-| Rule | Check | Dataset | Source |
-|------|-------|--------|--------|
-| SYN001 | Null/missing required fields | NYC TLC + GTFS | `syntactic.py` |
-| SYN002 | Fare amount range | NYC TLC | `syntactic.py` |
-| SYN003 | Location validity | NYC TLC + GTFS | `syntactic.py` |
-| SEM001 | Fare plausibility (adaptive) | NYC TLC | `semantic.py` |
-| SEM002 | Trip duration sanity (adaptive) | NYC TLC | `semantic.py` |
-| SEM003 | Passenger count plausibility | NYC TLC | `semantic.py` |
-| **GTFSSem002** | **Vehicle position stale > 5 min** | **GTFS** | **`gtfs_rules.py`** |
-| CRS001 | GPS speed bounds [2, 120] km/h | GTFS | `cross_record.py` |
-| CRS002 | GPS position jump >100m/30s | GTFS | `cross_record.py` |
-| CRS003 | Event deduplication (300s window) | NYC TLC + GTFS | `cross_record.py` |
-
-> GTFSSem002 closes the Timeliness DQ dimension gap (Section 5.2). Already implemented in `gtfs_rules.py`, added to taxonomy.
-
-### ML Layer: Adaptive Context Calibration (Core Contribution)
-
-Three ML integration points embedded in the Context-Aware Threshold Engine (step 4 of the Flink pipeline):
-
-1. **Isolation Forest** (Cao & Akoglu, SDM 2025): Anomaly scoring per event feature vector → confidence weight for threshold adaptation. Events with high anomaly scores trigger stricter thresholds.
-
-2. **Bayesian Optimization** (AutoDQM, arXiv 2025): Gaussian Process surrogate model optimizes k-multiplier per context cell on a held-out calibration window. Optimized thresholds written to Broadcast State every 1 hour.
-
-3. **METER** (Zhu et al., PVLDB 2024): Concept drift detection per context cell via χ² test on feature distributions. When drift is detected, context statistics are reset and threshold recalibration is triggered.
-
-**Positioning**: ML models provide calibration signals; rule engine remains authoritative. Violations are always determined by rule thresholds, never by ML predictions.
-
-### Implementation Effort Summary
-
-| Priority | Effort | Components |
-|:--------:|:------:|-----------|
-| P0 (Must have) | **4 days** | 5 PostgreSQL tables |
-| P1 (Should have) | **3 days** | 4 Prometheus metrics + 4 Grafana panels |
-| P2 (Nice to have) | **3 hours** | GTFSSem002 taxonomy + Prometheus alerts |
-| **Total** | **~7 days** | |
-
-**Week 1**: PostgreSQL schema (violations, context_statistics, metrics_summary)
-**Week 2**: PostgreSQL tables (ground_truth_events, evaluation_results) + Prometheus metrics
-**Week 3**: Grafana dashboard (4 panels)
-**Week 4**: Prometheus alerts + GTFSSem002 taxonomy
-
----
-
-## Next Phase
-
-**Phase 1**: Implementation — Build `streamdq/evaluation/` module, fix bugs, run benchmarks.

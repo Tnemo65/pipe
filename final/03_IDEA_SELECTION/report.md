@@ -54,7 +54,7 @@ This document consolidates all research phases into a single authoritative propo
 |-------|-------|----------|----------------|
 | **Phase 1** | Foundation: Flink pipeline + stateless rules | Weeks 1-5 | Working Flink job, SYN001-003 + SEM001-003 in Flink |
 | **Phase 2** | Stateful rules + context-aware thresholds | Weeks 6-10 | CRS001-003 in Java, L0-L5 thresholds wired, TQS layer |
-| **Phase 3** | Evaluation + ML augmentation | Weeks 11-13 | Ablation study + Grafana dashboard, context-decomposed TQS, optional ML layer |
+| **Phase 3** | Evaluation + ML augmentation | Weeks 11-13 | Ablation study + Grafana dashboard, context-decomposed TQS, ML layer (mandatory, per ML_MODEL_ANALYSIS.md) |
 
 **Total: 13 weeks.** Minimum viable (Phase 1 only): ~5 weeks.
 
@@ -190,7 +190,7 @@ Minimum sample sizes derived from power analysis for detecting 5pp F1 improvemen
 | L2 | (hour_bucket, borough, weekend) | `morning_Manhattan_weekday` | 25 | Borough-level aggregation minimum |
 | L3 | (time_category) | `morning` | 10 | Time category minimum |
 | L4 | global | `global` | 5 | Global fallback minimum (per rule from NYC TLC metadata) |
-| L5 | physics bounds | `[2, 120] km/h` | 0 | Physics priors — no data required (see Section 4.1) |
+| L5 | physics bounds | `[2, 100] km/h` | 0 | Physics priors — no data required (see Section 4.1) |
 
 **Literature Gap Confirmation**: Multi-dimensional context thresholds for streaming GPS DQ is genuinely unexplored. Hierarchical fallback (L0-L4) for DQ thresholds has **no prior work**.
 
@@ -293,8 +293,8 @@ class PipelineBackend(ABC):
 │  │     ├── SYN001-003 (Java + Python async): Null, Fare, Location ││
 │  │     ├── SEM001-003 (Java + Python async): Plausibility checks  ││
 │  │     └── CRS001-003 (Java KeyedProcessFunction, GTFS GPS only):  ││
-│  │         ├── CRS001: GPS speed [2, 120] km/h                    ││
-│  │         ├── CRS002: GPS jump >100m/30s                        ││
+│  │         ├── CRS001: GPS speed [2, 100] km/h                    ││
+│  │         ├── CRS002: GPS jump >400m/30s                        ││
 │  │         └── CRS003: Event deduplication (300s window)           ││
 │  │                                                                   ││
 │  │  4. Context-Aware Threshold Engine (Broadcast State)             ││
@@ -303,7 +303,7 @@ class PipelineBackend(ABC):
 │  │     ├── L2: (hour_bucket, borough, weekend) — min 25            ││
 │  │     ├── L3: (time_category) — min 10 samples                   ││
 │  │     ├── L4: global — min 5 samples                             ││
-│  │     └── L5: physics priors [2, 120 km/h]                       ││
+│  │     └── L5: physics priors [2, 100 km/h]                       ││
 │  │     ┌────────────────────────────────────────────────────────┐ ││
 │  │     │  ML CALIBRATION (async, periodic every 1h):            │ ││
 │  │     │  • Isolation Forest: anomaly score → confidence weight  │ ││
@@ -357,8 +357,8 @@ class PipelineBackend(ABC):
 
 | Rule | Check | State |
 |------|-------|-------|
-| CRS001 | GPS speed bounds [2, 120] km/h (NYC MTA Bus: urban ~50 km/h, highway ~80 km/h; 120 km/h = safety margin above highway limit) | Per-vehicle, 10min TTL |
-| CRS002 | GPS position jump >100m in 30s (validated for urban bus routes; buses don't teleport >100m between updates) | Per-vehicle, 10min TTL |
+| CRS001 | GPS speed bounds [2, 100] km/h (NYC MTA Bus: urban ~50 km/h, highway ~80 km/h; 100 km/h = physically implausible for NYC MTA Bus; updated from 120 to 100 km/h to close B3 detection gap) | Per-vehicle, 10min TTL |
+| CRS002 | GPS position jump >400m in 30s (validated for urban bus routes; buses at mean 45 km/h move ~375m in 30s, so >400m indicates spoofing) | Per-vehicle, 10min TTL |
 | CRS003 | Event deduplication (300s window) | Per-hash, 310s TTL |
 
 ##### 4.1.1 CRS Threshold Justification (NYC MTA Bus)
@@ -366,8 +366,8 @@ class PipelineBackend(ABC):
 | Rule | Threshold | Justification | Status |
 |------|-----------|---------------|--------|
 | CRS001 lower | 2 km/h | Eliminates stationary vehicles (speed = 0 is legitimate for vehicles at traffic lights). 2 km/h = walking pace — threshold below which no vehicle is meaningfully moving. | Hardcoded — no adaptation needed |
-| CRS001 upper | 120 km/h | NYC MTA buses max ~80 km/h on highways. 120 km/h = safety margin above highway limit. No NYC MTA bus service exceeds 80 km/h. | Hardcoded — no adaptation needed |
-| CRS002 jump | >100m / 30s | GTFS-RT VehiclePosition default update interval = 1s; vehicles that skip reports may accumulate 30s of position before next update. 30s × 120 km/h = 1,000m maximum possible distance. 100m = 10% of max = conservative lower bound for spoofing detection. Source: GTFS-realtime specification. | Hardcoded — no adaptation needed |
+| CRS001 upper | 100 km/h | NYC MTA buses max ~80 km/h on highways. 100 km/h = physically implausible (updated from 120 to 100 km/h to close B3 detection gap for moderate spoofing). No NYC MTA bus service exceeds 80 km/h. | Hardcoded — no adaptation needed |
+| CRS002 jump | >400m / 30s | GTFS-RT VehiclePosition default update interval = 1s; vehicles that skip reports may accumulate 30s of position before next update. 30s × 100 km/h = 833m maximum possible distance. 400m = 40% of max = conservative 99th-percentile threshold for spoofing detection. Source: GTFS-realtime specification. | Hardcoded — no adaptation needed |
 | CRS003 dedup | 300s window | GTFS trip durations are typically 10–90 minutes. 300s = 5 minutes = minimum meaningful window for trip-level deduplication. Longer than typical stop time. Source: GTFS general transit feed specification. | Hardcoded — no adaptation needed |
 
 > **NYC MTA Bus Data Source**: NYC MTA Bus GTFS-realtime is a **public feed** — no API key required. Data is accessible via the MTA Bus Time API (`https://api-endpoint.mtadev.io/gtfs-rt`). Contingency: synthetic GPS trajectories using NYC MTA GTFS Static route geometry if live feed temporarily unavailable.
@@ -615,7 +615,7 @@ The following from `StreamDQ v2.0` are explicitly **not adopted** for the resear
 | Redis cache | Zone lookup via BroadcastState is O(1); no bottleneck identified |
 | PagerDuty | Production on-call escalation; out of scope |
 | Slack/Email alerting | Research platform has no ops team monitoring alerts |
-| `anomaly_violations` table | ML layer is Phase 3 optional; deferred |
+| `anomaly_violations` table | ML layer is Phase 3 mandatory; ML_MODEL_ANALYSIS.md defines BO→IF→XGBoost→LSTM(cond) priorities |
 | `alert_history` table | Research platform — no ops team to acknowledge |
 
 
@@ -698,8 +698,8 @@ The following files are **planned** and do not yet exist. This section defines t
 | Negative fare | Set `fare_amount = -5.0` | SYN002 | `entity_index`, `anomaly_type: NEGATIVE_FARE` |
 | Out-of-range location | Set `PULocationID = 999` | SYN003 | `entity_index`, `anomaly_type: INVALID_ZONE` |
 | Impossible passenger count | Set `passenger_count = 9` | SEM003 | `entity_index`, `anomaly_type: IMPOSSIBLE_PASSENGERS` |
-| GPS speed spike | Inject 2 GTFS positions with dt=30s, distance=5km (>160 km/h; precision measurement: violations detected at any speed above 120 km/h threshold) | CRS001 | `entity_index`, `anomaly_type: GPS_SPEED` |
-| GPS jump | Inject 2 positions at same timestamp, different locations >100m apart | CRS002 | `entity_index`, `anomaly_type: GPS_JUMP` |
+| GPS speed spike | Inject 2 GTFS positions with dt=30s, distance=5km (>160 km/h; precision measurement: violations detected at any speed above 100 km/h threshold) | CRS001 | `entity_index`, `anomaly_type: GPS_SPEED` |
+| GPS jump | Inject 2 positions at same timestamp, different locations >400m apart | CRS002 | `entity_index`, `anomaly_type: GPS_JUMP` |
 | Duplicate event | Emit same event TWICE within 300s window | CRS003 | `entity_index`, `entity_index_duplicate`, `anomaly_type: DUPLICATE` |
 
 **Reproducibility protocol**:
@@ -767,7 +767,7 @@ streamdq/pipeline/flink/
 | Blocker | Status | Fix |
 |---------|--------|-----|
 | B1: SYN001 NaN silent pass-through | Pending | Add `math.isnan()` guard |
-| B2: CRS003 duplicate injection no-op | Pending | Verify emits original + duplicate |
+| NG-4: CRS003 replay suppression gate | Pending | Verify emits original + duplicate |
 | B4: `foreachBatch` driver bottleneck | **N/A — Flink has no foreachBatch** | Eliminated by migration |
 | B5: PostgreSQL schema missing tables | Pending | Create 5 tables (violations, context_statistics, metrics_summary, ground_truth_events, evaluation_results) `PRAGMA journal_mode=WAL` |
 | B6: `processing_latency_ms` hardcoded to 0 | Pending | Compute from Flink timer |
@@ -825,10 +825,10 @@ This appendix documents the verification process and remaining action items from
 || **I3** | CRITICAL | RQ5 circular — TQS = 1 - violation_rate guarantees monotonicity | **FIXED** |
 || **I4** | CRITICAL | 9 RQs cannot be completed in 13 weeks | **FIXED** — reduced to 5 |
 || **I5** | CRITICAL | CRS rules MUST be in Java (required, not optional) | **RESOLVED** — CRS in Java is required; start Week 5 with CRS003 warmup |
-|| **I6** | CRITICAL | GTFS CRS thresholds calibrated for taxis, not buses | **FIXED** — [2, 120] km/h |
+|| **I6** | CRITICAL | GTFS CRS thresholds calibrated for taxis, not buses | **FIXED** — [2, 100] km/h |
 || **I7** | CRITICAL | L0-L5 magic thresholds (no power analysis) | **FIXED** |
 || **I8** | CRITICAL | CRS rules in Java by 1 student unrealistic | **RESOLVED** — CRS in Java is required; plan accounts for Week 5 warmup with CRS003 |
-|| **I9** | CRITICAL | B2 blocks CRS003 recall — RQ6 includes CRS003 | **FIXED** |
+|| **I9** | CRITICAL | NG-4 blocks CRS003 recall — RQ6 includes CRS003 | **FIXED** |
 || **I10** | MAJOR | GTFS Malaysia API 403 blocked | **RESOLVED** — replaced by NYC MTA Bus GTFS-realtime (public, no API key) |
 || **I11** | CRITICAL | T-Assess is batch Spark, not streaming | **FIXED** |
 || **I12** | MAJOR | TQS weights "pre-registered" without artifact | **PARTIAL** — V1/V2/V3 named |
@@ -864,7 +864,7 @@ Round 2 verified that all 13 issues marked FIXED in Round 1 were actually resolv
 ||:--------:|--------|-------|:--------:|
 | MUST | Implement evaluation/ directory (ground_truth_tracker, metrics, run_evaluation) | Implement | Week 1-2 |
 | MUST | Build synthetic GPS trajectories if NYC MTA Bus feed unavailable | Data | Week 6 |
-| MUST | Fix B2: verify duplicate injection emits original + duplicate | Implement | Week 8 |
+| MUST | Fix NG-4: tag synthetic duplicates is_replay=False | Implement | Week 8 |
 | SHOULD | Confirm NYC MTA Bus GTFS-realtime endpoint URL | Data | Week 1 |
 | SHOULD | Run NYC TLC pilot: verify SYN001-003 on 1K records | Eval | Week 3 |
 | SHOULD | Add explicit sample size control to ablation design (I13) | Methodology | Week 11 |

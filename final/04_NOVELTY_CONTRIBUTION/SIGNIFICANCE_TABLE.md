@@ -89,9 +89,9 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 
 | Aspect | Status |
 |--------|--------|
-| Phase | Phase 3 (Weeks 11–13), explicitly marked optional |
+| Phase | Phase 3 (Weeks 11–13), mandatory (ML_MODEL_ANALYSIS.md) |
 | Baseline | Rule-only thresholds |
-| **Problem 1** | CRS003 duplicate injection is broken (B2). Isolation Forest calibration for CRS003 cannot be measured. |
+| **Problem 1** | CRS003 recall blocked by replay suppression gate (NG-4). Isolation Forest calibration for CRS003 cannot be measured. |
 | **Problem 2** | Isolation Forest and Bayesian Optimization are standard methods. The claim is "integration is novel." This is thin. |
 | **Problem 3** | METER (Zhu et al., PVLDB 2024) already does concept drift detection per context cell. How is the integration distinct? |
 | **Problem 4** | If Phase 3 is deferred (deadline pressure), this claim disappears entirely. |
@@ -108,10 +108,10 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 |--------|--------|
 | Target P | > 0.70 (precision, per rule) |
 | Data source | NYC MTA Bus GTFS-realtime (public feed, no API key) |
-| **Problem 1** | CRS001 speed bounds [2, 120] km/h are hardcoded. NYC MTA Bus urban speeds are typically 20–50 km/h. 120 km/h is far above the relevant range. |
-| **Problem 2** | CRS002 GPS jump >100m/30s. GTFS-realtime updates are every 30s (not 1s as stated in some sections). If updates are every 30s, the "30s window" IS the update interval. |
+| **Problem 1** | CRS001 speed bounds [2, 100] km/h are hardcoded. NYC MTA Bus urban speeds are typically 20–50 km/h. 120 km/h is far above the relevant range. |
+| **Problem 2** | CRS002 GPS jump >400m/30s. GTFS-realtime updates are every 30s (not 1s as stated in some sections). If updates are every 30s, the "30s window" IS the update interval. |
 | **Problem 3** | No GPS ground truth for NYC MTA Bus. Anomalies are injected synthetically. Real GPS errors in the feed are unknown. |
-| **Problem 4** | The [2, 120] km/h range is validated for buses, not for all GTFS-realtime vehicles. Other vehicle types (subway, ferry) are out of scope. |
+| **Problem 4** | The [2, 100] km/h range is validated for buses, not for all GTFS-realtime vehicles. Other vehicle types (subway, ferry) are out of scope. |
 
 **Flag**: **ESTIMATED — needs benchmark on real NYC MTA Bus GTFS-realtime.** The precision target of 0.70 is plausible for CRS001/CRS002 on injected anomalies, but the real-world precision on authentic GPS errors is unknown.
 
@@ -128,7 +128,7 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 | **Problem 2** | CRS003 (deduplication) recall is UNMEASURABLE. The CRS layer evaluation is incomplete. |
 | **Problem 3** | The "incremental F1" depends on the injection distribution. If CRS anomalies (GPS speed, GPS jump) are rare in real data, the incremental F1 may be negligible. |
 
-**Flag**: **ESTIMATED — requires benchmark.** Report incremental F1 separately for CRS001/CRS002 (measurable) and CRS003 (unmeasurable due to B2).
+**Flag**: **ESTIMATED — requires benchmark.** Report incremental F1 separately for CRS001/CRS002 (measurable) and CRS003 (unmeasurable due to NG-4).
 
 ---
 
@@ -136,8 +136,8 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 
 | Claim | Why Unmeasurable | Blocker |
 |-------|-----------------|---------|
-| **CRS003 recall** | Duplicate injection is broken (B2). Original + duplicate are not both emitted. | Implementation bug in `synthetic_injector.py` |
-| **ML augmentation F1** | Phase 3 is optional; CRS003 is broken; no ablation framework yet | Phase 3 not started; B2 |
+| **CRS003 recall** | Blocked by NG-4 (replay suppression gate blocks synthetic duplicates). | Implementation bug in `synthetic_injector.py` |
+| **ML augmentation F1** | Phase 3 is mandatory (BO→IF→XGBoost→LSTM cond); CRS003 NG-4 blocks CRS-dedup only | Phase 3 not started; ML_MODEL_ANALYSIS.md defines priorities |
 | **Real-world GPS precision** | No ground truth for authentic NYC MTA Bus GPS errors | Requires manual labeling of real GTFS-realtime feed |
 | **End-to-end Flink latency** | Only LocalPipeline benchmarked; distributed Flink not tested | Infrastructure not deployed |
 
@@ -153,7 +153,7 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 | **Circular RQ3** | TQS correlation | Redesign RQ3 to use independent quality signal |
 | **LocalPipeline ≠ Flink** | Latency, throughput claims | Clearly label as LocalPipeline results; do not claim Flink performance |
 | **CRS003 unmeasurable** | CRS layer evaluation | Report CRS001/CRS002 separately; flag CRS003 as unmeasurable |
-| **B2 blocks CRS003** | CRS003 recall, RQ6 (ML) | Fix B2 before evaluation; otherwise document as known limitation |
+| **NG-4 blocks CRS003** | CRS003 recall, RQ6 (ML) | Fix NG-4 (is_replay=False tagging); otherwise document as known limitation |
 
 ### 4.2 External Validity Threats
 
@@ -200,9 +200,9 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 
 | Rule | Expected P | Reason |
 |------|:----------:|--------|
-| CRS001 (speed) | 0.80–0.90 | Hardcoded [2, 120] km/h; physically grounded; hard to false-positive |
+| CRS001 (speed) | 0.80–0.90 | Hardcoded [2, 100] km/h; physically grounded; hard to false-positive |
 | CRS002 (GPS jump) | 0.70–0.85 | 100m/30s threshold is conservative; requires consecutive positions |
-| CRS003 (dedup) | **UNMEASURABLE** | B2: duplicate injection broken |
+| CRS003 (dedup) | **UNMEASURABLE** | NG-4: replay suppression gate blocks synthetic duplicates |
 | **Overall CRS** | **0.75–0.85** | Weighted average; CRS003 excluded |
 
 **Note**: Precision is expected to be high because hardcoded thresholds are conservative. Recall is more uncertain and requires ground truth injection.
@@ -227,9 +227,9 @@ Therefore: correlation(TQS_composite, injection_rate) is guaranteed to be high.
 
 | Metric | Reason | Blocker |
 |--------|--------|---------|
-| CRS003 recall | Duplicate injection broken | B2 |
-| CRS003 precision | Duplicate injection broken | B2 |
-| ML augmentation ΔF1 | Phase 3 optional; CRS003 broken | Phase 3 + B2 |
+| CRS003 recall | Replay suppression gate blocks evaluation | NG-4 |
+| CRS003 precision | Replay suppression gate blocks evaluation | NG-4 |
+| ML augmentation ΔF1 | Phase 3 mandatory; CRS003 blocked by NG-4 (CRS-dedup only) | Phase 3 + NG-4 |
 | Real-world GPS precision | No labeled real GTFS errors | Manual labeling required |
 | Distributed Flink latency | Infrastructure not deployed | Not built |
 | End-to-end throughput | Only LocalPipeline benchmarked | Not built |

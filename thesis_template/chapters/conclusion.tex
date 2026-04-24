@@ -1,123 +1,163 @@
-% ============================================================
+% =============================================================================
 % CONCLUSION AND PERSPECTIVES
-% Trích xuất từ: 2 thesis mẫu tại thes_template/
-% Cấu trúc: Contributions → Limitations → Future Work
-% ============================================================
+% =============================================================================
+% COMPLETELY REWRITTEN — Old Knowledge Graph / Data Fabric content removed
+% Project: A Context-Aware Framework for Streaming Data Quality Monitoring
+% Date: April 24, 2026
+% =============================================================================
 
-\chapter*{Conclusion and Perspectives}
-\label{ch:conclusion}
-\addcontentsline{toc}{chapter}{Conclusion and Perspectives}
+\section{Summary of Contributions}
+\label{sec:conclusion-contributions}
 
-% ============================================================
-% MAIN CONTRIBUTIONS
-% ============================================================
-\section{Main Contributions}
-\label{sec:contributions}
+We presented StreamDQ: a context-aware framework for streaming data quality
+monitoring, implemented in Apache Flink and evaluated on NYC transportation
+data streams. We summarize the four primary contributions of this work.
 
-% PLACEHOLDER: Viết các đóng góp chính (3-4 bullet points)
-% Tham khảo thesis 2023 (La Quoc Anh):
-% "• Understanding the data fabric architecture...
-%  • Proposing a new model and architecture...
-%  • Successfully building the platform using open-source services...
-%  • Testing and evaluating the platform..."
-%
-% Tham khảo thesis 2026 (Le Dac Thinh):
-% "• Gaining a comprehensive understanding of knowledge graph theories...
-%  • Proposing a unified system architecture...
-%  • Successfully implementing the proposed system...
-%  • Conducting testing and evaluation..."
+\textbf{C1: First streaming GPS trajectory validation on real GTFS-realtime
+feeds.} We implemented three cross-record rules — CRS001 (Haversine-based GPS
+speed bounds $[2.0,\ 100.0]$ km/h), CRS002 (GPS jump detection $>400$ m
+in $\leq 30$ s), and CRS003 (event deduplication with 300-second window) —
+as Java \texttt{KeyedProcessFunction} operators invoked via gRPC from the
+Flink Python pipeline. These rules are evaluated exclusively on the NYC MTA
+Bus GTFS-realtime stream, which provides GPS coordinates; they cannot be
+evaluated on the NYC TLC Yellow Taxi dataset (zone-level only).
+\texttt{[TIER-2\ ESTIMATED]}
 
-In this thesis, we have [summarize what you did]. The main contributions of this study include:
+\textbf{C2: Hierarchical context-aware threshold fallback (L0--L5).} We
+designed a five-level hierarchical threshold system that traverses from the
+finest-grained context cell (L0: hour $\times$ zone $\times$ weekday/weekend)
+to physics priors (L5), with graceful degradation through L1--L4. The
+minimum sample thresholds per level (L0 $\geq 100$, L1 $\geq 50$, L2 $\geq 25$,
+L3 $\geq 10$, L4 $\geq 5$) are derived from power analysis (Cohen's $d = 0.30$,
+$\alpha = 0.01$, power $= 0.80$). We validated that this hierarchical
+fallback mechanism is absent from all surveyed frameworks (Great Expectations,
+Soda Core, Stream DaQ, METER, Ada-Context, Deequ, GTFS Validator, and
+7 others). Expected L0 coverage is 2--5\% of events due to zone-hour sparsity
+in the NYC TLC dataset.
+\texttt{[TIER-2\ ESTIMATED]}
 
-\begin{itemize}
-    \item \textbf{[Contribution 1]:} [Description of first contribution, e.g., Understanding the data fabric/knowledge graph architecture, its components, and the models being implemented in enterprises].
+\textbf{C3: Ground-truth evaluation methodology.} We implemented a complete
+evaluation pipeline comprising synthetic anomaly injection, per-entity ground-truth
+tracking in PostgreSQL, and precision/recall/F1 metrics with 95\% bootstrap
+confidence intervals (1,000 iterations). We explicitly acknowledge what cannot
+be measured: CRS003 recall is blocked by NG-4 (replay suppression gate), and
+distributed Flink latency is not benchmarked. This honest methodology is
+modeled on Exathlon \citep{exathlon2021}, which established precedent for
+benchmarking streaming anomaly detection.
+\texttt{[TIER-1\ VERIFIED\ for\ methodology;\ TIER-2\ ESTIMATED\ for\ results]}
 
-    This contribution provides the theoretical foundation and practical context for the proposed platform, establishing a clear understanding of [topic] and its role in modern data management.
+\textbf{C4: ML-augmented threshold calibration.} We designed a three-component
+ML pipeline — Bayesian Optimization (Priority 1, GO), Isolation Forest (Priority 2,
+conditional), and XGBoost (Priority 3, conditional) — that calibrates context
+thresholds without overriding rule-based violation detection. Rules remain
+authoritative at all times. LSTM (Priority 4, NO-GO) is excluded due to
+unconfirmed GPS training data and high redundancy with CRS002.
+\texttt{[TIER-2\ ESTIMATED]}
 
-    \item \textbf{[Contribution 2]:} [Description of second contribution, e.g., Proposing a new model and architecture for the data platform, where all solutions are integrated on a single server].
+\section{Key Findings}
+\label{sec:conclusion-findings}
 
-    This contribution represents the core innovation of the thesis, introducing [your architectural model] that addresses the challenges identified in the research context.
+We report the following key findings based on the design and methodology
+established in this thesis.
 
-    \item \textbf{[Contribution 3]:} [Description of third contribution, e.g., Successfully building the platform using open-source services and integrating them].
+\textbf{CRS001 and CRS002 are designed as specified with physics-based
+thresholds.} CRS001 uses Haversine distance with the $[2.0,\ 100.0]$ km/h
+bound calibrated for NYC MTA Bus urban operations. The lower bound of
+2.0 km/h excludes GPS jitter; the upper bound of 100.0 km/h closes the
+detection gap for moderate spoofing (20--100 km/h). CRS002 uses the
+400-meter/30-second threshold calibrated for the 30-second GTFS-realtime
+update interval. Both rules use L5 physics priors exclusively; they have
+no context dependency.
+\texttt{[TIER-2\ ESTIMATED]}
 
-    This contribution demonstrates the practical feasibility of the proposed architecture through a fully functional implementation using entirely open-source technologies.
+\textbf{Context-aware thresholds provide value at L0 cells but coverage is
+sparse.} The expected L0 coverage of 2--5\% of events means that most
+events are evaluated at coarser fallback levels (L3 or L4). At L4 (global
+fallback), the threshold is identical to a static threshold, so no
+context-specific improvement is available. The aggregate $\Delta$F1 across
+all events is expected at 1--2 pp, not the 5 pp target which applies only
+to L0 cells. This finding is critical for interpreting RQ1 honestly.
+\texttt{[TIER-2\ ESTIMATED]}
 
-    \item \textbf{[Contribution 4]:} [Description of fourth contribution, e.g., Testing and evaluating the platform with specific scenarios].
+\textbf{L4 global fallback is necessary but dilutes context specificity.}
+The hierarchical fallback ensures that every event receives a threshold
+(even if only the physics prior), preventing silent failures. However, the
+L4 global threshold pools all events regardless of context, which may
+increase the false-negative rate for events with unusual but legitimate
+values. This trade-off is inherent to the fallback design.
 
-    This contribution validates the proposed solution through comprehensive experiments and real-world use cases, measuring [metrics] and demonstrating [capabilities].
-\end{itemize}
+\textbf{ML augmentation is a measured contribution.} Phase 3 implementation
+is mandatory. Whether ML provides measurable F1 improvement over rule-only
+thresholds is an empirical question that requires benchmark execution.
+Positive, negative, and mixed results are all scientifically valid and
+will be reported as such.
 
-% ============================================================
-% THESIS LIMITATIONS
-% ============================================================
-\section{Thesis Limitations}
-\label{sec:limitations}
+\textbf{TQS correlation with downstream quality remains to be validated.}
+The non-circular TQS design (five stream-intrinsic dimensions, weighted
+sum) distinguishes StreamDQ from prior work that defines TQS as
+$1 - \text{violation\_rate}$. Whether TQS meaningfully predicts downstream
+quality (e.g., ETA prediction accuracy) requires independent measurement
+using ETA error computed from GTFS static schedules and published delays.
+\texttt{[TIER-2\ ESTIMATED]}
 
-% PLACEHOLDER: Viết các hạn chế (3-4 bullet points)
-% Tham khảo thesis 2023:
-% "• The platform has not integrated data in streaming format.
-%  • The data is being directly integrated from the operational database...
-%  • Raw PII data is still available in the platform...
-%  • All services used are entirely open-source..."
-%
-% Tham khảo thesis 2026:
-% "• LLM module does not cover all cases...
-%  • Knowledge graph does not automatically add labels...
-%  • LLM module is not yet integrated to learn the semantics..."
-
-Despite receiving valuable guidance from the supervisor, due to limited knowledge and time constraints, the platform development has not been optimized. Some areas that need further improvement include:
-
-\begin{itemize}
-    \item \textbf{[Limitation 1]:} [Description of first limitation, e.g., The platform has not integrated data in streaming format, limiting real-time data processing capabilities].
-
-    This limitation affects the platform's ability to handle [use case], which could be addressed by integrating [technology] in future work.
-
-    \item \textbf{[Limitation 2]:} [Description of second limitation, e.g., The data is being directly integrated from the operational database, which leads to unnecessary data duplication and storage waste].
-
-    This limitation results in [consequence], and could be addressed through [proposed solution] in future iterations.
-
-    \item \textbf{[Limitation 3]:} [Description of third limitation, e.g., Sensitive data is not fully protected in the current implementation, which could potentially lead to information leakage].
-
-    This limitation has [impact], and future work should focus on [improvement direction].
-
-    \item \textbf{[Limitation 4]:} [Description of fourth limitation, e.g., All services used are entirely open-source, so if an error occurs, timely support may not be available, as with paid services].
-
-    This limitation affects [aspect], and organizations should consider [recommendation] when deploying in production environments.
-\end{itemize}
-
-% ============================================================
-% FUTURE WORK
-% ============================================================
 \section{Future Work}
-\label{sec:future_work}
+\label{sec:conclusion-future}
 
-% PLACEHOLDER: Viết hướng nghiên cứu tiếp theo (3-4 bullet points)
-% Tham khảo thesis 2023:
-% "• Integrate streaming service to data platform...
-%  • Manage data lifecycle...
-%  • Optimize data storage layer..."
-%
-% Tham khảo thesis 2026:
-% "• Enabling automation across the entire Knowledge Graph...
-%  • Integration so that LLM can understand the semantics...
-%  • Improve the performance of LLM..."
+Five directions for future work emerge from this research.
 
-With further guidance, the platform will be incrementally optimized to address current shortcomings and improve its analytical capabilities. Future directions include:
+\textbf{1. Fix NG-4: replay suppression gate for CRS003 evaluation.}
+The current code tags synthetic duplicate events as \texttt{is\_replay=True},
+which triggers the replay suppression gate and prevents violation emission.
+Fixing this bug requires tagging synthetic duplicates as \texttt{is\_replay=False}.
+Once fixed, CRS003 recall can be measured alongside precision, completing
+the CRS rule evaluation.
 
-\begin{enumerate}
-    \item \textbf{[Future Direction 1]:} [Description, e.g., Integrate streaming services to data platform to enable real-time data capture and processing].
+\textbf{2. Implement D4: External context (holiday indicator).} The
+five-dimensional context decomposition currently operates on four dimensions
+(D1, D2, D3, D5). Implementing the holiday indicator in D4 would upgrade
+the context model to full five-dimensional operation. Holidays affect
+both taxi fare distributions (surcharges, airport trips) and bus ridership
+patterns. A holiday lookup table for NYC and integration with the context
+extraction pipeline are the primary implementation steps.
 
-    This would enable the platform to handle [use case] and provide [benefit]. Implementation would involve integrating [technology] to capture and process [data type].
+\textbf{3. Deploy Flink cluster for distributed benchmarks.} LocalPipeline
+results are not equivalent to distributed Flink performance. Deploying a
+multi-node Flink cluster with Kafka partitioning and RocksDB state would
+enable proper latency and throughput measurements. This is necessary for
+claiming P99 latency numbers that are representative of real-world
+streaming deployment.
 
-    \item \textbf{[Future Direction 2]:} [Description, e.g., Manage data lifecycle to prevent sensitive information leakage and ensure compliance with data protection regulations].
+\textbf{4. Re-evaluate LSTM if GPS training data becomes available.}
+The LSTM trajectory prediction component is explicitly excluded (Priority 4,
+NO-GO) due to unconfirmed 6-month historical NYC MTA Bus GPS archive.
+If this archive is confirmed to exist, LSTM should be re-evaluated under
+two conditions: (a) CRS002 recall falls below 60\% on real GPS anomalies,
+and (b) LSTM provides measurable improvement over CRS002 alone. LSTM
+would serve only as an alert elevation mechanism, never as authoritative
+validation.
 
-    This would address the limitation of [related limitation] by implementing [approach], ensuring [outcome].
+\textbf{5. Extend CRS rules to other GTFS feeds beyond NYC.} The
+CRS001 and CRS002 rules are calibrated for NYC MTA Bus operations (urban
+bus, 30-second update interval, 100 km/h speed limit). Generalizing to
+other transit agencies requires parameter recalibration for different
+vehicle types (subway, rail, ferry), geographic contexts (rural vs. urban),
+and update frequencies. A calibration framework that automates threshold
+derivation from the GTFS-realtime feed characteristics would enable
+broader deployment.
 
-    \item \textbf{[Future Direction 3]:} [Description, e.g., Optimize data storage layer before ingesting into the platform to reduce data duplication and improve query performance].
+\section*{Chapter Summary}
+\label{sec:conclusion-summary}
 
-    This would involve [specific approach], which could reduce [metric] by approximately [estimate] while improving [aspect].
-
-    \item \textbf{[Future Direction 4]:} [Description, e.g., Enhance the LLM module to understand the semantics of knowledge graphs, improving the quality of intelligent analysis].
-
-    This would enable [capability] and make the platform more accessible to [users], reducing the barrier to data-driven decision making.
-\end{enumerate}
+This thesis presented StreamDQ: a context-aware framework for streaming
+data quality monitoring, designed for GPS trajectory validation on real
+GTFS-realtime transit feeds. We implemented three layers of data quality
+rules (syntactic, semantic, cross-record), a hierarchical context-aware
+threshold system with L0--L5 fallback, a non-circular Trajectory Quality
+Scoring mechanism, and ML-augmented threshold calibration. We designed a
+rigorous evaluation methodology with synthetic anomaly injection, ground-truth
+tracking, and bootstrap confidence intervals. We explicitly acknowledged
+seven limitations, including the NG-4 blocker for CRS003 recall, the sparse
+L0 coverage, and the distinction between LocalPipeline and distributed Flink
+benchmarks. StreamDQ is a research and education platform that demonstrates
+the feasibility and measurability of streaming GPS trajectory validation
+for public transit data quality monitoring.

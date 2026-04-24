@@ -362,7 +362,7 @@
 
 1. **Speed bounds**: Vehicle physics constrain maximum speed. For buses/trains: hard upper bound of ~200 km/h (electromagnetic). For taxis: urban speed limits + physics. Speed = 0 with GPS movement = impossible.
 
-2. **Trajectory continuity (GPS jump detection)**: Haversine distance between consecutive positions should not exceed `speed_max * time_delta`. Threshold: >100m jump between 30s GTFS updates is suspicious.
+2. **Trajectory continuity (GPS jump detection)**: Haversine distance between consecutive positions should not exceed `speed_max * time_delta`. Threshold: >400m jump between 30s GTFS updates is suspicious.
 
 3. **Duplicate detection**: Same vehicle, same position, within short time window. Different from trajectory anomaly — duplicates are exact copies.
 
@@ -433,7 +433,7 @@
 
 - **Methodology**: Synthetic anomaly injection + ground-truth correlation + bootstrap CI is rigorous and follows Exathlon (VLDB 2021) precedent. Sound.
 - **Current baseline**: 22.9% precision measured on syntactic rules (LocalPipeline, NYC TLC). Low but measured.
-- **CRS003 recall**: Unmeasurable due to injection bug (B2). Fixed for NYC TLC but GTFS injection missing.
+- **CRS003 recall**: Unmeasurable due to replay suppression gate (NG-4). Fixed for NYC TLC but GTFS injection missing.
 - **No ablation study**: Cannot justify three-layer taxonomy value.
 - **No competing framework comparison**: No head-to-head with Stream DaQ on identical data.
 - **Threat**: Synthetic anomalies may not reflect real-world patterns. Acceptable limitation for thesis.

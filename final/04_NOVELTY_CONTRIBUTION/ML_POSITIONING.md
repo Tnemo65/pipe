@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Machine learning (ML) is positioned as a **collaborator** to StreamDQ's rule-based framework, not a replacement. The core contribution remains the hierarchical context-aware thresholds (L0–L5) and the domain-specific CRS rules for GPS trajectory validation. ML augmentation—specifically Isolation Forest for anomaly scoring, Bayesian Optimization for threshold calibration, and concept drift detection—is scoped as **Phase 3 optional** (TBD), contingent on (a) completing CRS003 evaluation infrastructure and (b) establishing performance baselines from Phase 2. ML claims are limited to **proposed enhancements** until empirical evidence demonstrates measurable F1 improvement over rule-only thresholds.
+Machine learning (ML) is positioned as a **collaborator** to StreamDQ's rule-based framework, not a replacement. The core contribution remains the hierarchical context-aware thresholds (L0–L5) and the domain-specific CRS rules for GPS trajectory validation. ML augmentation—specifically Isolation Forest for anomaly scoring, Bayesian Optimization for threshold calibration, and concept drift detection—is scoped as **Phase 3 mandatory** (TBD), contingent on (a) completing CRS003 evaluation infrastructure and (b) establishing performance baselines from Phase 2. ML claims are limited to **proposed enhancements** until empirical evidence demonstrates measurable F1 improvement over rule-only thresholds.
 
 This document: (1) surveys the relevant ML landscape in trajectory anomaly detection and adaptive DQ threshold calibration, (2) positions ML as complementary to deterministic rules, (3) documents honest preconditions for ML integration, and (4) proposes integration patterns that preserve interpretability.
 
@@ -33,11 +33,11 @@ ML is not the authority in StreamDQ—it provides **calibration signals** to the
 
 #### SEM Layer: Clustering on Semantic Violation Patterns
 
-**Method**: K-means or DBSCAN clustering on violation feature vectors (per-context-cell violation distributions, temporal violation patterns) can identify **semantic clusters** of anomalous behavior—e.g., surge pricing zones with systematically elevated fare violations, or night shifts with elevated tip anomalies.
+**Method**: Semantic clustering on violation patterns (K-means or DBSCAN on per-context-cell violation distributions, temporal violation patterns) can identify **semantic clusters** of anomalous behavior—e.g., surge pricing zones with systematically elevated fare violations, or night shifts with elevated tip anomalies. [NOT YET SPECIFIED in FORMULATION.md]
 
-**Integration**: Clusters inform the **D4 (External) context dimension** by detecting operational patterns that are not captured by static calendar lookups. Detected patterns are fed back into the ContextRegistry as adaptive external features.
+**Integration**: Clusters inform the **D4 (External) context dimension** by detecting operational patterns not captured by static calendar lookups. Detected patterns are fed back into the ContextRegistry as adaptive external features.
 
-**Status**: Exploratory. Not in current Phase 1–2 plan. Requires Phase 3 evaluation infrastructure.
+**Status**: Exploratory. No confirmed implementation plan. Requires Phase 3 evaluation infrastructure.
 
 #### CRS Layer: LSTM on Trajectory Patterns for GPS Anomaly Prediction
 
@@ -47,7 +47,7 @@ ML is not the authority in StreamDQ—it provides **calibration signals** to the
 
 **Citation**: Chen, Y. et al. (2024). A Method for LSTM-Based Trajectory Modeling and Abnormal Trajectory Detection. *IEEE Transactions on Intelligent Transportation Systems*. doi:10.1109/TITS.2024.3451234. [IEEE Xplore](https://ieeexplore.ieee.org/document/9102317).
 
-**Status**: Phase 3 (TBD). Requires NYC MTA Bus GPS trajectory dataset for training. LSTM inference latency must be measured to determine real-time feasibility.
+**Status**: Phase 3 — **CONDITIONAL / NO-GO** (Priority 4). Three blockers: (1) 6-month GPS historical archive is unconfirmed, (2) LSTM trajectory deviation is HIGHLY correlated with CRS002 GPS jump detection (redundant signal), (3) alert elevation provides marginal value in research platform. Re-evaluate if CRS002 recall < 60% on real-world GPS anomalies. LSTM never vetoes CRS002—only elevates severity.
 
 ### 2.2 Where Rules Excel Over ML
 
@@ -116,8 +116,8 @@ The proposed integration follows a **pre-filter + validate** pattern:
 │           │                                                   │
 │           ▼                                                   │
 │  ┌─────────────────────────┐                                  │
-│  │    RULES VALIDATION     │  CRS001: speed bounds [2,120]   │
-│  │    (authoritative)      │  CRS002: GPS jump >100m/30s    │
+│  │    RULES VALIDATION     │  CRS001: speed bounds [2,100]   │
+│  │    (authoritative)      │  CRS002: GPS jump >400m/30s    │
 │  │                         │  SYN001-003, SEM001-003         │
 │  │  O(1) per event         │  Output: Violation or pass     │
 │  └────────┬────────────────┘                                  │
@@ -149,33 +149,42 @@ This pattern is grounded in the complementary detector ensemble from CETrajAD, w
 
 ---
 
-## 5. Current ML Status: Phase 3 (TBD)
+## 5. Current ML Status: Phase 3 (MANDATORY — CORE)
 
 ### 5.1 Preconditions for ML Integration
 
-ML augmentation is **not guaranteed**. The following preconditions must be satisfied before Phase 3 begins:
+Phase 3 is **mandatory** — ML integration is a core pipeline component. The following preconditions must be satisfied before Phase 3 begins:
 
 | Precondition | Status | Action Required |
 |-------------|--------|----------------|
-| **CRS003 must be fixed** (B2 blocker) | NOT FIXED | Duplicate injection must emit original + duplicate; recall must become measurable before ML can improve it |
+| **CRS003 blocked by NG-4** (replay suppression gate blocker) | NOT FIXED | Affects CRS003-dedup evaluation only; Isolation Forest on SYN/SEM layer is unaffected by NG-4 |
 | **Phase 1–2 performance baselines established** | NOT DONE | Rule-only F1, precision, recall, and latency must be measured before ML claims can be evaluated |
 | **CRS001/CRS002 evaluated on NYC MTA Bus** | NOT DONE | GPS rule precision must be >0.70 before ML improvement can be measured |
 | **Context-aware threshold evaluation (RQ1–RQ2)** | NOT DONE | L0–L4 fallback must be validated before ML can calibrate it |
 | **Evaluation infrastructure operational** | NOT DONE | Ground-truth injection + metrics + bootstrap CI must be working before ablation studies |
 
-**Honest statement**: Without meeting these preconditions, ML augmentation cannot be evaluated. Claiming ML improves X% without baselines is not scientifically valid.
+**Honest statement**: These preconditions enable rigorous evaluation but do not block Phase 3 execution. ML augmentation proceeds regardless; negative results are scientifically valuable.
 
-### 5.2 ML Augmentation: May Improve, Not Improves
+### 5.2 ML Augmentation: A Measured Contribution (CORE — MANDATORY)
 
-The current literature landscape suggests ML **may improve** threshold calibration in streaming DQ:
+Phase 3 ML integration is a **core, mandatory contribution** — not optional. The research question is: The research question is:
 
-- **Online Isolation Forest** (arXiv:2505.09593, 2025) demonstrates that streaming anomaly detection with adaptive mechanisms can improve detection metrics by up to 39.12% in power dispatch data—but this is power system data, not transportation GPS trajectories.
-- **Stream DaQ** (Papastergios & Gounaris, arXiv:2506.06147, 2025) uses dynamic μ±kσ thresholds but does not claim ML-augmented improvements over rule-only baselines.
-- **AutoDQM** (Brinkerhoff et al., arXiv:2501.13789, 2025) employs Bayesian Optimization for threshold calibration but is designed for batch histogram data (CERN CMS), not streaming GPS trajectories.
+> **RQ6**: Does ML-augmented threshold calibration improve F1 over rule-only thresholds?
 
-**Evidence gap**: No published work demonstrates that ML-augmented threshold calibration improves F1 over rule-only thresholds specifically for streaming GPS trajectory DQ. This is a genuine research question, not a guaranteed improvement.
+**Implementation priority order** (per ML_MODEL_ANALYSIS.md):
+1. **Bayesian Optimization** (Priority 1) — calibrates k_multiplier; genuine gap in L0–L5
+2. **Isolation Forest** (Priority 2, conditional) — IF↔P90 correlation must be ρ < 0.8; single global model only
+3. **XGBoost threshold predictor** (Priority 3, conditional) — scaffold exists; training target must be defined
+4. **LSTM trajectory** (Priority 4, NO-GO) — GPS training data unconfirmed; HIGH redundancy with CRS002
+5. **~~LightGBM~~** (REMOVED) — no confirmed use case per ML_MODEL_ANALYSIS.md §4
 
-**Honest positioning**: RQ6 ("Does ML-augmented threshold calibration improve F1 over rule-only thresholds?") is a **research question**, not a claimed contribution. If Phase 3 produces a negative result (ρ(TQS+ML) ≤ ρ(TQS)), this is scientifically valuable and will be documented as such (Fallback D in the report).
+Three outcomes are all scientifically valuable:
+
+- **Positive**: ML augmentation provides statistically significant F1 improvement → full hybrid contribution claimed
+- **Negative**: No significant improvement → negative result contribution with mechanistic analysis
+- **Mixed**: Some ML components help, others do not → selective ML integration contribution
+
+**Honest framing**: "We designed, implemented, and evaluated ML-augmented threshold calibration. We found [positive/negative/mixed] results." This framing is valid regardless of empirical outcome.
 
 ---
 
@@ -227,16 +236,17 @@ Event → ┌→ ML anomaly scoring (async, ~5ms)
 **Cons**: ML model staleness causes silent degradation; requires model monitoring.
 **Best for**: When both false positives and false negatives are costly.
 
-### 6.2 Recommended Pattern: Pattern B (Post-Filtering)
+### 6.2 Recommended Pattern: Pattern B (Post-Filtering → Hybrid when LSTM available)
 
-Given that StreamDQ is a **research and education platform** with interpretability as a core value, **Pattern B (post-filtering)** is recommended for Phase 3:
+**Pattern B** is recommended for Phase 3 (BO + IF only, without LSTM). Rules remain authoritative; ML adds a confidence layer for threshold calibration:
 
 1. Rules are **always authoritative** and complete—every rule fires independently of ML.
-2. ML provides a **confidence re-weighting** on detected violations for alert prioritization.
-3. This preserves the interpretability guarantee: every violation is traceable to a specific rule, threshold, and context level.
-4. ML overhead is additive (only on violations, not all events), keeping the pipeline fast.
+2. ML calibration: Bayesian Optimization tunes k_multiplier hourly from F1 on calibration window.
+3. ML pre-filter: Isolation Forest computes anomaly score → adjusts effective k (BO-calibrated).
+4. This preserves interpretability: every violation is traceable to a specific rule, threshold, and context level.
+5. ML provides calibration signals—not veto power.
 
-**Pattern A (pre-filtering)** is **not recommended** for Phase 3 because it creates a silent dependency: if the ML model degrades, events silently bypass stricter processing without any observable signal.
+**Upgrade to Pattern C** (Hybrid) when LSTM is re-evaluated: if CRS002 recall < 60% on real GPS anomalies AND 6-month GPS archive is confirmed, LSTM can be added as a severity elevation layer. Until then, Pattern B is sufficient.
 
 ---
 
@@ -261,7 +271,9 @@ Given that StreamDQ is a **research and education platform** with interpretabili
 The following claims are explicitly **not made** in this document or in the broader StreamDQ framework:
 
 - ~~ML improves F1 by X%~~ — No benchmark evidence exists; claim removed.
-- ~~ML augmentation is a core contribution~~ — ML is Phase 3 optional; Claim 2 in NOVELTY_SCORES.md is rated BORDERLINE.
+- ~~ML augmentation is optional~~ — ML is Phase 3 mandatory per ML_MODEL_ANALYSIS.md analysis.
+- ~~LSTM provides clear improvement over CRS rules~~ — LSTM is HIGHLY correlated with CRS002 GPS jump detection; training data unconfirmed.
+- ~~Per-cell IF models~~ — Per-cell 10,000+ IF models are computationally infeasible; single global model used instead.
 - ~~StreamDQ replaces ML anomaly detection~~ — StreamDQ complements ML frameworks; rules and ML address different anomaly modalities.
 - ~~Isolation Forest + LSTM + Bayesian Optimization is novel~~ — All three are standard methods; novelty (if any) is in the integration design, not the methods.
 
@@ -275,6 +287,8 @@ The positioning is intentionally conservative: **standard ML methods bolted toge
 
 **In the research and education platform framing**: StreamDQ teaches practitioners how to build streaming DQ pipelines with interpretable rules. ML augmentation demonstrates how to layer adaptive calibration on top of deterministic validation. The two are complementary—rules provide the foundation; ML provides the calibration. Neither replaces the other, and both are better together than apart.
 
+**Phase 3 is now mandatory**: ML integration is a core contribution. The implementation architecture (BO → IF → XGBoost → LSTM) is specified in ML_INTEGRATION_REDESIGN.md and FORMULATION.md (Algorithms G, H, I), updated per ML_MODEL_ANALYSIS.md recommendations. LightGBM is removed. LSTM is conditional (Priority 4).
+
 ---
 
 ## Appendix A: ML Method Specifications (Phase 3 Planning)
@@ -282,58 +296,81 @@ The positioning is intentionally conservative: **standard ML methods bolted toge
 ### A.1 Isolation Forest Configuration
 
 ```
+# ARCHITECTURE: Single global IF model (NOT per-cell)
+# Per-cell models (10,000+) are computationally infeasible.
+# ML_MODEL_ANALYSIS.md §1.4: use single global model with zone/hour as features.
+# Profile after implementation; multi-cell only if single-model latency exceeds budget.
+
 IsolationForest(
     n_estimators=100,      # SDM 2025 precedent
     max_samples=256,        # streaming-friendly
-    contamination=0.01,     # prior: 1% anomalies
+    contamination=0.01,      # prior: 1% anomalies — sweep {0.005,0.01,0.02,0.05}
     random_state=42,
-    Behaviour.NEW          # streaming-compatible
+    Behaviour.NEW           # streaming-compatible
 )
 
-Feature vector per event:
-  - fare_amount (normalized)
-  - trip_distance (normalized)
-  - passenger_count
-  - hour (cyclical encoding: sin/cos)
-  - zone_category (one-hot: airport, downtown, midtown, outer)
+Feature vector per event (single global model, zone/hour as features):
+  - fare_amount (Z-score normalized from ThresholdStats)
+  - trip_distance (Z-score normalized from ThresholdStats)
+  - passenger_count (raw)
+  - hour (cyclical: sin/cos encoding)
+  - zone_category (one-hot: airport, downtown, midtown, outer — 4 features)
   - weekend (binary)
-  - source_type (replay=0, live=1)
+  - payment_type (raw integer)
+  # Total: 11 features — single model for all contexts
 ```
 
 ### A.2 LSTM Trajectory Model Configuration
 
 ```
+# STATUS: CONDITIONAL / NO-GO (Priority 4)
+# ML_MODEL_ANALYSIS.md §3: GPS training data unconfirmed, HIGH redundancy with CRS002
+# Only proceed if: (a) 6-month GPS archive confirmed, (b) CRS002 recall < 60%
+
 LSTM(
-    input_size=2,           # (lat, lon)
-    hidden_size=64,
-    num_layers=2,
-    dropout=0.2,
+    input_size=3,           # (lat_norm, lon_norm, t_norm)
+    hidden_size=64,         # {32, 64, 128} — tuned by validation loss
+    num_layers=2,           # {1, 2, 3} — tuned by validation loss
+    dropout=0.2,            # {0.1, 0.2, 0.3} — tuned by validation loss
     bidirectional=True
 )
 
-Training: NYC MTA Bus historical trajectories (pre-collected)
-Prediction: next position from last 10 positions
+Training: NYC MTA Bus historical trajectories (6 months) [UNCONFIRMED]
+Prediction: next position from last 10 GPS positions
 Deviation metric: haversine(actual, predicted) in km
-Alert threshold: >0.1 km deviation (equivalent to CRS002 100m/30s)
+Alert threshold: >lstm_threshold_m (calibrated by BO, default 100m)
+Alert elevation: CRS002 severity max(MEDIUM, ELEVATED) — never vetoes rule
+Cold start: vehicles with < 3 prior positions skip LSTM
 ```
 
 ### A.3 Bayesian Optimization Configuration
 
 ```
+# CRITICAL FIX: objective = F1, not violation_rate (FPR)
+# ML_MODEL_ANALYSIS.md §2.8: violation_rate (FPR) can diverge from F1.
+# Optimizing FPR may worsen F1 — requires injected calibration data.
+
 BayesianOptimization(
-    f=violation_rate_objective,  # minimize violation rate on calibration window
+    f=f1_objective,          # maximize F1 on injected calibration data
     pbounds={
-        'k_multiplier': (1.5, 5.0),   # for rolling μ±kσ thresholds
-        'context_weight': (0.0, 1.0)   # weight for context vs. global thresholds
+        'k_multiplier': (1.5, 5.0),    # for rolling μ±kσ thresholds
+        'if_alpha': (0.0, 0.5),         # IF calibration sensitivity (only if IF deployed)
+        'lstm_threshold_m': (50.0, 250.0),  # LSTM deviation threshold (only if LSTM deployed)
+        'weekend_discount': (0.0, 0.5),  # k reduction for weekend
+        'context_weight': (0.0, 1.0)    # weight for context vs. global thresholds
     },
-    n_initial_random=5,
-    n_iter=20,
-    random_state=42
+    n_initial_random=10,
+    n_iter=30,
+    random_state=42,
+    acq_func="EI",
+    acq_optimizer="sampling"
 )
 
-Surrogate model: Gaussian Process (default Sklearn)
+Surrogate model: Gaussian Process (sklearn-based)
 Acquisition: Expected Improvement (EI)
-Calibration window: 1 hour (sliding)
+Calibration window: 1 hour (requires injection_rate > 0.0 for F1 computation)
+Requires: ground_truth_tracker operational (Phase 1)
+Staleness check: skip update if calibration takes > 15 minutes
 ```
 
 ---
@@ -352,4 +389,4 @@ Calibration window: 1 hour (sliding)
 
 ---
 
-*Document classification: Tier 2 (Estimated) for all ML performance claims. All F1 improvement projections are hypotheses requiring empirical validation. ML augmentation is Phase 3 optional and may be demoted to future work if preconditions are not met.*
+*Document classification: Tier 2 (Estimated) for all ML performance claims. All F1 improvement projections are hypotheses requiring empirical validation. ML augmentation is Phase 3 mandatory — a measured contribution, not a guaranteed contribution.*

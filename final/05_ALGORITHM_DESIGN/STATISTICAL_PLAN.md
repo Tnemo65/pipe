@@ -76,13 +76,13 @@ This document specifies the statistical methodology for evaluating "A Context-Aw
 
 #### Hypothesis H3-CRS001: GPS speed bounds detect synthetic speed violations
 
-**H3-CRS001**: CRS001 (Haversine speed bounds [2, 120] km/h) achieves precision > 0.70 on synthetically injected GPS speed spike anomalies in NYC MTA Bus GTFS-realtime streams.
+**H3-CRS001**: CRS001 (Haversine speed bounds [2, 100] km/h) achieves precision > 0.70 on synthetically injected GPS speed spike anomalies in NYC MTA Bus GTFS-realtime streams.
 
 | Field | Value |
 |-------|-------|
 | **H₀** | P(CRS001) ≤ 0.70 |
 | **H₁** | P(CRS001) > 0.70 |
-| **IV** | Speed injection: synthetic GPS positions producing computed speed > 120 km/h vs. normal positions (0–80 km/h) |
+| **IV** | Speed injection: synthetic GPS positions producing computed speed > 100 km/h vs. normal positions (0–80 km/h) |
 | **DV** | Precision = fraction of CRS001 violations that match injected speed spikes (entity_index match) |
 | **Expected effect size** | P ≈ 0.80–0.90 (hardcoded physics bounds, low false-positive risk) |
 | **Statistical test** | One-sided binomial test for precision ≥ 0.70; 95% Wilson CI for precision |
@@ -91,13 +91,13 @@ This document specifies the statistical methodology for evaluating "A Context-Aw
 
 #### Hypothesis H3-CRS002: GPS jump detection distinguishes real routes from spoofed positions
 
-**H3-CRS002**: CRS002 (> 100m displacement in 30s) achieves precision > 0.70 and recall > 0.60 on synthetically injected GPS jump anomalies.
+**H3-CRS002**: CRS002 (> 400m displacement in 30s) achieves precision > 0.70 and recall > 0.60 on synthetically injected GPS jump anomalies.
 
 | Field | Value |
 |-------|-------|
 | **H₀** | P(CRS002) ≤ 0.70 OR R(CRS002) ≤ 0.60 |
 | **H₁** | P(CRS002) > 0.70 AND R(CRS002) > 0.60 |
-| **IV** | GPS jump injection: two positions at similar timestamps (>30s apart), separated by > 100m |
+| **IV** | GPS jump injection: two positions at similar timestamps (>30s apart), separated by > 400m |
 | **DV** | (a) Precision: fraction of CRS002 violations matching injected jumps; (b) Recall: fraction of injected jumps triggering CRS002 |
 | **Statistical test** | TOST (two one-sided tests): precision ≥ 0.70 and recall ≥ 0.60; McNemar's test for paired comparison |
 | **Sample size** | ≥ 300 injected jumps per injection rate, 3 independent trials |
@@ -105,12 +105,12 @@ This document specifies the statistical methodology for evaluating "A Context-Aw
 
 #### Hypothesis H3-CRS003: Hash-based deduplication detects injected duplicates [TIER 3 — UNMEASURABLE]
 
-**H3-CRS003**: CRS003 recall cannot be measured until B2 (duplicate injection bug) is fixed.
+**H3-CRS003**: CRS003 recall cannot be measured until NG-4 (replay suppression gate) is fixed.
 
 | Field | Value |
 |-------|-------|
 | **Status** | **Tier 3 — Unmeasurable** |
-| **Blocker** | B2: Duplicate injection does NOT emit both original and duplicate events. CRS003 requires two records to detect a duplicate. |
+| **Blocker** | NG-4: Replay suppression gate blocks synthetic duplicates (tagged is_replay=True). CRS003 requires two records to detect a duplicate. |
 | **Required fix** | `synthetic_injector.py` must emit the original event AND the duplicate, tagged with `entity_index` and `entity_index_duplicate` |
 | **After fix** | McNemar's test for paired comparison; Wilson CI for recall |
 
@@ -137,7 +137,7 @@ This document specifies the statistical methodology for evaluating "A Context-Aw
 | Component | Requirement |
 |-----------|-------------|
 | **Primary stream** | NYC MTA Bus GTFS-realtime, replayed with synthetic injection |
-| **Anomaly injection** | GPS speed violations (CRS001), GPS jumps (CRS002), duplicates (CRS003 after B2 fix) |
+| **Anomaly injection** | GPS speed violations (CRS001), GPS jumps (CRS002), duplicates (CRS003 after NG-4 fix) |
 | **Injection rates** | 0%, 5%, 10%, 20% per anomaly type, 3 trials each |
 | **Independent quality signal** | ETA prediction error: compute expected arrival time using actual vehicle positions; measure deviation when positions are affected by injected violations |
 | **Ground truth** | Known schedule (GTFS static) + published real-time delays from MTA API (independent source) |
@@ -205,7 +205,7 @@ This is weaker (observational, not causal) but still non-circular because compla
 |-------|-------|
 | **H₀** | ρ_s(per-cell TQS, downstream_quality) ≤ ρ_s(aggregate TQS, downstream_quality) |
 | **H₁** | ρ_s(per-cell TQS, downstream_quality) > ρ_s(aggregate TQS, downstream_quality) |
-| **Statistical test** | DeLong's test adapted for Spearman correlation (Fisher z-transformation on ρ_s); 95% bootstrap CI on Δρ_s |
+| **Statistical test** | Meng's z-test for two dependent Spearman correlations (Meng, 1994); z = arctanh(ρ_s); 95% bootstrap CI on Δρ_s |
 | **Report** | Δρ_s ± 95% CI; per-cell vs. aggregate correlation separately |
 
 ---
@@ -236,8 +236,8 @@ This is weaker (observational, not causal) but still non-circular because compla
 | SYN002 out-of-range | SYN002 | Set fare_amount outside L0 threshold | entity_index, injected_value, threshold_value |
 | SEM001 contextual | SEM001 | Set fare_amount < rolling P10 | entity_index, injected_value, p10_value |
 | CRS001 speed spike | CRS001 | Two positions 2km apart in 30s | entity_index, computed_speed, bounds |
-| CRS002 GPS jump | CRS002 | Two positions > 100m same timestamp | entity_index, dist_m, time_delta_s |
-| CRS003 duplicate | CRS003 | **Emit BOTH original + duplicate** | entity_index, entity_index_duplicate **[FIX B2 FIRST]** |
+| CRS002 GPS jump | CRS002 | Two positions > 400m same timestamp | entity_index, dist_m, time_delta_s |
+| CRS003 duplicate | CRS003 | **Emit BOTH original + duplicate** | entity_index, entity_index_duplicate **[FIX NG-4 FIRST]** |
 
 ### What Is Tracked Per Evaluation Run
 
@@ -458,7 +458,7 @@ PROTOCOL: run_evaluation.sh
 - [ ] Bootstrap iterations ≥ 1,000 for all CIs
 - [ ] L0-specific and aggregate ΔF1 reported separately
 - [ ] LocalPipeline results labeled "development-mode estimates"
-- [ ] CRS003 results labeled "UNMEASURABLE" until B2 is fixed
+- [ ] CRS003 results labeled "UNMEASURABLE" until NG-4 is fixed
 
 ---
 
@@ -471,7 +471,7 @@ PROTOCOL: run_evaluation.sh
 | **CI for all metrics** | Required | Wilson CI or percentile bootstrap; 1,000 iterations minimum |
 | **Non-circular RQ3** | Required | Use downstream task correlation (ETA error) or cross-dataset validation |
 | **Power analysis for RQ1** | Required | Aggregate ΔF1 is underpowered at n=90; increase to n≥700 or downgrade claim |
-| **B2 fix for CRS003** | Required | Must emit both original + duplicate before CRS003 recall is measurable |
+| **NG-4 fix for CRS003** | Required | Must emit both original + duplicate before CRS003 recall is measurable |
 | **B6 fix for latency** | Required | `processing_latency_ms` must be measured end-to-end, not hardcoded to 0 |
 | **LocalPipeline ≠ FlinkPipeline** | Required | Label all latency/throughput results with execution mode |
 | **L0 coverage measurement** | Required | Report actual L0 fraction, not just estimates; affects RQ1 interpretation |
@@ -488,7 +488,7 @@ PROTOCOL: run_evaluation.sh
 | **RQ3 uses injection rate as ground truth** | Circular design — guaranteed high correlation | Redesign to use independent quality signal |
 | **Sample size without power justification** | Underpowered → Type II error risk | Run power analysis; increase n or downgrade claim |
 | **"Statistically significant" without p-value** | Claim is unsubstantiated | Report exact p-value and CI |
-| **CRS003 recall reported without B2 fix** | Measurement is meaningless | Label Tier 3, document B2 blocker |
+| **CRS003 recall reported without NG-4 fix** | Measurement is meaningless | Label Tier 3, document NG-4 blocker |
 | **LocalPipeline latency claimed as Flink result** | Architecture confusion | Add "LocalPipeline (development)" label |
 | **Aggregate ΔF1 claimed at 5pp without n≥700** | Claim exceeds evidence | Report L0-specific ΔF1 only; aggregate ΔF1 labeled "underpowered" |
 | **P99 latency hardcoded to 0 (B6)** | Measurement is absent | Fix B6 before running latency evaluation |
@@ -523,8 +523,8 @@ PROTOCOL: run_evaluation.sh
 
 | Metric | Blocker | Fix Required |
 |--------|---------|-------------|
-| CRS003 recall | B2: duplicate injection broken | Fix `synthetic_injector.py` to emit original + duplicate |
-| ML augmentation ΔF1 | Phase 3 optional; CRS003 broken | Complete Phase 3; fix B2 |
+| CRS003 recall | NG-4: replay suppression gate blocked | Fix `synthetic_injector.py` to emit original + duplicate |
+| ML augmentation ΔF1 | Phase 3 mandatory; CRS003 blocked by NG-4 (CRS-dedup only; IF on SYN/SEM unaffected) | Complete Phase 3; ML_MODEL_ANALYSIS.md priority: BO→IF→XGBoost→LSTM(cond) |
 | Real-world GPS precision | No labeled authentic GTFS errors | Manual labeling of live feed |
 | Distributed Flink latency | Infrastructure not deployed | Deploy FlinkPipeline cluster |
 | End-to-end throughput (distributed) | LocalPipeline only | Deploy distributed benchmark |

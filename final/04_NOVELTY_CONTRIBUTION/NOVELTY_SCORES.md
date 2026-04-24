@@ -34,7 +34,7 @@
 
 **Strengths**:
 - L0-L4 hierarchical fallback is genuinely absent from the literature. Stream DaQ uses single-level rolling μ±kσ. Ada-Context (DMKD 2025) uses grid cells without hierarchical fallback.
-- L5 (physics priors) is a sound engineering decision with clear justification (2–120 km/h for NYC MTA Bus).
+- L5 (physics priors) is a sound engineering decision with clear justification (2–100 km/h for NYC MTA Bus).
 - Power analysis justifying min-samples (100, 50, 25, 10, 5) is present and appropriate.
 
 **PC Kill Shot**:
@@ -62,7 +62,7 @@
 > "The rules remain authoritative: ML provides calibration signals, not decisions. If ML never changes the outcome (violation vs. no violation), what is the point? The paper never shows that ML augmentation actually improves F1 over rule-only thresholds."
 
 **Third objection**:
-> "RQ6 compares 'rule-only vs. rule+ML'. But rule+ML is described as Phase 3 (optional). If Phase 3 is not completed, this claim disappears entirely. A claim dependent on an optional Phase 3 deliverable is not a contribution."
+> "RQ6 compares 'rule-only vs. rule+ML'. Phase 3 ML integration is now mandatory (ML_MODEL_ANALYSIS.md). This resolves the optionality concern — RQ6 is a core research question, not a contingent one."
 
 **Flag**: This claim CONFLATES implementation (standard ML methods) with novelty (the integration). The novelty is thin.
 
@@ -157,7 +157,7 @@
 - Synthetic anomaly injection + ground-truth tracking + P/R/F1 + bootstrap CI (1,000) is rigorous.
 - Warmup (60s) + measurement (600s) + reproducibility protocol is well-specified.
 - Follows Exathlon (VLDB 2021) precedent for streaming anomaly detection benchmarking.
-- Explicitly labeling CRS003 recall as UNMEASURABLE (B2) is honest and rare.
+- Explicitly labeling CRS003 recall as UNMEASURABLE (NG-4) is honest and rare.
 
 **PC Kill Shot**:
 > "The evaluation infrastructure is planned, not implemented. The paper says 'Phase 1B: Evaluation Infrastructure' runs in parallel with Phase 1, but it never shows a single measured result. Every claim about precision, recall, and F1 is estimated, not measured. A PC reviewer will ask: where are the results?"
@@ -176,15 +176,15 @@
 **Score: N=3, C=3, S=3 (WA)**
 
 **Strengths**:
-- Haversine distance for speed bounds [2, 120] km/h is physically grounded.
-- CRS002 (GPS jump >100m/30s) is validated against GTFS-realtime specification.
+- Haversine distance for speed bounds [2, 100] km/h is physically grounded.
+- CRS002 (GPS jump >400m/30s) is validated against GTFS-realtime specification.
 - This is genuinely absent from all surveyed frameworks (Stream DaQ, METER, Great Expectations, Soda Core, GTFS Validator, GTFS-rt Validator).
 
 **PC Kill Shot**:
 > "This is a domain application paper disguised as a systems paper. You took existing DQ methods and applied them to GTFS GPS data. A PC reviewer at VLDB/SIGMOD will ask: is this a significant enough systems contribution for this venue? Or is it better suited for a transportation/data workshop?"
 
 **Second objection**:
-> "CRS001 speed bounds [2, 120] km/h are hardcoded. 120 km/h is a safety margin, not a data-driven threshold. What if NYC MTA Bus speeds are systematically lower (e.g., urban traffic at 20–40 km/h)? The hardcoded upper bound misses the relevant range."
+> "CRS001 speed bounds [2, 100] km/h are hardcoded. 100 km/h is a safety margin, not a data-driven threshold. What if NYC MTA Bus speeds are systematically lower (e.g., urban traffic at 20–40 km/h)? The hardcoded upper bound misses the relevant range."
 
 **Third objection**:
 > "The NYC MTA Bus GTFS-realtime data source is a contingency plan. The primary dataset (NYC TLC) has NO GPS. The GPS validation runs on a secondary dataset (MTA Bus) that is harder to access and less validated. A PC reviewer will ask: why not use a dataset with GPS as the primary evaluation?"
@@ -221,7 +221,7 @@
 |:----:|-----------|:---------------:|
 | 11 | "Flink is infrastructure, not a research contribution. Don't conflate the engine with the method." | Claim 5 |
 | 12 | "Claims 1 and 4 overlap significantly. Are these separate contributions or one?" | Claims 1, 4 |
-| 13 | "Hardcoded [2, 120] km/h may not match NYC MTA Bus speed distribution." | Claims 5, 8 |
+| 13 | "Hardcoded [2, 100] km/h may not match NYC MTA Bus speed distribution." | Claims 5, 8 |
 | 14 | "CRS in Java by one student in 5 weeks is optimistic." | Claim 5 |
 | 15 | "RQ3 TQS correlation is circular if ground truth = injection rate." | Claim 3 |
 
@@ -278,7 +278,7 @@
 ### Strengths
 - The core claims (GPS validation, evaluation framework, hierarchical thresholds) are genuinely novel and address real gaps.
 - The methodology is rigorous (bootstrap CI, power analysis, ablation study design).
-- The paper is honest about limitations (CRS003 unmeasurable, Phase 3 optional ML, D4 stub).
+- The paper is honest about limitations (CRS003 unmeasurable, Phase 3 mandatory ML, D4 stub).
 - Anti-hallucination compliance is exemplary: every estimated number is labeled, every unmeasurable claim is flagged.
 
 ### Weaknesses

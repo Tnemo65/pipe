@@ -37,7 +37,7 @@
 
 | Framework | Approach | Interpretability | Speed | Accuracy | FPR | Citation |
 |-----------|----------|:---------------:|:-----:|:--------:|:---:|:--------:|
-| **ContextAware-DQ** | Rule-based + optional ML (Phase 3) | **High** | **Fast** | **High precision** | **Low** | — |
+| **ContextAware-DQ** | Rule-based + ML (Phase 3, mandatory) | **High** | **Fast** | **High precision** | **Low** | — |
 | **CETrajAD** | LSTM autoencoder ensemble | Low | Slow (batch) | AUROC ≤ 0.988 | Unknown | [7] |
 | **METER** | Evidential deep learning | Low | Slow | Drift detection | Unknown | [2] |
 | **DyMETER** | Candidate window + online optimization | Medium | Medium | Threshold optimization | Unknown | [10] |
@@ -177,7 +177,7 @@ Stream DaQ's rolling μ±kσ is single-level (no fallback). Ada-Context has grid
 
 3. **Grid-cell adaptive thresholds** (Ada-Context [6]): Rolling statistics per grid cell. Faster than DL approaches but: no hierarchical fallback, sensor-specific, no cross-record validation.
 
-**ContextAware-DQ position**: Rule-based primary (SYN/SEM/CRS) + optional ML (Phase 3): Isolation Forest for confidence weighting, Bayesian Optimization for k-multiplier calibration, METER-style concept drift detection per context cell.
+**ContextAware-DQ position**: Rule-based primary (SYN/SEM/CRS) + ML (Phase 3, mandatory): Bayesian Optimization (priority 1), Isolation Forest (priority 2, conditional), XGBoost/LSTM (conditional/removed per ML_MODEL_ANALYSIS.md).
 
 **ContextAware-DQ's advantage over ML approaches**:
 
@@ -191,7 +191,7 @@ Stream DaQ's rolling μ±kσ is single-level (no fallback). Ada-Context has grid
 | **GTFS domain rules** | ✓ (domain-specific) | ✗ (general-purpose) |
 | **Ground-truth evaluation** | ✓ (injection + P/R/F1) | ✗ (AUROC/AUPR on offline datasets) |
 
-**Evidence**: ML augmentation (Phase 3) is **optional**. CRS003 recall is **unmeasurable** (B2: duplicate injection broken). No evidence exists that ML integration improves F1 over rule-only thresholds — this requires benchmark validation.
+**Evidence**: ML augmentation (Phase 3) is **optional**. CRS003 recall is **unmeasurable** (NG-4: replay suppression gate blocks synthetic duplicates). No evidence exists that ML integration improves F1 over rule-only thresholds — this requires benchmark validation.
 
 ---
 
@@ -317,7 +317,7 @@ Stream DaQ's rolling μ±kσ is single-level (no fallback). Ada-Context has grid
 - Interpretable — violation has explicit reason code, field name, expected vs. actual
 - Fast — O(1) threshold lookup + O(1) comparison
 - No training data required — physics priors (L5) require no data
-- Domain-grounded — Haversine [2, 120] km/h has physical justification
+- Domain-grounded — Haversine [2, 100] km/h has physical justification
 
 **ML DQ advantages**:
 - Handles complex, multi-variate anomalies (e.g., trajectory shape anomalies)
@@ -336,7 +336,7 @@ Stream DaQ's rolling μ±kσ is single-level (no fallback). Ada-Context has grid
 - Bayesian Optimization [16] → calibrate k-multiplier for rolling thresholds
 - METER [2] concept drift detection → trigger context recalibration
 
-**Critical caveat**: Phase 3 ML augmentation is **optional**. CRS003 recall is **unmeasurable** (B2). No evidence exists that ML integration improves F1 over rule-only thresholds. This dimension should not be claimed as a core contribution without benchmark results.
+**Critical caveat**: Phase 3 ML is **mandatory**. CRS003 recall is **unmeasurable** (NG-4). BO/IF F1 is TIER-2 ESTIMATED — requires benchmark. ML is a measured contribution: positive, negative, or mixed results all valid.
 
 ---
 
@@ -411,7 +411,7 @@ No surveyed framework implements:
 |----------|---------|:---------------:|
 | **1. GPS trajectory validation on streaming GTFS-realtime** | Verified absent from all 14 surveyed frameworks [1–14]. Stream DaQ, METER, GTFS Validator, GTFS-rt Validator, Great Expectations, Soda Core, dbt, CETrajAD, Weever, Deequ — NONE implement Haversine-based GPS speed/jump detection on streaming vehicle positions. | **Differentiated** |
 | **2. Hierarchical context-aware threshold fallback (L0–L5)** | Verified absent from all surveyed frameworks. Stream DaQ [1]: single-level. Ada-Context [6]: grid cells, no fallback. METER [2]: concept drift, no context decomposition. Power analysis justifies min-samples. | **Differentiated** |
-| **3. Ground-truth evaluation framework with explicit limitations** | Verified absent from all surveyed frameworks. Explicit labeling of CRS003 as unmeasurable (B2), LocalPipeline vs. Flink distinction, bootstrap CI requirement. No other framework acknowledges its unmeasurable metrics. | **Differentiated** |
+| **3. Ground-truth evaluation framework with explicit limitations** | Verified absent from all surveyed frameworks. Explicit labeling of CRS003 as unmeasurable (NG-4), LocalPipeline vs. Flink distinction, bootstrap CI requirement. No other framework acknowledges its unmeasurable metrics. | **Differentiated** |
 
 ### Top 3 Genuine Weaknesses (with evidence)
 
@@ -473,7 +473,7 @@ No surveyed framework implements:
 | Hierarchical fallback absent from all frameworks | audit_streaming_dq_frameworks.md | Verified — Stream DaQ [1] single-level only |
 | Ada-Context [6] no fallback | audit_streaming_dq_frameworks.md | Verified — grid cells, static boundaries |
 | CRS rules require Java | Phase 4 analysis (report.md) | Verified — JVM↔Python overhead |
-| CRS003 unmeasurable (B2) | B2 known blocker | Verified — injection bug |
+| CRS003 unmeasurable (NG-4) | NG-4 known blocker | Verified — replay gate blocks evaluation |
 | D4 External context stub | Appendix H (I16) | Verified — PARTIAL status |
 | 95%+ false DC discovery | Martin et al., PVLDB 2025 | Verified — doi:10.14778/3748191.3748209 |
 | Stream DaQ cross-record future work | Papastergios & Gounaris, 2025 [1] | Verified — arXiv:2506.06147 |
@@ -503,10 +503,10 @@ Per the verification report (Appendix H, item I16), D4 is marked PARTIAL. This m
 
 ## Appendix C: ML Phase 3 Caveat
 
-**ML augmentation (Phase 3) is optional and unmeasured.**
+**ML augmentation (Phase 3) is mandatory. BO=Priority1, IF=Priority2 (cond), XGBoost=Priority3 (cond), LSTM=Priority4(NO-GO), LightGBM=REMOVED.**
 
 - Isolation Forest [7] + Bayesian Optimization [16] + METER [2] are standard methods
 - Integration novelty is thin — PC reviewers will ask "why not just use METER directly?"
-- CRS003 broken (B2) blocks Isolation Forest calibration for deduplication
+- CRS003 blocked (NG-4) blocks Isolation Forest calibration for deduplication
 - No evidence that ML integration improves F1 over rule-only thresholds
 - **Do not claim as a core contribution without benchmark results**

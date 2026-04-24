@@ -1,466 +1,493 @@
-% ============================================================
+% =============================================================================
 % CHAPTER 3: EXPERIMENTS AND EVALUATION
-% Trích xuất từ: 2 thesis mẫu tại thes_template/
-% Cấu trúc: Environment → Integration → Results → Evaluation
-% ============================================================
+% =============================================================================
+% COMPLETELY REWRITTEN — Old Knowledge Graph / Data Fabric content removed
+% Project: A Context-Aware Framework for Streaming Data Quality Monitoring
+% Date: April 24, 2026
+% =============================================================================
 
-\chapter{Experiments and Evaluation}
-\label{ch:experiments}
+\section{Introduction to Chapter}
+\label{sec:ch3-intro}
 
-% ============================================================
-% SECTION 3.1: EXPERIMENTAL ENVIRONMENT
-% ============================================================
-\section{Experimental Environment}
-\label{sec:experiment_env}
+This chapter describes the experimental evaluation of StreamDQ. We begin with the
+experimental setup (\ref{sec:experimental-setup}): datasets, infrastructure,
+and synthetic anomaly injection. \ref{sec:evaluation-methodology} presents the
+ground-truth tracking protocol, metrics, ablation design, and statistical tests.
+\ref{sec:results-syn-sem} through \ref{sec:results-latency} present benchmark
+results as placeholder tables labeled \texttt{[TIER-2\ ESTIMATED]}, pending
+implementation and benchmark execution. \ref{sec:ch3-limitations} presents
+the mandatory limitations section with all seven documented constraints.
 
-% ==========================================================
-% SUBSECTION 3.1.1: Hardware and Software
-% ==========================================================
-\subsection{Hardware and Software Specifications}
-\label{sec:hardware_software}
+\section{Experimental Setup}
+\label{sec:experimental-setup}
 
-All experiments were conducted on a [specify your hardware setup]. \Cref{tab:environment} summarizes the experimental environment.
+\subsection{Datasets}
 
-\begin{table}[tbp]
-\centering
-\caption{Experimental environment specifications.}
-\label{tab:environment}
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Component} & \textbf{Specification} \\
-\midrule
-Operating System & Ubuntu 22.04 \\
-CPU & [e.g., Intel Xeon, 12-core] \\
-RAM & [e.g., 48 GB] \\
-Docker Version & [e.g., 23.0.3] \\
-Docker Compose Version & [e.g., 1.29.2] \\
-Python Version & [e.g., 3.12] \\
-\bottomrule
-\end{tabular}
+\textbf{NYC TLC Yellow Taxi.} We use the NYC Taxi and Limousine Commission
+Yellow Taxi trip record dataset for January 2024 \citep{nyc_tlc}, stored as
+Parquet files with approximately 3 million records. These records contain
+zone-level spatial references (PULocationID and DOLocationID, mapping to 263
+taxi zones) but \textbf{no GPS latitude/longitude coordinates}. The TLC
+dataset is replayed through Apache Kafka at real-time speed using a custom
+Kafka producer. Because it lacks GPS, only SYN and SEM rules apply; CRS rules
+cannot be evaluated on TLC data.
 
-% ==========================================================
-% SUBSECTION 3.1.2: Technology Stack
-% ==========================================================
-\subsection{Technology Stack}
-\label{sec:tech_stack}
+\textbf{NYC MTA Bus GTFS-realtime.} We use the live NYC MTA Bus GTFS-realtime
+public feed \citep{nyc_mta_bus}, which publishes VehiclePosition messages for
+approximately 500 buses at approximately 30-second intervals per vehicle.
+This feed is publicly accessible and requires no API key. The feed URL,
+evaluation timestamp, and dataset version are logged for reproducibility.
+Because the MTA Bus feed includes GPS latitude/longitude coordinates, all
+three rule layers (SYN, SEM, and CRS) apply to this stream.
 
-\Cref{tab:tech_stack} lists all the tools installed in the data platform.
+Figure \ref{fig:experimental-pipeline} shows the evaluation pipeline.
 
-\begin{landscape}
-\begin{table}[tbp]
-\centering
-\caption{Tools and versions installed in the data platform.}
-\label{tab:tech_stack}
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Component} & \textbf{Tool} & \textbf{Version} \\
-\midrule
-Data Source & MySQL Server & [version] \\
-             & Microsoft SQL Server & [version] \\
-\midrule
-Data Ingestion & [Tool A, e.g., Airbyte / Debezium] & [version] \\
-               & Apache Kafka & [version] \\
-\midrule
-Data Storage & MinIO & [version] \\
-             & [Format, e.g., Delta Lake / Apache Hudi] & [version] \\
-\midrule
-Data Processing & Apache Spark & [version] \\
-                & Apache Airflow & [version] \\
-\midrule
-Metadata Management & DataHub & [version] \\
-                   & Great Expectations & [version] \\
-\midrule
-Query Engine & Trino & [version] \\
-             & Hive Metastore & [version] \\
-\midrule
-Visualization & [Tool, e.g., Metabase / Superset] & [version] \\
-\midrule
-(Optional) AI & OpenAI GPT-4 & API \\
-\bottomrule
-\end{tabular}
-\end{table}
-\end{landscape}
-
-% ============================================================
-% SECTION 3.2: SERVICE INTEGRATION
-% ============================================================
-\section{Service Integration}
-\label{sec:service_integration}
-
-% ==========================================================
-% 3.2.1: Integration Scenario 1
-% ==========================================================
-\subsection{[Integration 1: e.g., Data Ingestion with Airbyte]}
-\label{sec:integration_1}
-
-% PLACEHOLDER: Mô tả chi tiết tích hợp 1
-% Tham khảo thesis 2023 (La Quoc Anh): Airbyte integration
-% Tham khảo thesis 2026 (Le Dac Thinh): Debezium + Kafka integration
-
-To [achieve goal], we configured [tool] to connect from [source] to [destination]. The integration process involves the following steps:
-
-\textbf{Step 1: Source Connection Configuration.}
-In the [tool] interface, we provide information about the source database including host, port, database name, schema, username, and password to establish the connection.
-
-\Cref{fig:integration1_source} shows the source connection configuration.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of source connection configuration]
-\vspace{1.5cm}}}
-\caption{Source connection configuration in [tool].}
-\label{fig:integration1_source}
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F7: Experimental Pipeline — see
+    \texttt{figures/F7\_Experimental\_Pipeline.excalidraw.md}]}
+  }}
+  \caption{Evaluation pipeline for StreamDQ. Synthetic anomalies are injected
+    at controlled rates into the event stream before rule evaluation. Every
+    injected anomaly is tracked in the ground\_truth\_events table. Every
+    detected violation is matched against ground truth to compute precision
+    and recall.}
+  \label{fig:experimental-pipeline}
 \end{figure}
 
-\textbf{Step 2: Destination Configuration.}
-We configure the destination to [describe destination setup, e.g., MinIO S3-compatible storage].
+\subsection{Infrastructure}
 
-\Cref{fig:integration1_dest} shows the destination configuration.
+StreamDQ operates in two execution modes:
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of destination configuration]
-\vspace{1.5cm}}}
-\caption{Destination configuration in [tool].}
-\label{fig:integration1_dest}
+\textbf{LocalPipeline (development mode).} An in-process Python pipeline
+processes events from Kafka or a replay log. State is maintained in Python
+dictionaries (in-memory). SQLite is used for violation storage. LocalPipeline
+is used for unit tests, development, and functional validation.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{FlinkPipeline (distributed mode).} Apache Flink processes events
+from Kafka in a distributed cluster. State is maintained in RocksDB.
+PostgreSQL stores violations and ground-truth data. FlinkPipeline is used
+for full benchmark runs.
+\texttt{[TIER-2\ ESTIMATED]}
+
+\textbf{Critical distinction.} LocalPipeline and FlinkPipeline have
+different latency and throughput characteristics. LocalPipeline results are
+not equivalent to distributed Flink results. All latency numbers reported
+from LocalPipeline are labeled ``LocalPipeline profiling only, not
+equivalent to distributed Flink performance.''
+
+Figure \ref{fig:dashboard-mockup} shows the monitoring dashboard.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F8: Grafana Dashboard Mockup — see
+    \texttt{figures/F8\_Dashboard\_Mockup.excalidraw.md}]}
+  }}
+  \caption{Grafana dashboard for StreamDQ monitoring. Four panels display:
+    (1) violation rate by rule, (2) TQS composite score over time,
+    (3) L0 coverage fraction, and (4) processing latency percentiles.
+    Screenshot placeholder: replace with actual dashboard after deployment.}
+  \label{fig:dashboard-mockup}
 \end{figure}
 
-\textbf{Step 3: Connection and Sync.}
-We create the connection specifying the table names and sync modes. By default, data is synchronized in full refresh mode, which overwrites all existing data.
+\subsection{Synthetic Anomaly Injection}
 
-\Cref{fig:integration1_result} shows the synchronization result.
+We inject synthetic anomalies into the event stream to create ground truth
+for evaluation. Each injected anomaly is tagged with its entity index,
+anomaly type, and injection rate. Table \ref{tab:anomaly-types} summarizes
+the anomaly types and injection parameters.
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of sync result / data in destination]
-\vspace{1.5cm}}}
-\caption{Synchronization result in [destination].}
-\label{fig:integration1_result}
-\end{figure}
-
-% ==========================================================
-% 3.2.2: Integration Scenario 2
-% ==========================================================
-\subsection{[Integration 2: e.g., Data Processing with Apache Spark]}
-\label{sec:integration_2}
-
-% PLACEHOLDER: Mô tả tích hợp 2
-% Tham khảo thesis 2023: Spark job to transform data
-% Tham khảo thesis 2026: Spark + Hudi for structured data
-
-To bring data to meet the analytical requirements, we need to transform the data to make it clean and ready for ad-hoc queries.
-
-\Cref{fig:spark_code} shows the PySpark job configuration.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}
-[Insert screenshot of PySpark job code]
-\vspace{2cm}}}
-\caption{PySpark job for data transformation.}
-\label{fig:spark_code}
-\end{figure}
-
-The job reads data from [source bucket], performs [transformations], and writes the result to [destination bucket] in [format, e.g., Delta Lake or Hudi] format.
-
-\Cref{fig:spark_output} shows the output data in the target bucket.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of output data in target bucket]
-\vspace{1.5cm}}}
-\caption{Data output in [destination] format.}
-\label{fig:spark_output}
-\end{figure}
-
-% ==========================================================
-% 3.2.3: Integration Scenario 3
-% ==========================================================
-\subsection{[Integration 3: e.g., Orchestration with Airflow]}
-\label{sec:integration_3}
-
-% PLACEHOLDER: Mô tả tích hợp 3
-% Tham khảo thesis 2023/2026: Airflow DAG
-
-We use Apache Airflow to schedule and trigger our transformation jobs. \Cref{fig:airflow_dag} shows a sample Airflow DAG.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of Airflow DAG]
-\vspace{1.5cm}}}
-\caption{Sample Airflow DAG for data pipeline.}
-\label{fig:airflow_dag}
-\end{figure}
-
-The DAG consists of [number] tasks:
-\begin{itemize}
-    \item \textbf{Task 1:} [Description, e.g., Trigger Spark job for data ingestion]
-    \item \textbf{Task 2:} [Description, e.g., Validate data quality with Great Expectations]
-    \item \textbf{Task 3:} [Description, e.g., Update metadata in DataHub]
-\end{itemize}
-
-% ==========================================================
-% 3.2.4: Integration Scenario 4
-% ==========================================================
-\subsection{[Integration 4: e.g., Query Engine with Trino]}
-\label{sec:integration_4}
-
-% PLACEHOLDER: Mô tả tích hợp 4
-% Tham khảo thesis 2023/2026: Trino integration
-
-To be able to run the query engine, [tool] needs [prerequisite, e.g., Hive Metastore], which stores the table structure, schema, and data type of the files contained in [storage].
-
-\Cref{fig:trino_config} shows the configuration files for [tool].
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of Trino/Hive configuration]
-\vspace{1.5cm}}}
-\caption{[Tool] configuration.}
-\label{fig:trino_config}
-\end{figure}
-
-\Cref{fig:trino_query} shows sample queries and results in the [tool] interface.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of query execution]
-\vspace{1.5cm}}}
-\caption{[Tool] query execution result.}
-\label{fig:trino_query}
-\end{figure}
-
-% ==========================================================
-% 3.2.5: Integration Scenario 5
-% ==========================================================
-\subsection{[Integration 5: e.g., Metadata Knowledge Graph with DataHub]}
-\label{sec:integration_5}
-
-% PLACEHOLDER: Mô tả tích hợp 5
-% Tham khảo thesis 2023/2026: DataHub ingestion
-
-DataHub offers a user-friendly web interface that allows for the simple ingestion of metadata into the service. To ingest metadata from [service], we configure the ingestion source with the necessary credentials and connection details.
-
-\Cref{fig:datahub_ingest} shows the DataHub ingestion configuration.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of DataHub ingestion config]
-\vspace{1.5cm}}}
-\caption{DataHub metadata ingestion configuration.}
-\label{fig:datahub_ingest}
-\end{figure}
-
-\Cref{fig:datahub_result} shows the ingestion result, containing all the metadata entities.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of DataHub UI with metadata]
-\vspace{1.5cm}}}
-\caption{DataHub metadata knowledge graph result.}
-\label{fig:datahub_result}
-\end{figure}
-
-% ==========================================================
-% 3.2.6: Integration Scenario 6
-% ==========================================================
-\subsection{[Integration 6: e.g., Visualization with Metabase]}
-\label{sec:integration_6}
-
-% PLACEHOLDER: Mô tả tích hợp 6
-% Tham khảo thesis 2026: Metabase + LLM integration
-
-We deploy [BI tool] to create dashboards and visualizations from the data stored in [storage]. After configuring the connection to [query engine], users can explore data and build dashboards.
-
-\Cref{fig:metabase_db} shows the database connection in [BI tool].
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of database connection]
-\vspace{1.5cm}}}
-\caption{[BI tool] database connection configuration.}
-\label{fig:metabase_db}
-\end{figure}
-
-\Cref{fig:metabase_dashboard} shows an example dashboard created in [BI tool].
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.9\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of final dashboard]
-\vspace{1.5cm}}}
-\caption{Example dashboard in [BI tool].}
-\label{fig:metabase_dashboard}
-\end{figure}
-
-% ==========================================================
-% 3.2.7: Integration Scenario 7 (Optional)
-% ==========================================================
-\subsection{[LLM Integration (Optional)]}
-\label{sec:llm_integration}
-
-To serve Intelligent Analytics, an LLM integrated application has been deployed. When a request comes in from a user, the application converts it to a prompt so that the LLM can generate visualization specifications.
-
-\Cref{fig:llm_prompt} shows the prompt template used.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of LLM prompt configuration]
-\vspace{1.5cm}}}
-\caption{LLM prompt template for visualization generation.}
-\label{fig:llm_prompt}
-\end{figure}
-
-% ============================================================
-% SECTION 3.3: RESULTS AND EVALUATION
-% ============================================================
-\section{Results and Evaluation}
-\label{sec:results}
-
-% ==========================================================
-% 3.3.1: Use Case / Scenario
-% ==========================================================
-\subsection{[Use Case: e.g., Academic Performance Analysis]}
-\label{sec:use_case}
-
-% PLACEHOLDER: Mô tả kịch bản thử nghiệm
-% Tham khảo thesis 2026: Academic performance analysis
-% Tham khảo thesis 2023: 3 scenarios (sale order, lucky draw, employee check-in)
-
-This scenario manages a complete end-to-end data pipeline to provide an overview of [domain], supporting analysis by [capability].
-
-The dataset consists of [number] tables provided by [source]. The dataset revolves around information about [entities].
-
-\Cref{fig:dataset_schema} shows the schema of the dataset used for this scenario.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}
-[Insert ER diagram or schema of the dataset]
-\vspace{2cm}}}
-\caption{Dataset schema for the use case.}
-\label{fig:dataset_schema}
-\end{figure}
-
-\textbf{Data Ingestion:} New data are updated in the data source, and changes are captured by [tool] to be sent to [destination]. \Cref{fig:data_capture} shows the captured changes.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of data captured by ingestion tool]
-\vspace{1.5cm}}}
-\caption{Data captured by [tool].}
-\label{fig:data_capture}
-\end{figure}
-
-\Cref{tab:ingestion_performance} summarizes the data ingestion performance.
-
-\begin{table}[tbp]
-\centering
-\caption{Data ingestion performance.}
-\label{tab:ingestion_performance}
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{Metric} & \textbf{Value} \\
-\midrule
-Number of records & [e.g., 100,000] \\
-Number of tables & [e.g., 15] \\
-Sync time & [e.g., ~4 seconds] \\
-\bottomrule
-\end{tabular}
+\begin{table}[htbp]
+  \centering
+  \caption{Synthetic anomaly types and injection parameters.
+    NG-4: CRS003 recall is \texttt{[TIER-3\ UNMEASURABLE]}
+    because the replay suppression gate blocks synthetic duplicate injection.}
+  \label{tab:anomaly-types}
+  \begin{tabular}{lllr}
+    \toprule
+    Anomaly Type & Rule Triggered & Injection Method & Status \\
+    \midrule
+    NULL field         & SYN001 & Set required field to NULL       & Ready \\
+    NaN field          & SYN001 & Set float field to NaN          & Ready \\
+    Negative fare      & SYN002 & Set fare\_amount $<$ 0           & Ready \\
+    GPS speed spike   & CRS001 & Two positions 2 km apart in 30 s & Ready \\
+    GPS jump          & CRS002 & Positions $>$400 m at $\leq$30 s & Ready \\
+    Duplicate event   & CRS003 & Emit original + duplicate         & NG-4 blocked \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
-\textbf{Data Transformation:} We run [tool] jobs to write the data in [format] into the [curated/gold] bucket. \Cref{fig:curated_data} shows the curated data.
+Injection rates are 0.5\%, 1.0\%, 2.0\%, and 5.0\% of events per anomaly type.
+Each trial uses a different random seed (SEED = 42, 43, 44). A warmup period
+of 10,000 events (approximately 60 seconds at real-time speed) precedes each
+measurement window. The measurement window is 600 seconds (10 minutes) per trial.
+Three independent trials are run per condition.
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of curated/gold bucket data]
-\vspace{1.5cm}}}
-\caption{Curated data in [bucket].}
-\label{fig:curated_data}
-\end{figure}
+\textbf{NG-4 (CRS003 blocker).} The replay suppression gate in the current
+code tags synthetic duplicate events as \texttt{is\_replay=True}, which triggers
+the gate in the deduplication logic and suppresses violation emission. To measure
+CRS003 recall, synthetic duplicate events must be tagged \texttt{is\_replay=False}.
+This is an evaluation infrastructure bug, not a rule logic bug. CRS003 recall
+is labeled \texttt{[TIER-3\ UNMEASURABLE]} until NG-4 is fixed.
 
-\textbf{Analytics:} After the data are aggregated into the gold bucket, users can send prompts to the LLM engine via API endpoint to generate dashboards based on their requests. \Cref{fig:final_dashboard} shows the final dashboard generated by the LLM.
+\section{Evaluation Methodology}
+\label{sec:evaluation-methodology}
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.9\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of final LLM-generated dashboard]
-\vspace{1.5cm}}}
-\caption{Final dashboard generated by LLM.}
-\label{fig:final_dashboard}
-\end{figure}
+\subsection{Ground-Truth Tracking}
 
-\Cref{fig:data_lineage} shows the complete data lineage tracked in DataHub.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.9\textwidth}{\centering\vspace{1.5cm}
-[Insert screenshot of DataHub data lineage]
-\vspace{1.5cm}}}
-\caption{Data lineage in DataHub.}
-\label{fig:data_lineage}
-\end{figure}
-
-% ==========================================================
-% 3.3.2: Evaluation
-% ==========================================================
-\subsection{Evaluation}
-\label{sec:evaluation}
-
-% PLACEHOLDER: Đánh giá hệ thống
-% Tham khảo thesis 2023: 3 scenarios evaluated
-% Tham khảo thesis 2026: single scenario with evaluation
-
-The experiment demonstrates the system's capability to [capabilities demonstrated]. It successfully meets the defined requirements and shows potential for handling [scope].
-
-\Cref{tab:evaluation_summary} summarizes the evaluation results.
-
-\begin{table}[tbp]
-\centering
-\caption{Evaluation summary.}
-\label{tab:evaluation_summary}
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Criterion} & \textbf{Metric} & \textbf{Result} \\
-\midrule
-Scalability & Records processed & [X records] \\
-Flexibility & Data sources supported & [X sources] \\
-Integration & Services connected & [X services] \\
-Usability & Dashboard generation & [Success rate] \\
-Performance & Sync time & [X seconds] \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Key Findings:}
+We track every injected anomaly in a PostgreSQL \texttt{ground\_truth\_events}
+table with the following schema:
 
 \begin{itemize}
-    \item The platform can easily handle scenarios where the data source contains from a few thousand to millions of records.
-    \item The integrated components form a unified platform that provides users with an overview of the data and the flow of data within the system.
-    \item The platform ensures [security, governance, or other benefits].
+  \itemsep0em
+  \item \texttt{run\_id}: UUID identifying the evaluation run
+  \item \texttt{injection\_rate}: float (0.005, 0.01, 0.02, 0.05)
+  \item \texttt{anomaly\_type}: VARCHAR (NULL, NAN, NEGATIVE\_FARE, GPS\_SPEED,
+        GPS\_JUMP, DUPLICATE)
+  \item \texttt{entity\_index}: INTEGER (position in event stream)
+  \item \texttt{injected\_value}: JSONB (field name, injected value)
+  \item \texttt{injected\_at}: TIMESTAMP
 \end{itemize}
 
-% ============================================================
-% SECTION 3.4: CHAPTER SUMMARY
-% ============================================================
+Every detected violation is matched against ground truth using exact
+entity index matching. No fuzzy matching is used.
+
+\subsection{Metrics}
+
+Table \ref{tab:eval-metrics} presents the evaluation metrics.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Evaluation metrics, confidence interval methods, and bootstrap
+    specifications. Bootstrap iterations should be increased to 10,000 for
+    publication.}
+  \label{tab:eval-metrics}
+  \begin{tabular}{lllr}
+    \toprule
+    Metric & CI Method & Bootstrap Iterations & Formula \\
+    \midrule
+    Precision, Recall, F1 & Wilson score     & $\geq$ 1,000 & $2P\!R/(P+R)$ \\
+    Violation rate        & Clopper-Pearson & $\geq$ 1,000 & $n_{\text{viol}}/N$ \\
+    P99 latency           & Percentile       & $\geq$ 1,000 & $P_{99}(L)$ \\
+    Throughput            & t-test bootstrap & $\geq$ 1,000 & events/s \\
+    TQS composite         & Percentile       & $\geq$ 1,000 & Weighted sum \\
+    Spearman $\rho$       & Fisher z-transform& $\geq$ 1,000 & Rank corr. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+All confidence intervals are at the 95\% level using the percentile bootstrap
+method (1,000 iterations). For publication, bootstrap iterations should be
+increased to 10,000.
+\texttt{[TODO: increase bootstrap to 10,000 iterations for publication]}
+
+\textbf{Latency measurement.} Processing latency is measured from event arrival
+(at Kafka produce timestamp) to violation stored (PostgreSQL INSERT complete).
+This is an end-to-end measurement, not an internal processing time.
+Latency numbers from LocalPipeline are labeled as such.
+
+\textbf{TQS correlation.} TQS composite scores are correlated with downstream
+ETA prediction error, not with injection rate. ETA prediction error is
+computed independently from GTFS static schedule data and published real-time
+delays from the MTA API. This design avoids the circularity of measuring
+TQS against injection rate.
+
+\subsection{Ablation Studies}
+
+We conduct three ablation studies to answer the research questions:
+
+\begin{itemize}
+  \itemsep0em
+  \item \textbf{RQ1 ablation}: Static (global L4) thresholds vs. L0--L4
+        context-aware thresholds. Measures whether finer context improves
+        detection F1 at L0 cells.
+  \item \textbf{RQ4 ablation}: SYN-only vs. SYN+SEM vs. SYN+SEM+CRS.
+        Measures whether each rule layer adds incremental F1.
+  \item \textbf{RQ6 ablation}: Rule-only vs. rule+ML (Bayesian Optimization only).
+        Measures whether ML calibration improves F1.
+\end{itemize}
+
+\subsection{Statistical Tests}
+
+Table \ref{tab:statistical-tests} presents the statistical tests.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Statistical tests, significance levels, and corrections.
+    Holm--Bonferroni is applied within test families.}
+  \label{tab:statistical-tests}
+  \begin{tabular}{lllr}
+    \toprule
+    Test & Purpose & $\alpha$ & Correction \\
+    \midrule
+    Wilcoxon signed-rank & Non-parametric paired comparison & 0.05 & Holm--Bonferroni \\
+    McNemar's mid-p exact & Paired binary classifier comparison & 0.01 & Holm--Bonferroni \\
+    Friedman's test & Multiple related samples (L0--L4) & 0.05 & Nemenyi post-hoc \\
+    Bootstrap percentile & Non-parametric CI & 0.05 & Per-method \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Holm--Bonferroni correction is applied within test families at $\alpha = 0.05$.
+For RQ1 (5 pairwise comparisons), $\alpha_{\text{adj}} = 0.05 / 5 = 0.01$.
+For RQ2 (6 pairwise comparisons), $\alpha_{\text{adj}} = 0.05 / 6 \approx 0.0083$.
+
+\section{Results: SYN/SEM Rules}
+\label{sec:results-syn-sem}
+
+Table \ref{tab:results-syn-sem} presents precision, recall, and F1 for SYN
+and SEM rules on the NYC TLC Yellow Taxi dataset.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Precision, recall, and F1 for SYN and SEM rules on NYC TLC.
+    Results are \texttt{[TIER-2\ ESTIMATED]} pending benchmark execution.
+    All values are accompanied by 95\% bootstrap confidence intervals
+    (1,000 iterations). TODO: increase bootstrap to 10,000 iterations.}
+  \label{tab:results-syn-sem}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \multirow{2}{*}{Rule} & \multirow{2}{*}{Precision} & \multirow{2}{*}{Recall}
+    & \multirow{2}{*}{F1} & \multirow{2}{*}{95\% CI} &
+    \multirow{2}{*}{n$_{\text{inj}}$} \\
+    & & & & & \\
+    \midrule
+    SYN001 (NULL)      & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SYN001 (NaN)       & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SYN002 (neg fare)   & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SYN003 (bounds)    & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SEM001 (fare)      & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SEM002 (distance)  & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    SEM003 (pax count) & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    GTFSSem002 (stale) & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                       & [TIER-2\ ESTIMATED] & — & — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The SYN001 (NULL) and SYN001 (NaN) rules provide the baseline precision
+for record-level validation. We expect high precision (close to 1.0) for
+NULL checks because synthetic NULL injection produces unambiguous violations.
+SEM001 and SEM002 are expected to have lower recall because context-aware
+thresholds may not fire on injected anomalies that fall within the rolling
+percentile bounds.
+
+\section{Results: CRS Rules}
+\label{sec:results-crs}
+
+Table \ref{tab:results-crs} presents precision, recall, and F1 for CRS
+rules on the NYC MTA Bus GTFS-realtime stream.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Precision, recall, and F1 for CRS rules on NYC MTA Bus GTFS-realtime.
+    CRS001 and CRS002 are \texttt{[TIER-2\ ESTIMATED]} pending benchmark.
+    CRS003 is \texttt{[TIER-3\ UNMEASURABLE]} due to NG-4
+    (replay suppression gate blocks synthetic duplicate injection).
+    All values are accompanied by 95\% bootstrap confidence intervals
+    (1,000 iterations). TODO: increase bootstrap to 10,000 iterations.}
+  \label{tab:results-crs}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \multirow{2}{*}{Rule} & \multirow{2}{*}{Precision} & \multirow{2}{*}{Recall}
+    & \multirow{2}{*}{F1} & \multirow{2}{*}{95\% CI} &
+    \multirow{2}{*}{n$_{\text{inj}}$} \\
+    & & & & & \\
+    \midrule
+    CRS001 (GPS speed)   & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                         & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    CRS002 (GPS jump)    & [TIER-2\ ESTIMATED] & [TIER-2\ ESTIMATED]
+                         & [TIER-2\ ESTIMATED] & — & — \\[4pt]
+    CRS003 (deduplication)& [TIER-2\ ESTIMATED] & \cellcolor[gray]{0.85}
+                         \texttt{[TIER-3]} & \cellcolor[gray]{0.85}
+                         \texttt{[TIER-3]} & \cellcolor[gray]{0.85} NG-4
+                         & \cellcolor[gray]{0.85} — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+CRS001 and CRS002 use physics-based thresholds (speed bounds, jump distance)
+that are independent of the data distribution, so we expect high precision.
+CRS001 lower bound (2.0 km/h) may produce false positives for stationary
+vehicles with GPS jitter; the sustained-low-speed guard ($\Delta t > 60$ s)
+mitigates this. CRS002 precision depends on the quality of the synthetic
+GPS jump injection; the 400-meter threshold was calibrated for the 30-second
+GTFS-realtime update interval.
+
+CRS003 recall is \texttt{[TIER-3\ UNMEASURABLE]} because the replay
+suppression gate (NG-4) blocks synthetic duplicate injection. Fixing NG-4
+requires tagging synthetic duplicate events as \texttt{is\_replay=False}.
+
+\section{Results: Context-Aware Threshold Ablation}
+\label{sec:results-threshold-abl}
+
+Table \ref{tab:results-threshold-abl} presents the ablation results for
+context-aware thresholds (RQ1).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Ablation: static (L4 global) vs. context-aware (L0--L4) thresholds.
+    ``$\Delta$F1 at L0 cells'' measures the F1 improvement specifically for
+    events falling into L0 context cells.
+    ``Aggregate $\Delta$F1'' measures improvement across all events.
+    L0 coverage is 2--5\%; aggregate F1 improvement is expected at 1--2 pp.
+    Results are \texttt{[TIER-2\ ESTIMATED]} pending benchmark execution.}
+  \label{tab:results-threshold-abl}
+  \begin{tabular}{lcccccc}
+    \toprule
+    Configuration & $\Delta$F1 at L0 cells (pp) & 95\% CI
+    & Aggregate $\Delta$F1 (pp) & 95\% CI & L0 coverage \\
+    \midrule
+    Static (L4 global)   & baseline & — & baseline & — & — \\
+    L0 only              & [TIER-2] & — & [TIER-2] & — & 2--5\% \\
+    L0--L4 (hierarchical)& [TIER-2] & — & [TIER-2] & — & 2--5\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\textbf{Critical caveat.} The 5 pp target for $\Delta$F1 applies specifically
+to events falling into L0 context cells (2--5\% of events). Because most
+events fall to L3 or L4 (where thresholds are similar to static), the
+aggregate $\Delta$F1 across all events is expected to be 1--2 pp, not 5 pp.
+Both metrics will be reported separately. The aggregate number is likely
+underpowered at the current sample size (approximately 90 measurement windows
+$\times$ 3 trials).
+
+Statistical significance is assessed via Wilcoxon signed-rank test with
+Bonferroni correction ($\alpha_{\text{adj}} = 0.01$ for 5 comparisons).
+
+\section{Results: ML Augmentation}
+\label{sec:results-ml}
+
+Table \ref{tab:results-ml} presents the ablation results for ML-augmented
+threshold calibration (RQ6).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Ablation: rule-only vs. rule+Bayesian Optimization.
+    Bayesian Optimization runs hourly, tuning k\_multiplier, IF\_alpha,
+    and weekend\_discount on F1 objective (not violation rate).
+    Isolation Forest is conditional (GO if $\rho_{\text{IF,P90}} < 0.8$).
+    XGBoost is scaffold only (training target undefined).
+    LSTM is NO-GO (GPS archive unconfirmed; high CRS002 redundancy).
+    Results are \texttt{[TIER-2\ ESTIMATED]} pending benchmark execution.
+    Positive, negative, and mixed results are all valid findings.}
+  \label{tab:results-ml}
+  \begin{tabular}{lcccccc}
+    \toprule
+    Configuration & Precision & Recall & F1 & 95\% CI & n$_{\text{inj}}$ \\
+    \midrule
+    Rule-only (baseline) & [TIER-2] & [TIER-2] & [TIER-2] & — & — \\
+    + Bayesian Optimization & [TIER-2] & [TIER-2] & [TIER-2] & — & — \\
+    + Isolation Forest (cond.) & [TIER-2] & [TIER-2] & [TIER-2] & — & — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+This is a \textit{measured contribution}: if ML provides no improvement,
+the negative result is scientifically valuable and will be reported as such.
+
+\section{Latency and Throughput}
+\label{sec:results-latency}
+
+Table \ref{tab:results-latency} presents latency and throughput measurements.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Latency and throughput measurements. LocalPipeline results are
+    \texttt{[TIER-2\ ESTIMATED]} and labeled ``LocalPipeline profiling only,
+    not equivalent to distributed Flink performance.'' Distributed Flink
+    benchmarks require infrastructure deployment.}
+  \label{tab:results-latency}
+  \begin{tabular}{lcccc}
+    \toprule
+    Mode & P50 latency (ms) & P99 latency (ms) & 95\% CI (ms) &
+    Throughput (events/s) \\
+    \midrule
+    LocalPipeline & [TIER-2] & [TIER-2] & — & [TIER-2] \\
+    FlinkPipeline & [TIER-2] & [TIER-2] & — & [TIER-2] \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\textbf{Critical limitation.} LocalPipeline and FlinkPipeline have fundamentally
+different architectures. LocalPipeline processes events in-process with Python
+state management; FlinkPipeline distributes events across JVM TaskManagers with
+RocksDB state. P99 latency from LocalPipeline is not representative of
+distributed Flink latency. Distributed benchmarks require Flink cluster
+deployment and are not yet available.
+
+\section{Limitations}
+\label{sec:ch3-limitations}
+
+We explicitly acknowledge seven limitations of this work.
+
+\textbf{1. CRS003 recall is unmeasurable (NG-4).} The replay suppression
+gate tags synthetic duplicate events as \texttt{is\_replay=True}, which
+triggers the gate and suppresses violation emission. CRS003 recall
+cannot be measured until synthetic duplicates are tagged
+\texttt{is\_replay=False}. This is an evaluation infrastructure bug, not
+a rule logic bug. CRS003 precision is measurable; recall is labeled
+\texttt{[TIER-3\ UNMEASURABLE]}.
+\texttt{[TIER-3\ UNMEASURABLE]}
+
+\textbf{2. L0 coverage is sparse (2--5\% of events).} The aggregate
+$\Delta$F1 from context-aware thresholds across all events is likely
+1--2 pp, not the 5 pp target which applies only to L0 cells. Both
+L0-specific and aggregate metrics will be reported separately. The aggregate
+metric is likely underpowered at approximately 90 measurement windows.
+
+\textbf{3. ML augmentation results are estimated (TIER-2).} All ML
+numbers (F1 improvement from Bayesian Optimization, Isolation Forest
+conditional activation) require Phase 3 implementation and benchmark
+execution. These results are placeholders.
+
+\textbf{4. Single dataset (NYC TLC + NYC MTA Bus).} Results may not
+generalize to other transit agencies, geographic regions, or data schemas.
+CRS rules (CRS001, CRS002) calibrated for NYC MTA Bus may need parameter
+adjustment for different vehicle types, update frequencies, or geographic
+contexts.
+
+\textbf{5. LocalPipeline $\neq$ distributed Flink.} All latency and
+throughput numbers from LocalPipeline are labeled as development-mode
+profiling only. Distributed Flink benchmarks require cluster deployment
+and are not yet available. Claiming Flink-level latency from LocalPipeline
+results would be architecturally incorrect.
+
+\textbf{6. L4 global fallback masks context-specific patterns.} Events
+evaluated at L4 use the global threshold regardless of their context.
+If the global threshold is lenient, L4 events that would violate a
+context-specific threshold will not be flagged. This is an inherent
+trade-off of the hierarchical fallback design: it ensures coverage but
+dilutes context specificity.
+
+\textbf{7. D4 External context is a stub.} The holiday indicator in
+D4 (External context dimension) is not implemented. The five-dimensional
+context decomposition effectively operates on four dimensions (D1, D2, D3,
+D5). Holidays, traffic incidents, and other external signals are not
+captured by the current context model.
+
 \section{Chapter Summary}
-\label{sec:ch3_summary}
+\label{sec:ch3-summary}
 
-This chapter has presented the integration steps of various services within the system, along with test scenarios to validate performance and problem-solving capabilities in real-world business use cases. The experimental setup included [brief description of environment].
-
-We demonstrated the complete pipeline from data ingestion through [tool A] and [tool B], to data transformation using [tool C], orchestration with [tool D], metadata management via [tool E], and visualization with [tool F].
-
-As a result, this thesis has demonstrated both the theoretical foundation and practical effectiveness of the proposed system architecture. The platform successfully meets the defined requirements for [goal], with the integrated LLM module enabling natural language-based analytics.
+This chapter presented the evaluation methodology and results. We described
+the NYC TLC and NYC MTA Bus datasets, the LocalPipeline and FlinkPipeline
+infrastructure, and the synthetic anomaly injection protocol with five anomaly
+types. We detailed ground-truth tracking, metrics with 95\% bootstrap CI,
+ablation studies for RQ1, RQ4, and RQ6, and statistical tests with
+Holm--Bonferroni correction. Result tables are placeholders labeled
+\texttt{[TIER-2\ ESTIMATED]} pending benchmark execution; CRS003 is
+\texttt{[TIER-3\ UNMEASURABLE]} due to NG-4. The mandatory limitations
+section explicitly acknowledged all seven documented constraints.

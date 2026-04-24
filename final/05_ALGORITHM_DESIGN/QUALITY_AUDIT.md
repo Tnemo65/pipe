@@ -19,14 +19,14 @@
 | 2 | **CRITICAL** | CRS001 | `time_delta = 0` → divide-by-zero | Guard: check `time_delta == 0` before division, flag as GPS_SPOOFING (CRS002) |
 | 3 | **CRITICAL** | L0–L5 Context | `event.hour` is NaN → silent pass-through (B1) | SYN001 NaN guard must run BEFORE context key extraction |
 | 4 | **CRITICAL** | CRS003 | `vehicleId` consistency unverified across duplicate hash events | Add vehicleId consistency check: same hash + different vehicleId = possible entity swap |
-| 5 | **CRITICAL** | CRS003 | Duplicate injection broken (B2): original + duplicate not both emitted; recall and precision UNMEASURABLE | Must emit TWO records in `synthetic_injector.py`; document as Tier 3 limitation |
+| 5 | **CRITICAL** | CRS003 | Replay suppression gate blocked (NG-4): synthetic duplicates tagged is_replay=True; recall and precision UNMEASURABLE | Must emit TWO records in `synthetic_injector.py`; document as Tier 3 limitation |
 | 6 | **CRITICAL** | CRS002 | CRS002 severity for 2–20 km/h GPS_SPOOFING is absent from spec | Add explicit severity mapping: `2–20 km/h → HIGH GPS_SPOOFING` |
 | 7 | **MAJOR** | L0–L5 Context | Context key exists but count < min_samples → behavior unspecified | Explicit: "key exists with count < min_samples → fall back to next level" |
 | 8 | **MAJOR** | CRS001 | `prevTimestamp` is None (first position) → silently passes | Explicit: "pass silently, initialize state" with logging |
 | 9 | **MAJOR** | CRS002 | Jump detected with only 1 prior position → "lower confidence" is vague | Define explicit confidence tiers: 1 prior = LOW, 2+ prior = MEDIUM, 3+ = HIGH |
 | 10 | **MAJOR** | CRS002 | Broadcast state empty on first event → no fallback threshold defined | Explicit: "initialize state with current position; no violation possible" |
 | 11 | **MAJOR** | TQS Aggregation | C dimension = 1.0 for NYC TLC → spec conflates two datasets | Explicit: "C = 1.0 on NYC TLC; C = f(CRS001+CRS002) on NYC MTA Bus" |
-| 12 | **MAJOR** | CRS001 | Upper bound [2, 120] km/h hardcoded — NYC MTA Bus urban speeds are 20–50 km/h | Add: "120 km/h is safety margin; consider adaptive upper bound for urban contexts" |
+| 12 | **MAJOR** | CRS001 | Upper bound [2, 100] km/h hardcoded — NYC MTA Bus urban speeds are 20–50 km/h | Add: "100 km/h is physically implausible for NYC MTA Bus; updated from 120 to 100 km/h to close B3 detection gap" |
 | 13 | **MAJOR** | CRS001 | Lower bound gap: moderate spoofing in 2–20 km/h range (B3) | Document: "2–20 km/h speed range = CRS002 territory; CRS001 lower bound gap acknowledged" |
 | 14 | **MAJOR** | L0–L5 Context | Broadcast state initialization — no spec for first-event behavior | Explicit: "first event → L5 physics priors → populate state → subsequent events use L0-L4" |
 | 15 | **MAJOR** | CRS002 | `only 1 prior position in window` → comparison is to that single position | Explicit: "compare to most recent prior position" |
@@ -50,7 +50,7 @@
 | 33 | **MINOR** | CRS003 | TTL = 310s; event arrives 311s later → hash no longer in state → treated as new | Correct: 311s > 310s TTL; this is the intended boundary behavior |
 | 34 | **MINOR** | CRS001 | Haversine distance tiny (<1m) → "stationary vehicle → pass at next update" | Clarify: "speed=0 with non-zero time_delta → very slow (not stationary); flag if time_delta > 60s" |
 | 35 | **MINOR** | SYN001 | Empty string `''` → "not a violation (empty is not null)" | Define per-field: which fields allow empty string vs null? |
-| 36 | **MINOR** | CRS002 | "GPS jump >100m in 30s" — GTFS-realtime default update interval = 1s, not 30s | Resolve: "GTFS-rt default = 1s; vehicles skipping reports accumulate up to 30s; 100m/30s conservative for worst-case gap" |
+| 36 | **MINOR** | CRS002 | "GPS jump >400m in 30s" — GTFS-realtime default update interval = 1s, not 30s | Resolve: "GTFS-rt default = 1s; vehicles skipping reports accumulate up to 30s; 100m/30s conservative for worst-case gap" |
 
 ---
 
@@ -128,7 +128,7 @@
 | Speed computed, Haversine tiny (<1m) | "stationary vehicle → pass at next update" | MINOR | Clarify: "speed=0 with non-zero time_delta → very slow; flag if time_delta > 60s" |
 | GPS coordinates outside valid range (lat > 90, lon > 180) | SYN003 violation | MINOR | Note: CRS001 runs after SYN003; SYN003 validates range first |
 | `vehicleId` is None | Cannot key state; should flag violation | MINOR | Assign SYN001 NULL violation; vehicleId is required for stateful tracking |
-| Hardcoded [2, 120] km/h | Upper bound far above NYC MTA Bus urban speed (20–50 km/h) | MAJOR | Add: "120 km/h is safety margin; consider context-adaptive upper bound" |
+| Hardcoded [2, 100] km/h | Upper bound far above NYC MTA Bus urban speed (20–50 km/h) | MAJOR | Add: "100 km/h is physically implausible; updated from 120 to 100 km/h to close B3 detection gap" |
 | Moderate spoofing in 2–20 km/h range | Gap: CRS002 detects jumps but not slow-speed anomalies | MAJOR | Document: "2–20 km/h range → CRS002 territory; CRS001 lower bound gap acknowledged (B3)" |
 
 ### SOLID Audit
@@ -181,7 +181,7 @@
 | Jump detected, only 1 prior position | "flag with lower confidence" | MAJOR | Define explicit tiers: 1 prior = LOW; 2+ prior = MEDIUM; 3+ = HIGH confidence |
 | Same position reported multiple times | Haversine = 0 → not a jump → pass | MAJOR | Repeated same position → possible stale sensor → consider GTFSSem002 trigger |
 | `position.lat` or `position.lon` is None | SYN001 before jump check | MAJOR | Explicit: "SYN001 validates coordinates BEFORE CRS002 evaluation" |
-| Jump distance near threshold boundary (95–105m) | No boundary handling | MINOR | Add tolerance: ">100m" means >=101m; 100m exactly → pass (conservative) |
+| Jump distance near threshold boundary (95–105m) | No boundary handling | MINOR | Add tolerance: ">400m" means >=101m; 100m exactly → pass (conservative) |
 | CRS002 severity for 2–20 km/h GPS_SPOOFING | Absent from spec | **CRITICAL** | Add: `2–20 km/h → HIGH GPS_SPOOFING` per severity table |
 | CRS001 time_delta=0 handling | Handled in CRS001, not CRS002 | MAJOR | Explicit: "CRS001 handles time_delta=0; CRS002 receives cleaned positions" |
 | GPS coordinates outside valid range | SYN003 before CRS002 | MINOR | Sequencing must be explicit |
@@ -235,7 +235,7 @@
 | Same hash with different `vehicleId` | "considered duplicate (hash is identity)" | **CRITICAL** | Add: "same hash + different vehicleId = possible vehicle swap or entity confusion → flag as DUPLICATE with vehicleId_mismatch=true" |
 | Hash collision (SHA256) | "astronomically unlikely (2^-256) → ignore" | MINOR | Document as accepted risk |
 | Event arrives 311s later | TTL=310s; hash not in state → treated as new | MINOR | Correct behavior |
-| CRS003 duplicate injection broken (B2) | Original + duplicate not both emitted; **recall and precision UNMEASURABLE** | **CRITICAL** | `synthetic_injector.py` must emit TWO records; fix is P0. Until fixed, CRS003 recall and precision are **Tier 3 — Unmeasurable**. |
+| CRS003 blocked by replay gate (NG-4) | Replay gate blocked; **recall and precision UNMEASURABLE** | **CRITICAL** | `synthetic_injector.py` must emit TWO records; fix is P0. Until fixed, CRS003 recall and precision are **Tier 3 — Unmeasurable**. |
 | CRS003 runs on NYC TLC (no lat/lon) | Spec says hash = SHA256(trip_id + timestamp + lat + lon) | **CRITICAL** | NYC TLC has no lat/lon; clarify: "hash for NYC TLC = SHA256(trip_id + timestamp + PULocationID + DOLocationID)" |
 
 ### SOLID Audit
@@ -273,8 +273,8 @@
 | Dedup check (no duplicate) | Yes | Emit different hashes → no violation |
 | VehicleId consistency | Yes | Two events, same hash, different vehicleId → vehicleId_mismatch flag set |
 | TTL behavior | Partial | Test with mock TTL; integration test for Flink state TTL |
-| B2 fix (two-record emission) | Yes | Test: inject duplicate → verify TWO records emitted with linked entity_index |
-| **CRS003 recall/precision** | **No** | **B2 blocks measurement**: duplicate injection emits only one record → CRS003 has no original to compare against → recall = 0% by construction; precision cannot be computed without valid ground-truth matching |
+| NG-4 fix (is_replay=False tagging) | Yes | Test: inject duplicate → verify TWO records emitted with linked entity_index |
+| **CRS003 recall/precision** | **No** | **NG-4 blocks measurement**: replay suppression gate blocks synthetic duplicates → CRS003 has no original to compare against → recall = 0% by construction; precision cannot be computed without valid ground-truth matching |
 
 ---
 
@@ -430,7 +430,7 @@ But the CRS002 algorithm computes Haversine jump distance — it does not comput
 
 **Recommendation**: Distinguish two CRS002 modes:
 - **Consecutive mode** (prevTimestamp known): `speed = distance / time_delta` → use speed-based severity
-- **Window mode** (non-consecutive): `distance only` → use jump-magnitude-based severity (>100m = HIGH, >500m = CRITICAL)
+- **Window mode** (non-consecutive): `distance only` → use jump-magnitude-based severity (>400m = HIGH, >500m = CRITICAL)
 
 ### D. D4 External Context Is a Stub
 
@@ -448,7 +448,7 @@ CRS003 hash for NYC TLC is specified as `SHA256(trip_id + timestamp + lat + lon)
 
 No algorithm specifies how `processing_latency_ms` should be computed. For Flink: `processing_latency_ms = System.currentTimeMillis() - event.getEventTimestamp()`.
 
-### H. CRS003 Recall and Precision Are UNMEASURABLE (B2)
+### H. CRS003 Recall and Precision Are UNMEASURABLE (NG-4)
 
 **Status: CRITICAL — Tier 3 (Unmeasurable)**
 
@@ -471,7 +471,7 @@ CRS003 recall = (duplicates detected) / (duplicates injected). If only the dupli
 - Record 1: original event with `entity_index = N`, `is_original = true`
 - Record 2: duplicate event with `entity_index_duplicate = N`, `is_duplicate = true`, `original_entity_index = N`
 
-**Mitigation until B2 is fixed**:
+**Mitigation until NG-4 is fixed**:
 - Explicitly scope CRS evaluation to CRS001 and CRS002 only
 - Report CRS003 metrics as Tier 3 — Unmeasurable
 - Do not claim CRS003 recall or precision in evaluation results
@@ -513,7 +513,7 @@ CRS003 recall = (duplicates detected) / (duplicates injected). If only the dupli
 
 | # | Action | Reason |
 |---|--------|--------|
-| 1 | **Fix B2**: `synthetic_injector.py` must emit TWO records for duplicate injection | CRS003 recall and precision are **Tier 3 — Unmeasurable**; CRS layer evaluation incomplete; P0 |
+| 1 | **Fix NG-4**: tag synthetic duplicates `is_replay=False` to bypass replay suppression gate | CRS003 recall and precision are **Tier 3 — Unmeasurable**; CRS layer evaluation incomplete; P0 |
 | 2 | **Fix B1**: Add `math.isnan()` guard to SYN001; SYN001 runs BEFORE context key computation | NaN silently passes through |
 | 3 | **Fix B6**: Specify `processing_latency_ms = System.currentTimeMillis() - event.getEventTimestamp()` | Latency hardcoded to 0 |
 | 4 | **Clarify CRS002 severity**: Add explicit severity mapping for jump-distance-based (vs speed-based) violations | 2–20 km/h range gap undocumented |
@@ -545,6 +545,6 @@ CRS003 recall = (duplicates detected) / (duplicates injected). If only the dupli
 |---|--------|--------|
 | 16 | **Refactor TQS aggregator**: Split into `DimensionScore` and `TQSComposite` classes | Mixed responsibilities |
 | 17 | **Add TQS variant selection criteria**: Document why V2 is primary | Weight selection is ad hoc |
-| 18 | **Add boundary tolerance to CRS002**: `>100m` means `>=101m`; add unit test for 100m boundary | Boundary handling unspecified |
+| 18 | **Add boundary tolerance to CRS002**: `>400m` means `>=401m`; add unit test for 400m boundary | Boundary handling unspecified |
 | 19 | **Define NYC TLC field null-vs-empty policy**: Explicit per-field specification for SYN001 | Empty string policy unclear |
 | 20 | **Add CRS001 speed=0 clarification**: Vehicles at traffic lights legitimately have speed=0; consider time_delta threshold | Conflicting justifications |

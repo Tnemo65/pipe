@@ -48,7 +48,7 @@
 | `σ(S)` | Standard deviation of field values in `S` | Float |
 | `haversine(p₁, p₂)` | Great-circle distance in km between positions `p₁` and `p₂` | Float |
 | `speed(p₁, p₂)` | Speed = `haversine(p₁, p₂) / (Δt)` in km/h | Float |
-| `hash(e)` | SHA256(trip_id + timestamp + lat + lon) | String |
+| `hash(e)` | Per-dataset: NYC TLC: SHA256(trip_id + ts + PULocationID + DOLocationID); NYC MTA Bus: SHA256(trip_id + ts + lat + lon) | String |
 | `TQS` | Trajectory Quality Score (composite, stream-intrinsic) | Float ∈ [0, 1] |
 | `Tm` | Timeliness dimension of TQS: `exp(−λ · σ²_Δt) · (1 − stale_rate)` | Float ∈ [0, 1] |
 | `Cn` | Completeness dimension of TQS: field null/NaN ratio | Float ∈ [0, 1] |
@@ -97,8 +97,8 @@
 | SEM002 | Semantic | NYC TLC | Trip distance plausibility | Context-adaptive |
 | SEM003 | Semantic | Both | Passenger count [1, 6] | Hard constraint |
 | GTFSSem002 | Semantic | NYC MTA Bus | Vehicle position stale > 5 min | Hard constraint |
-| CRS001 | Cross-Record | NYC MTA Bus | GPS speed [2, 120] km/h | L5 physics prior |
-| CRS002 | Cross-Record | NYC MTA Bus | GPS jump >100m / 30s | L5 physics prior |
+| CRS001 | Cross-Record | NYC MTA Bus | GPS speed [2, 100] km/h | L5 physics prior |
+| CRS002 | Cross-Record | NYC MTA Bus | GPS jump >400m / 30s | L5 physics prior |
 | CRS003 | Cross-Record | Both | Event deduplication (300s window) | L5 physics prior |
 
 ---
@@ -239,9 +239,9 @@ END
 | Rule | Field | L5 Lower | L5 Upper | Justification |
 |------|-------|:--------:|:--------:|---------------|
 | SYN002 | fare_amount | 0 | ∞ | Non-negative fare [REQUIRES BENCHMARK for upper bound] |
-| CRS001 | GPS speed | 2 km/h | 120 km/h | Below 2 km/h = stationary; above 120 km/h = physically implausible for NYC MTA Bus |
+| CRS001 | GPS speed | 2 km/h | 100 km/h | Below 2 km/h = stationary; above 100 km/h = physically implausible for NYC MTA Bus (speed limit + safety margin); updated from 120 km/h to close B3 detection gap for moderate spoofing (20–100 km/h) |
 | SEM002 | trip_distance | 0 | ∞ | Non-negative [REQUIRES BENCHMARK for upper bound] |
-| CRS002 | GPS jump | 0 | 100 m/30s | >100m in 30s = possible GPS spoofing |
+| CRS002 | GPS jump | 0 | 400 m/30s | >400m in 30s = GPS jump (99th-percentile displacement at ~45 km/h mean NYC MTA Bus urban speed; covers traffic 20–65 km/h) |
 | CRS003 | dedup window | — | 300 s | Trip durations 10–90 min; 300s = meaningful dedup window |
 
 ---
@@ -274,7 +274,7 @@ speed(p₁, t₁, p₂, t₂) =
 
 ```
 violates_CRS001(e) ⇔
-    speed IS DEFINED AND (speed < 2.0 OR speed > 120.0)
+    speed IS DEFINED AND (speed < 2.0 OR speed > 100.0)
 ```
 
 ### 3.2 Pseudocode: CRS001
@@ -329,7 +329,7 @@ BEGIN
     # ── Step 3: Handle zero time delta (CRS002 trigger) ────────────────────────
     IF time_delta_ms = 0:
         # Same-timestamp positions → GPS jump check (CRS002)
-        IF dist_km × 1000 > 100:   # 100 meters in 0 seconds
+            IF dist_km × 1000 > 400:   # 400 meters in >0 seconds
             RETURN Violation(
                 rule   = CRS002,
                 type   = GPS_SPOOFING,
@@ -348,25 +348,29 @@ BEGIN
     speed_kmh ← dist_km / time_delta_h
 
     # ── Step 5: Check speed bounds ─────────────────────────────────────────────
-    IF speed_kmh < 2.0:
-        # Vehicle is stationary or GPS jitter — flag if sustained
+    # Consumer GPS error (±3-5m) produces apparent speeds of 0.3-1.2 km/h
+    # between two stationary fixes 30s apart. We set lower bound at 0.5 km/h
+    # with a 60s sustained-violation requirement to avoid false positives
+    # from GPS jitter at red-light stops and bus stop dwells.
+    IF speed_kmh < 0.5 AND time_delta_ms > 60000:
+        # Sustained low speed — possible stuck GPS or vehicle off-route
         RETURN Violation(
             rule   = CRS001,
             type   = IMPOSSIBLE_SPEED,
-            reason = BELOW_LOWER_BOUND,
+            reason = SUSTAINED_LOW_SPEED,
             speed  = speed_kmh,
-            bounds = [2.0, 120.0],
+            bounds = [0.5, 100.0],
             details = {dist_m: dist_km × 1000, time_delta_ms: time_delta_ms}
         )
     END IF
 
-    IF speed_kmh > 120.0:
+    IF speed_kmh > 100.0:
         RETURN Violation(
             rule   = CRS001,
             type   = IMPOSSIBLE_SPEED,
             reason = ABOVE_UPPER_BOUND,
             speed  = speed_kmh,
-            bounds = [2.0, 120.0],
+            bounds = [0.5, 100.0],
             details = {dist_m: dist_km × 1000, time_delta_ms: time_delta_ms}
         )
     END IF
@@ -397,7 +401,7 @@ END
 ```
 violates_CRS002(e) ⇔ ∃p ∈ recent_positions(e.vehicle_id) SUCH THAT
     |e.ts − p.ts| ≤ 30,000 ms   # within 30-second window
-    AND haversine(e.pos, p.pos) > 0.1 km   # > 100 meters
+    AND haversine(e.pos, p.pos) > 0.4 km   # > 400 meters
 ```
 
 ### 4.2 Pseudocode: CRS002
@@ -432,7 +436,7 @@ BEGIN
     FOR pos IN jstate.recent_positions:
         IF |e.ts − pos.timestamp| ≤ 30_000:   # within 30-second window
             dist_km ← haversine(Position(e.lat, e.lon), Position(pos.lat, pos.lon))
-            IF dist_km > 0.1:   # > 100 meters
+            IF dist_km > 0.4:   # > 400 meters
                 RETURN Violation(
                     rule     = CRS002,
                     type     = GPS_SPOOFING,
@@ -446,7 +450,9 @@ BEGIN
                 )
 
     # ── Step 4: Add current position to buffer ────────────────────────────────
-    # Keep last 3 positions (covers 30s window at 1Hz or sparse updates)
+    # Keep last 3 positions (covers 90s window at 30s intervals; minimum 3 positions
+    # needed for triangle inequality jump detection. At 1Hz data, K=3 covers 3s.)
+    # ⚠ If GTFS update interval >60s, this buffer may be insufficient — add frequency check.
     jstate.recent_positions.add(PositionSample(e.lat, e.lon, e.ts))
     IF SIZE(jstate.recent_positions) > 3:
         REMOVE oldest position from jstate.recent_positions
@@ -463,18 +469,19 @@ END
 
 ### 5.1 Mathematical Formulation
 
-**Event hash**:
+**Event hash** (per-dataset, see Algorithm D pseudocode for conditional logic):
 
 ```
-hash(e) = SHA256( CONCAT(
-    e.trip_id,
-    STR(e.ts),
-    STR(e.lat),
-    STR(e.lon)
-) )
+# NYC TLC (no GPS — zone-level deduplication):
+hash(e) = SHA256( CONCAT( e.trip_id, STR(e.ts),
+    STR(e.PULocationID), STR(e.DOLocationID) ) )
+
+# NYC MTA Bus GTFS-realtime (has GPS):
+hash(e) = SHA256( CONCAT( e.trip_id, STR(e.ts),
+    STR(e.lat), STR(e.lon) ) )
+```
 
 violates_CRS003(e) ⇔ hash(e) ∈ dedup_state.get(e.trip_id)
-```
 
 ### 5.2 Pseudocode: CRS003
 
@@ -490,10 +497,15 @@ BEGIN
     IF e.trip_id IS NULL OR e.trip_id = "":
         RETURN Violation(rule=SYN001, reason=NULL_FIELD, field="trip_id")
 
-    # ── Step 1: Compute event hash ─────────────────────────────────────────────
-    hash_val ← SHA256( CONCAT(e.trip_id, "|", STR(e.ts), "|",
-                               STR(e.lat), "|", STR(e.lon)) )
-    # NOTE: hash includes lat/lon to distinguish same-timestamp different-position events
+    # ── Step 1: Compute event hash (per-dataset) ──────────────────────────────────
+    IF e.lat IS NOT NULL AND e.lon IS NOT NULL:
+        # NYC MTA Bus GTFS-realtime — hash includes GPS coordinates
+        hash_val ← SHA256( CONCAT( STR(e.trip_id), "|", STR(e.ts), "|",
+                                   STR(e.lat), "|", STR(e.lon) ) )
+    ELSE:
+        # NYC TLC — zone-level dedup (no lat/lon); include PULocationID + DOLocationID
+        hash_val ← SHA256( CONCAT( STR(e.trip_id), "|", STR(e.ts), "|",
+                                   STR(e.PULocationID), "|", STR(e.DOLocationID) ) )
 
     # ── Step 2: Retrieve per-trip dedup state ──────────────────────────────────
     dedup ← state.get(e.trip_id)   # RoaringBitmap or HashSet
@@ -522,7 +534,7 @@ END
 
 **[BOUNDARY CASE]**: Duplicate arriving after 310s TTL expiry is NOT detected. This is a false negative — acknowledged limitation. GTFS trip durations are typically 10–90 minutes; a 300s window may miss inter-trip duplicates.
 
-**[UNMEASURABLE — B2]**: CRS003 recall cannot be measured because duplicate injection does not emit both original and duplicate.
+**[OPEN — NG-4]**: CRS003 evaluation on NYC TLC replay data is blocked by the replay suppression gate. Synthetic duplicate events are tagged `is_replay=True` by `_enrich_with_lineage()`, which triggers the gate in `evaluate_duplicate_event()` and suppresses violation emission. Fix: synthetic duplicates must be tagged `is_replay=False` to bypass the gate. Additionally: (a) NG-1: When confidence ≤ 0.4, the code stores the hash in dedup state but emits no violation — ground truth tracker never sees it; recall silently drops for low-confidence duplicates. (b) NG-2: Post-first-detection duplicates within the temporal clustering window are suppressed by the cluster mechanism — reduces recall for repeated duplicates. All three are evaluation measurement bugs, not deduplication logic bugs.
 
 ---
 
@@ -581,9 +593,17 @@ Tm(e₁, …, e_N) = exp(−λ · σ²_Δt) · (1 − stale_rate)
 
 WHERE:
     Δt_i     = e_i.ts − e_{i−1}.ts          for i = 2…N    (ms)
-    σ²_Δt    = VARIANCE(Δt_i)               (population variance)
+    σ²_Δt    = VARIANCE(Δt_i)               (population variance, ms²)
     μ_Δt     = (e_N.ts − e₁.ts) / (N−1)    (mean inter-event time)
-    λ        = 0.01                          (calibration constant, ms-scale)
+    λ        = 1 × 10⁻⁸                       (calibration constant, ms⁻²)
+               # λ was originally 0.01 (second⁻²-scale). With Flink timestamps in ms,
+               # σ²_Δt (ms²) = σ²_Δt (s²) × 10⁶. Applying λ=0.01 to ms² gives
+               # λ·σ² ≈ 0.01 × 25×10⁶ = 250,000 → exp(−250,000) ≈ 0 for all streams.
+               # Recalibrated: λ_ms = λ_s × 10⁻⁶ = 10⁻⁸ ms⁻².
+               # At typical GTFS variance (σ²_Δt ≈ 25×10⁶ ms²): λ·σ² ≈ 0.25 → Tm ≈ 0.779 (good).
+               # At high variance (σ²_Δt ≈ 400×10⁶ ms²): λ·σ² ≈ 4.0 → Tm ≈ 0.018 (degraded).
+               # This produces meaningful discrimination: Tm is sensitive to variance changes
+               # across the operating range without collapsing to zero.
     stale_rate = #{e : current_time − e.ts > 300,000} / N
 
 Tm ∈ [0, 1]. Tm → 1 when variance is low and few events are stale.
@@ -653,8 +673,8 @@ consistency_score(e) [GTFS vehicles]:
         dist_m ← haversine(prev_lat, prev_lon, e.lat, e.lon) · 1000
         speed_kmh ← dist_m / Δt_s · 3.6
         IF speed_kmh < 0:     RETURN 0.0         # impossible
-        IF speed_kmh > 150:   RETURN 0.0         # physically impossible
-        IF speed_kmh < 2:     RETURN 0.5         # suspicious
+        IF speed_kmh > 130:   RETURN 0.0         # physically impossible (100 km/h CRS001 + 30 km/h tolerance)
+        IF speed_kmh < 0.5:   RETURN 0.5         # suspicious (aligned with CRS001 lower bound)
         RETURN 1.0
 
 consistency_score(e) [NYC TLC]:
@@ -666,7 +686,7 @@ consistency_score(e) [NYC TLC]:
 
 Cs ∈ [0, 1]. Cs = 1 when all GPS measurements are physically plausible.
 
-Note: The 150 km/h bound is NOT the CRS001 rule bound [2, 120] km/h. Cs measures
+Note: The 150 km/h bound is NOT the CRS001 rule bound [2, 100] km/h. Cs measures
 GPS coherence from raw positions. CRS001/CRS002 flag violations. They are
 complementary and independent. Cs does not use the CRS001 speed threshold — it uses
 a wider bound (150 km/h) to detect only physically impossible measurements, not
@@ -685,7 +705,7 @@ Uv ∈ [0, 1]. Uv = 0 when all events are unique. Uv → 1 when many duplicates.
 
 Note: Unlike the original C_score (which used CRS003 violation rate), Uv is computed
 directly from raw event hashes. It does NOT depend on CRS003 firing. Therefore Uv is
-measurable even when CRS003 recall is unmeasurable (B2). High Uv (many duplicates)
+measurable even when CRS003 recall is unmeasurable (NG-4). High Uv (many duplicates)
 indicates downstream ETA prediction degradation, providing the independent quality
 signal needed to validate TQS non-circularly.
 ```
@@ -789,7 +809,7 @@ END
 2. **Dimension sensitivity**: Which dimension responds to which anomaly type?
 3. **Independent validation**: TQS correlated with downstream ETA prediction error (not injection rate)?
 4. **Weight justification**: V1 (equal) is only non-arbitrary choice. V2/V3 need domain justification.
-5. **Cs vs. CRS001 boundary**: Cs uses 150 km/h; CRS001 uses [2, 120] km/h. Are these complementary or redundant?
+5. **Cs vs. CRS001 boundary**: Cs uses 130 km/h; CRS001 uses [2, 100] km/h. Are these complementary or redundant?
 
 ---
 
@@ -804,7 +824,7 @@ TEST E2: High NULL rate — 20 null fare_amount out of 100 events
   Cn = 1 − 20/(100·9) ≈ 0.978
   EXPECT: TQS lower than E1, driven by Cn
 
-TEST E3: GPS speed anomaly — 10/50 GTFS events with speed > 150 km/h
+TEST E3: GPS speed anomaly — 10/50 GTFS events with speed > 130 km/h
   Cs = (40·1.0 + 10·0.0)/50 = 0.80
   EXPECT: TQS lower than E1, driven by Cs
 
@@ -901,7 +921,307 @@ END
 
 ---
 
-## 8. Complete Flink DataStream Operator Graph
+## 8. Algorithm G: Isolation Forest ML Pre-Filter (Python RPC)
+
+### 8.1 Purpose
+
+Isolation Forest (Liu et al., 2008; SDM 2025 adaptation) provides an anomaly confidence score per event for the SYN/SEM layer. The score adjusts the effective k-multiplier on context thresholds: `effective_k = base_k × (1 + α × anomaly_score)`.
+
+### 8.2 Pseudocode: IF RPC Client
+
+```
+ALGORITHM G: score_isolation_forest(e: Event) → (anomaly_score: Float)
+
+BEGIN
+    # ── Step 1: Build feature vector ─────────────────────────────────────
+    IF e.entity_type = "nyc_taxi":
+        zone_cat ← zone_lookup(e.PULocationID).category
+        hour_sin ← sin(2π × extract_hour(e.ts) / 24)
+        hour_cos ← cos(2π × extract_hour(e.ts) / 24)
+        weekend ← is_weekend(e.ts)
+
+        f[0] ← normalize(e.fare_amount,     μ_fare, σ_fare)
+        f[1] ← normalize(e.trip_distance,    μ_dist, σ_dist)
+        f[2] ← float(e.passenger_count)
+        f[3] ← hour_sin
+        f[4] ← hour_cos
+        f[5] ← zone_cat_to_onehot(zone_cat)      # [is_airport, is_downtown, is_midtown, is_outer]
+        f[6] ← float(weekend)
+        f[7] ← float(e.payment_type)
+    ELSE IF e.entity_type = "gtfs_vehicle":
+        speed_kmh ← compute_speed(e)               # from last two positions
+        f[0] ← speed_kmh
+        f[1] ← schedule_relationship_ordinal(e.schedule_relationship)
+        f[2] ← hour_sin
+        f[3] ← hour_cos
+        f[4] ← float(is_bus)                      # one-hot: [is_bus, is_subway, is_rail]
+        f[5] ← float(weekend)
+
+    # ── Step 2: RPC call to IF service ──────────────────────────────────
+    result ← grpc_client.call(
+        service = "IsolationForestService",
+        method  = "Score",
+        request = ScoreRequest(features = f, context_key = ck(e, L0))
+    )
+
+    # ── Step 3: Handle timeout/error ────────────────────────────────────
+    IF result.status = TIMEOUT OR result.status = ERROR:
+        RETURN (0.0, "FALLBACK")   # No ML calibration; rule-only evaluation
+
+    # ── Step 4: Return anomaly score ∈ [0, 1] ──────────────────────────
+    RETURN (result.anomaly_score, "OK")
+
+END
+```
+
+### 8.3 Architecture: Single Global Model
+
+> **IMPORTANT**: This section specifies a **single global Isolation Forest model** trained on all NYC TLC contexts. Per-context-cell models (e.g., one IF per zone-hour cell) are computationally infeasible (~10,000+ models). The global model uses zone/hour as categorical features in the feature vector, allowing it to distinguish distributional patterns across contexts without maintaining separate model instances. Profile after implementation; multi-model only if single-model latency exceeds the 50ms budget.
+
+**Feature vector for single global model** (11 features):
+| Index | Feature | Source | Normalization |
+|-------|---------|--------|---------------|
+| f[0] | fare_z | `e.fare_amount` | Z-score from `ThresholdStats` |
+| f[1] | dist_z | `e.trip_distance` | Z-score from `ThresholdStats` |
+| f[2] | passenger_count | `e.passenger_count` | Raw integer |
+| f[3] | hour_sin | `extract_hour(e.ts)` | `sin(2πh/24)` |
+| f[4] | hour_cos | `extract_hour(e.ts)` | `cos(2πh/24)` |
+| f[5–8] | zone_onehot | `zone_lookup(e.PULocationID)` | One-hot (4 categories) |
+| f[9] | is_weekend | `is_weekend(e.ts)` | Binary |
+| f[10] | payment_type | `e.payment_type` | Raw integer |
+
+### 8.4 Integration with Threshold Lookup
+
+```
+# After compute_context_and_threshold() (Algorithm A), apply ML calibration:
+(ck, level, threshold, stats) ← compute_context_and_threshold(e)
+
+(anomaly_score, status) ← score_isolation_forest(e)
+
+IF status = "OK" AND stats ≠ null:
+    base_k ← stats.k_multiplier
+    α ← stats.ml_alpha
+    effective_k ← base_k × (1.0 + α × anomaly_score)
+    # Apply effective_k to rolling P10/P90 threshold computation
+ELSE:
+    effective_k ← stats.k_multiplier   # No ML calibration
+```
+
+---
+
+## 9. Algorithm H: LSTM Trajectory Prediction (Python RPC)
+
+### 9.1 Purpose
+
+> **STATUS: CONDITIONAL / NO-GO (Priority 4)**
+> Per ML_MODEL_ANALYSIS.md §3: Three blockers identified: (1) 6-month NYC MTA Bus GPS archive is unconfirmed — training infeasible without it; (2) LSTM trajectory deviation is HIGHLY correlated with CRS002 GPS jump detection — HIGH redundancy; (3) alert elevation provides marginal value in research platform. **Re-evaluate if CRS002 recall < 60% on real GPS anomalies AND 6-month GPS archive is confirmed.** LSTM never vetoes CRS002 — only elevates severity.
+
+A bidirectional LSTM model predicts the next vehicle position from the last 10 GPS positions. Events with high prediction deviation (> calibrated threshold) are pre-flagged with elevated severity for CRS002 evaluation.
+
+### 9.2 Training Data Caveat
+
+> **WARNING**: Training requires a 6-month historical NYC MTA Bus GPS trajectory archive. No such archive is confirmed to exist. The live GTFS-realtime feed replays recent data only. Without 6 months of historical data, LSTM training will be underfitted and the model will not generalize to seasonal patterns. **This must be verified before LSTM implementation proceeds.**
+
+### 9.3 Pseudocode: LSTM RPC Client
+
+```
+ALGORITHM H: score_lstm_trajectory(e: Event, vehicle_history) → (deviation_km: Float, status: String)
+
+BEGIN
+    # ── Guard: Cold start ─────────────────────────────────────────────
+    IF SIZE(vehicle_history) < 3:
+        RETURN (null, "COLD_START")   # Skip LSTM pre-filter; CRS rules evaluate normally
+
+    # ── Step 1: Build input sequence ───────────────────────────────────
+    # Last 10 (lat, lon, timestamp) tuples from vehicle_history
+    seq ← vehicle_history[-10:]
+    seq_len ← SIZE(seq)
+
+    # Normalize to NYC bounding box
+    FOR i IN 0..seq_len-1:
+        lat_norm[i] ← (seq[i].lat  − NYC.lat_min)  / (NYC.lat_max  − NYC.lat_min)
+        lon_norm[i] ← (seq[i].lon  − NYC.lon_min)  / (NYC.lon_max  − NYC.lon_min)
+        # Normalize timestamps to 30-minute window
+        dt ← (seq[i].ts − seq[0].ts) / (30 × 60 × 1000)
+        t_norm[i] ← clamp(dt, 0.0, 1.0)
+
+        # Mark missing positions
+        IF seq[i] IS NULL:
+            position_mask[i] ← 0.0
+        ELSE:
+            position_mask[i] ← 1.0
+
+    # ── Step 2: RPC call to LSTM service ────────────────────────────────
+    result ← grpc_client.call(
+        service = "LSTMTrajectoryService",
+        method  = "PredictNext",
+        request = PredictRequest(
+            lat_sequence = lat_norm,
+            lon_sequence = lon_norm,
+            time_sequence = t_norm,
+            position_mask = position_mask,
+            vehicle_id = e.vehicle_id
+        )
+    )
+
+    # ── Step 3: Handle timeout/error ────────────────────────────────────
+    IF result.status = TIMEOUT OR result.status = ERROR:
+        RETURN (null, "FALLBACK")   # Skip LSTM pre-filter
+
+    # ── Step 4: Denormalize and compute Haversine deviation ─────────────
+    pred_lat ← result.predicted_lat × (NYC.lat_max − NYC.lat_min) + NYC.lat_min
+    pred_lon ← result.predicted_lon × (NYC.lon_max − NYC.lon_min) + NYC.lon_min
+    deviation_km ← haversine(Position(e.lat, e.lon), Position(pred_lat, pred_lon))
+
+    RETURN (deviation_km, "OK")
+
+END
+```
+
+### 9.5 LSTM Pre-Filter Integration with CRS002
+
+```
+# In evaluate_CRS002(), after LSTM scoring:
+(deviation_km, lstm_status) ← score_lstm_trajectory(e, vehicle_history)
+
+IF lstm_status = "OK":
+    lstm_threshold ← broadcast_state.get("lstm_threshold_m")
+    IF deviation_km > lstm_threshold:
+        # Elevate severity but do NOT block CRS002 evaluation
+        violation.severity ← max(violation.severity, ELEVATED)
+        violation.metadata["lstm_deviation_m"] ← deviation_km × 1000
+        violation.metadata["lstm_prefilter"] ← true
+    ELSE:
+        violation.metadata["lstm_deviation_m"] ← deviation_km × 1000
+        violation.metadata["lstm_prefilter"] ← false
+
+# CRS002 evaluation always proceeds — ML never vetoes a rule
+```
+
+---
+
+## 10. Algorithm I: Bayesian Optimization Calibration
+
+### 10.1 Purpose
+
+> **CRITICAL FIX**: Bayesian Optimization objective is **F1 on injected calibration data**, not violation_rate. Per ML_MODEL_ANALYSIS.md §2.8: violation_rate (false-positive rate) can diverge from F1. Optimizing FPR may worsen recall. The correct objective is `F1 = 2·P·R/(P+R)` on calibration data with known ground truth from synthetic injection. This requires the evaluation infrastructure (Phase 1) to be operational.
+
+Gaussian Process surrogate model with Expected Improvement (EI) acquisition maximizes F1 on a 1-hour calibration window (with synthetic injection) by tuning: k_multiplier, if_alpha, lstm_threshold_m, weekend_discount, and context_weight.
+
+### 10.2 Pseudocode: BO Calibration Loop
+
+```
+ALGORITHM I: run_bayesian_optimization(calibration_window, broadcast_state) → CalibratedParams
+
+BEGIN
+    # ── Step 1: Verify minimum data ───────────────────────────────────
+    n_events ← count(calibration_window.events)
+    IF n_events < 100:
+        LOG WARNING "BO skipped: calibration window has only {n_events} events (minimum 100)"
+        RETURN null   # Use default parameters
+
+    # ── Step 2: Initialize optimizer ──────────────────────────────────
+    optimizer ← GPyOptOptimizer(
+        dimensions = [
+            ("k_multiplier",       1.5, 5.0),     # k-multiplier for rolling thresholds
+            ("if_alpha",           0.0, 0.5),     # Isolation Forest sensitivity
+            ("lstm_threshold_m",  50.0, 250.0),  # LSTM deviation threshold (meters)
+            ("weekend_discount",   0.0, 0.5),     # k reduction for weekends
+            ("context_weight",     0.0, 1.0),     # context vs. global weight
+        ],
+        n_initial_points = 10,
+        acq_func = "EI",
+        random_state = 42
+    )
+
+    # ── Step 3: BO loop ────────────────────────────────────────────────
+    FOR iteration IN 1..30:
+        next_params ← optimizer.ask()
+
+        # Apply parameters to broadcast state
+        apply_params(broadcast_state, next_params)
+
+        # Run evaluation on calibration window (WITH injection for F1 computation)
+        # Requires: ground_truth_tracker operational; calibration window has injected anomalies
+        violations ← run_rules(calibration_window.events, broadcast_state)
+        ground_truth ← calibration_window.injected_anomalies
+        (precision, recall) ← compute_pr(violations, ground_truth)
+        f1_score ← 2 × precision × recall / (precision + recall + 1e-8)
+
+        # Report to optimizer
+        optimizer.tell(next_params, f1_score)
+
+        # Convergence check: stop if no improvement for 5 consecutive iterations
+        IF optimizer.no_improvement_count > 5:
+            LOG "BO converged at iteration {iteration}"
+            BREAK
+
+    # ── Step 4: Staleness check ───────────────────────────────────────────
+    # If calibration took > 15 minutes, skip broadcasting (parameters may be stale)
+    calibration_duration ← now() - calibration_start_time
+    IF calibration_duration > 15 MINUTES:
+        LOG WARNING "BO calibration took {calibration_duration} — skipping broadcast (stale)"
+        RETURN null   # Use existing parameters
+
+    # ── Step 4: Extract best parameters ───────────────────────────────
+    best_params ← optimizer.get_best()
+
+    # ── Step 5: Broadcast updated thresholds ───────────────────────────
+    FOR (level, ck, field) IN broadcast_state.keys():
+        stats ← broadcast_state.get(level, ck, field)
+        stats.k_multiplier ← best_params["k_multiplier"]
+        stats.ml_alpha ← best_params["if_alpha"]
+        stats.lstm_threshold_m ← best_params["lstm_threshold_m"]
+        stats.weekend_discount ← best_params["weekend_discount"]
+        stats.context_weight ← best_params["context_weight"]
+        stats.computed_at ← current_timestamp_ms()
+        stats.calibration_version ← stats.calibration_version + 1
+
+    broadcast_state.broadcast()   # Push to all TaskManagers
+
+    LOG "BO complete: best F1={best_params.best_value:.4f}, " \
+        "k={best_params.k_multiplier}, " \
+        "if_alpha={best_params.if_alpha}, " \
+        "lstm_threshold={best_params.lstm_threshold_m}m, " \
+        "weekend_discount={best_params.weekend_discount}, " \
+        "context_weight={best_params.context_weight}"
+
+    # ── Step 5: Broadcast to Flink ────────────────────────────────────────
+    # Write calibrated parameters to BroadcastState (all TaskManagers receive update)
+    broadcast_state.set("k_multiplier",      best_params.k_multiplier)
+    broadcast_state.set("ml_alpha",          best_params.if_alpha)
+    broadcast_state.set("lstm_threshold_m",  best_params.lstm_threshold_m)
+    broadcast_state.set("weekend_discount",  best_params.weekend_discount)
+    broadcast_state.set("context_weight",    best_params.context_weight)
+    broadcast_state.set("calibration_version", broadcast_state.get("calibration_version") + 1)
+    broadcast_state.set("calibration_timestamp", now())
+
+    LOG "BroadcastState updated: calibration_version={broadcast_state.calibration_version}"
+    RETURN best_params
+
+END
+```
+
+### 10.3 BO Trigger and Timing
+
+```
+# BO runs hourly, after the calibration window closes
+EVERY 1 HOUR:
+    window_start ← now() − 1h
+    window_end   ← now()
+    calibration_events ← replay_events(window_start, window_end, injection_rate=0.0)
+
+    params ← run_bayesian_optimization(calibration_events, broadcast_state)
+
+    IF params IS NOT null:
+        broadcast_state.update(params)
+    ELSE:
+        LOG "Using default parameters — BO skipped"
+```
+
+---
+
+## 11. Complete Flink DataStream Operator Graph (Updated with ML)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -936,21 +1256,32 @@ END
 │           └──────────────────┬───────────────────────────┘                  │
 │                              ▼                                              │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ OPERATOR 2: Violation Sink Router                                     │ │
-│  │  • Violation → Kafka topic "quality-violations" (keyed by rule_id)    │ │
-│  │  • Violation → PostgreSQL violations table (JDBC, batch=200, 2s)     │ │
-│  │  • Prometheus: streamdq_violations_total{rule_id, severity, reason} │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ OPERATOR 3: TQS Aggregation (5-min Tumbling Window)                   │ │
+│  │ OPERATOR 2: ML Async RPC (Python via gRPC)                             │ │
+│  │  • AsyncDataStream.orderedWait / unorderedWait                           │ │
+│  │  • Two parallel async calls:                                           │ │
+│  │    (a) IsolationForestClient → anomaly_score ∈ [0, 1]                 │ │
+│  │    (b) LSTMTrajectoryClient → (predicted_lat, predicted_lon, deviation_km)│ │
+│  │  • Timeout: 50ms; fallback: anomaly_score=0.0 on timeout             │ │
+│  │  • Output: EventEnriched(event, if_score, lstm_dev)                   │ │
+│  └────────────────────────────────┬───────────────────────────────────────┘ │
+│                                   │                                          │
+│  ┌────────────────────────────────┴───────────────────────────────────────┐ │
+│  │ OPERATOR 3: Post-Filter + Violation Router                              │ │
+│  │  • Combine(rule_severity, IF_score, LSTM_dev) → alert_priority          │ │
+│  │  • Violation → Kafka topic "quality-violations"                          │ │
+│  │  • Violation → PostgreSQL violations table                               │ │
+│  │  • Prometheus: streamdq_violations_total{rule_id, severity, reason}      │ │
+│  └────────────────────────────────┬────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ OPERATOR 4: TQS Aggregation (5-min Tumbling Window)                   │ │
 │  │  • WindowedBy(context_key)                                            │ │
 │  │  • compute_TQS(window_events, context_key, level)                     │ │
 │  │  • Emit → PostgreSQL metrics_summary + Prometheus TQS gauge           │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ OPERATOR 4: Context Statistics Update (async, periodic)                │ │
+│  │ OPERATOR 5: Context Statistics + Bayesian Opt (hourly)                 │ |
 │  │  • Every event: update rolling P10/P90 in PostgreSQL context_statistics │ │
 │  │  • Every hour: ML calibration → update BroadcastState thresholds        │ │
 │  │  • BroadcastState[level][ck][field] → updated threshold values        │ │
@@ -959,29 +1290,43 @@ END
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.1 Broadcast State for Context-Aware Thresholds
+### 11.1 BroadcastState for ML-Calibrated Thresholds
 
 ```
-BroadcastState layout:
+BroadcastState layout (updated):
   key = (level: Int, ck: String, field: String)
-  value = ThresholdStats (count, mean, std, p10, ..., computed_at)
+  value = CalibratedThreshold {
+      count: Int,
+      p10: Float, p90: Float,
+      k_multiplier: Float,        # calibrated by Bayesian Optimization
+      ml_alpha: Float,            # calibrated by Bayesian Optimization
+      lstm_threshold_m: Float,    # calibrated by Bayesian Optimization
+      weekend_discount: Float,
+      context_weight: Float,
+      computed_at: Long,
+      calibration_version: Int,
+      if_model_version: String,
+      lstm_model_version: String
+  }
 
-  Example keys:
-    (L0, "H10_midtown_WD",  "fare_amount") → ThresholdStats(count=142, ...)
-    (L0, "H10_midtown_WE",  "fare_amount") → ThresholdStats(count=18,  ...)
-    (L1, "morning_midtown_WD", "fare_amount") → ThresholdStats(count=67, ...)
-    (L4, "global", "fare_amount") → ThresholdStats(count=5_234_567, ...)
-    (L5, "physics", "speed") → ThresholdStats(count=0, p10=null, p90=null)
+Example calibrated keys:
+  (L0, "H10_midtown_WD", "fare_amount")
+    → CalibratedThreshold(count=142, k=2.3, ml_alpha=0.15,
+                          if_model_version="if_v2.3", lstm_model_version="lstm_v1.7", ...)
+  (L1, "morning_midtown_WD", "fare_amount")
+    → CalibratedThreshold(count=67, k=2.8, ml_alpha=0.20, ...)
+  (L4, "global", "fare_amount")
+    → CalibratedThreshold(count=5_234_567, k=3.0, ml_alpha=0.10, ...)
+```
 
 BroadcastState is immutable per calibration cycle (hourly). Events read O(1) from it.
 Broadcast state size estimate:
   - 10,000 context cells × 5 fields × 1 KB ≈ 50 MB
   - BroadcastState replicated to all TaskManagers
-```
 
 ---
 
-## 9. Algorithm Complexity Summary
+## 12. Algorithm Complexity Summary
 
 | Algorithm | Per-Event Time | Space (per-key) | Space (total) | Bottleneck |
 |-----------|:--------------:|:---------------:|:-------------:|------------|
@@ -991,10 +1336,13 @@ Broadcast state size estimate:
 | **D: CRS003 Dedup** | O(1) expected | O(H) per trip | O(T × H) | SHA256 hash (nanoseconds) |
 | **E: TQS Aggregation** | O(1) counter update; O(N) at window close | O(1) per event | O(C) per context cell | Window emission (periodic, not per-event) |
 | **F: SYN/SEM (Python RPC)** | O(1) × N_rules + RPC latency | O(1) | O(N_rules) | Async RPC round-trip (~1–5ms) [ASSUMES] |
+| **G: Isolation Forest (RPC)** | O(1) RPC + IF scoring (~2ms) | O(1) | O(N_rules) | gRPC round-trip (~2ms per event) [ASSUMES] |
+| **H: LSTM Trajectory (RPC)** | O(1) RPC + LSTM inference (~10ms) | O(S) per vehicle | O(S × V) | gRPC round-trip (~10ms per sequence) [ASSUMES] |
+| **I: Bayesian Opt (hourly)** | O(n_iter × N_cal) | O(1) | O(N_params) | GP surrogate fit (n_iter=30, N_cal ~10K events) |
 
-**Notation**: C = number of context cells; V = number of vehicles; T = number of trips; K = position history size (K=3); W = speed history size (W≈10 at 1Hz for 10-min window); H = dedup window size (max active hashes per trip).
+**Notation**: C = number of context cells; V = number of vehicles; T = number of trips; K = position history size (K=3); W = speed history size (W≈10 at 1Hz for 10-min window); H = dedup window size (max active hashes per trip); S = sequence length (S=10 for LSTM).
 
-### 9.1 Space Complexity Details
+### 12.1 Space Complexity Details
 
 ```
 CRS001 state (per vehicle):
@@ -1034,9 +1382,9 @@ BroadcastState (thresholds):
 
 ---
 
-## 10. Unit Test Specifications
+## 13. Unit Test Specifications
 
-### 10.1 Algorithm A — Context Key Computation
+### 13.1 Algorithm A — Context Key Computation
 
 ```
 TEST A1: L0 key generation
@@ -1060,21 +1408,21 @@ TEST A4: L4 global fallback
 TEST A5: L5 physics prior (all levels exhausted)
   INPUT:  e = {entity_type: gtfs_vehicle}
           BroadcastState: all levels empty
-  EXPECT: level = L5, threshold = [2, 120] km/h for speed field
+  EXPECT: level = L5, threshold = [2, 100] km/h for speed field
 
 TEST A6: Null zone
   INPUT:  e = {ts: 2026-04-23 10:30:00, PULocationID: NULL}
   EXPECT: level = L4 (zone fallback → borough → global) [ASSUMES zone=null cascades correctly]
 ```
 
-### 10.2 Algorithm B — CRS001 Speed Bounds
+### 13.2 Algorithm B — CRS001 Speed Bounds
 
 ```
 TEST B1: Valid speed
   INPUT:  e = {lat: 40.7128, lon: -74.0060, ts: 1000, vehicle_id: "MTA_B1"}
           state = {prev_lat: 40.7130, prev_lon: -74.0058, prev_ts: 970}  # ~30m in 30s
   COMPUTE: dist = haversine(...) ≈ 0.035 km; time_delta = 30s; speed ≈ 4.2 km/h
-  EXPECT: RETURN null (speed ∈ [2, 120])
+  EXPECT: RETURN null (speed ∈ [2, 100])
 
 TEST B2: Below lower bound (stationary with GPS jitter)
   INPUT:  state has prev position; current pos ~2m away in 30s
@@ -1083,7 +1431,7 @@ TEST B2: Below lower bound (stationary with GPS jitter)
 
 TEST B3: Above upper bound (GPS spoofing)
   INPUT:  state has prev position; current pos ~1.5km away in 30s
-  COMPUTE: speed ≈ 180 km/h > 120.0
+  COMPUTE: speed ≈ 180 km/h > 100.0
   EXPECT: Violation(rule=CRS001, reason=ABOVE_UPPER_BOUND, speed≈180)
 
 TEST B4: First position (no prior state)
@@ -1107,19 +1455,19 @@ TEST B8: Out-of-bounds lat
   EXPECT: Violation(rule=SYN003, reason=OUT_OF_BOUNDS, field="lat")
 ```
 
-### 10.3 Algorithm C — CRS002 GPS Jump
+### 13.3 Algorithm C — CRS002 GPS Jump
 
 ```
 TEST C1: No jump
   INPUT:  e = {lat: 40.7130, lon: -74.0058, ts: 1000}
           jstate = {positions: [{lat: 40.7128, lon: -74.0060, ts: 970}]}
-  COMPUTE: dist = ~30m < 100m
+  COMPUTE: dist = ~30m < 400m
   EXPECT: RETURN null
 
 TEST C2: GPS jump detected
   INPUT:  e = {lat: 40.8000, lon: -73.9000, ts: 1000}  # ~10km away
           jstate = {positions: [{lat: 40.7128, lon: -74.0060, ts: 970}]}
-  COMPUTE: dist ≈ 10km > 100m, |ts − pos.ts| = 30s ≤ 30s
+  COMPUTE: dist ≈ 10km > 400m, |ts − pos.ts| = 30s ≤ 30s
   EXPECT: Violation(rule=CRS002, type=GPS_SPOOFING, dist_m≈10000)
 
 TEST C3: Position outside 30s window (no check)
@@ -1129,7 +1477,7 @@ TEST C3: Position outside 30s window (no check)
   EXPECT: RETURN null, position added to buffer
 ```
 
-### 10.4 Algorithm D — CRS003 Dedup
+### 13.4 Algorithm D — CRS003 Dedup
 
 ```
 TEST D1: New event (no duplicate)
@@ -1148,7 +1496,7 @@ TEST D3: Null trip_id
   EXPECT: Violation(rule=SYN001, reason=NULL_FIELD, field="trip_id")
 ```
 
-### 10.5 Algorithm E — TQS Aggregation
+### 13.5 Algorithm E — TQS Aggregation
 
 ```
 TEST E1: Perfect quality window
@@ -1173,9 +1521,9 @@ TEST E4: CRS dimension on NYC TLC (no CRS rules)
 
 ---
 
-## 11. Reproducibility & Verification
+## 14. Reproducibility & Verification
 
-### 11.1 How to Verify Each Algorithm
+### 14.1 How to Verify Each Algorithm
 
 **Algorithm A (L0–L5)**:
 1. Load 1000 NYC TLC events into test harness
@@ -1185,7 +1533,7 @@ TEST E4: CRS dimension on NYC TLC (no CRS rules)
 
 **Algorithm B (CRS001)**:
 1. Synthetic GPS trace: 10 positions along a known route at known timestamps
-2. Verify: speed in [2, 120] → no violation; speed > 120 → violation; speed < 2 → violation
+2. Verify: speed in [2, 100] → no violation; speed > 100 → violation; speed < 2 → violation
 3. Verify: first position for vehicle → no violation, state initialized
 4. Verify: NaN/null vehicle_id → SYN001 violation
 5. Verify: out-of-bounds lat/lon → SYN003 violation
@@ -1207,7 +1555,7 @@ TEST E4: CRS dimension on NYC TLC (no CRS rules)
 4. V1 vs V2 vs V3 produce different composite scores → verify formula correctness
 5. TQS computed from raw fields only — verify no rule outcome is used
 
-### 11.2 Assumptions & Unvalidated Elements
+### 14.2 Assumptions & Unvalidated Elements
 
 | ID | Assumption | Location | Validation Required |
 |----|-----------|----------|---------------------|
@@ -1220,4 +1568,5 @@ TEST E4: CRS dimension on NYC TLC (no CRS rules)
 | [REQUIRES BENCHMARK] | CRS state size estimates | Section 9.1 | Verify actual RocksDB state sizes |
 | [REQUIRES BENCHMARK] | BroadcastState size 50 MB | Section 8.1 | Measure actual memory footprint |
 | [BOUNDARY CASE] | CRS003 TTL 310s misses duplicates after 310s | Algorithm D | Acknowledged limitation |
-| [UNMEASURABLE] | CRS003 recall | Algorithm D | B2 — duplicate injection broken |
+| [UNMEASURABLE] | CRS003 recall | Algorithm D | NG-4 — replay suppression gate blocks synthetic duplicates |
+| [REQUIRES BENCHMARK] | CRS001 upper bound 100 km/h | Algorithm B | Verify on NYC MTA Bus real feed; may need further adjustment if buses exceed 100 km/h in normal traffic |

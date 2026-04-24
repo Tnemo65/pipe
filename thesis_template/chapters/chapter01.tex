@@ -1,89 +1,465 @@
 % =============================================================================
 % CHAPTER 1: FUNDAMENTAL THEORIES
-% Chương 1: CƠ SỞ LÝ THUYẾT VÀ TỔNG QUAN
+% =============================================================================
+% COMPLETELY REWRITTEN — Old Knowledge Graph / Data Fabric content removed
+% Project: A Context-Aware Framework for Streaming Data Quality Monitoring
+% Date: April 24, 2026
 % =============================================================================
 
-\section{Giới thiệu}
-\label{sec:ch1_intro}
+\section{Introduction to Chapter}
+\label{sec:ch1-intro}
 
-% PLACEHOLDER: Write your chapter introduction here
-Chương này trình bày các cơ sở lý thuyết và tổng quan về các công nghệ được sử dụng trong luận văn. Nội dung bao gồm giới thiệu về Knowledge Graph, Data Fabric, Data Lakehouse, và các thành phần của nền tảng dữ liệu hiện đại.
+This chapter establishes the theoretical and practical foundations for the
+StreamDQ framework. We begin with streaming data quality definitions and a
+survey of existing frameworks (\ref{sec:streaming-dq}), examining how
+batch-oriented tools differ from streaming-native approaches and identifying
+the specific gap of GPS trajectory validation in streaming mode. We then
+introduce context-aware data quality monitoring (\ref{sec:context-aware-dq}),
+describing the five-dimensional context decomposition and the hierarchical
+threshold fallback mechanism. \ref{sec:gps-validation} examines GPS trajectory
+validation for transportation systems, covering the GTFS-realtime data model,
+prior work on GPS anomaly detection, and the critical distinction between
+taxi zone-level data (no GPS) and bus GPS coordinates. Finally,
+\ref{sec:ml-calibration} reviews the role of machine learning in
+automating data quality threshold calibration.
 
-\section{Knowledge Graph}
-\label{sec:knowledge_graph}
+\section{Streaming Data Quality: Definitions and Frameworks}
+\label{sec:streaming-dq}
 
-\subsection{Khái niệm Knowledge Graph}
-\label{sec:kg_concept}
+\subsection{Data Quality Dimensions}
+\label{sec:dq-dimensions}
 
-% PLACEHOLDER: Define Knowledge Graph
-Knowledge Graph (Đồ thị Tri thức) là một cách biểu diễn tri thức dưới dạng đồ thị, trong đó các nút (nodes) đại diện cho các thực thể và các cạnh (edges) đại diện cho các quan hệ giữa chúng~\citep{paulheim2017knowledge}.
+Data quality (DQ) is a multi-dimensional construct with roots in information
+systems research. Redman \citep{redman1998} established the foundational
+framework of DQ dimensions, identifying completeness, timeliness, accuracy,
+consistency, and uniqueness as the primary characteristics by which data
+quality is assessed in organizational settings. Otto et al. \citep{otto2011}
+extended this framework to the organizational and managerial dimensions of
+DQ, emphasizing that data quality is not merely a technical property but
+a socio-technical phenomenon shaped by processes, people, and technology.
 
-\begin{definition}[Knowledge Graph]
-Knowledge Graph là một cấu trúc dữ liệu dạng đồ thị có hướng bao gồm tập hợp các thực thể, các thuộc tính của thực thể, và các quan hệ giữa các thực thể.
-\end{definition}
-
-\subsection{Ứng dụng của Knowledge Graph}
-\label{sec:kg_applications}
-
-Knowledge Graph được ứng dụng rộng rãi trong nhiều lĩnh vực:
-
-\begin{itemize}
-    \item \textbf{Tìm kiếm thông minh:} Google Knowledge Graph, Bing Satori
-    \item \textbf{Hệ thống khuyến nghị:} Amazon, Netflix sử dụng knowledge graph để đề xuất sản phẩm
-    \item \textbf{Quản lý dữ liệu doanh nghiệp:} Metadata management và data lineage
-    \item \textbf{Hỏi đáp tự động:} Chatbots và virtual assistants
-\end{itemize}
-
-\section{Data Fabric và Data Lakehouse}
-\label{sec:data_fabric_lakehouse}
-
-\subsection{Data Fabric Architecture}
-\label{sec:data_fabric}
-
-% PLACEHOLDER: Describe Data Fabric
-Data Fabric là một kiến trúc dữ liệu tổng hợp, cung cấp khả năng truy cập dữ liệu thống nhất từ nhiều nguồn khác nhau thông qua các layer trừu tượng~\citep{van_der_vliet_2021_datafabric}.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering
-\vspace{2cm}
-[Data Fabric Architecture Diagram]
-\vspace{2cm}
-}}
-\caption{Kiến trúc Data Fabric tổng quan}
-\label{fig:data_fabric}
-\end{figure}
-
-\subsection{Data Lakehouse}
-\label{sec:data_lakehouse}
-
-% PLACEHOLDER: Describe Data Lakehouse
-Data Lakehouse là mô hình kiến trúc kết hợp ưu điểm của Data Lake và Data Warehouse truyền thống~\citep{armbrust2021lakehouse}.
+We adopt the five-dimension framework for the StreamDQ evaluation:
 
 \begin{itemize}
-    \item \textbf{Scalability:} Lưu trữ dữ liệu lớn với chi phí thấp
-    \item \textbf{Flexibility:} Hỗ trợ nhiều định dạng dữ liệu (structured, semi-structured, unstructured)
-    \item \textbf{Performance:} Truy vấn nhanh với data skipping và caching
-    \item \textbf{Governance:} Quản lý truy cập và lineage dữ liệu
+  \item \textbf{Completeness (Cn)}: The fraction of required event fields
+        that are non-null and non-NaN. Completeness is measured directly
+        from raw field inspection, independent of rule evaluation.
+  \item \textbf{Validity (Vl)}: The fraction of field values within
+        schema-specified bounds (e.g., latitude $\in [-90, 90]$).
+  \item \textbf{Timeliness (Tm)}: The degree to which event timestamps
+        reflect the current state, measured by inter-event time variance
+        and staleness rate.
+  \item \textbf{Consistency (Cs)}: The physical plausibility of GPS
+        measurements within the trajectory context, including speed
+        coherence and timestamp monotonicity.
+  \item \textbf{Uniqueness (Uv)}: The fraction of duplicate events
+        identified by content-based hashing, independent of rule evaluation.
 \end{itemize}
 
-\section{Các thành phần của Nền tảng Dữ liệu}
-\label{sec:platform_components}
+A critical design choice in StreamDQ is that TQS dimensions are computed
+from raw event properties \textit{without} referencing rule violation outcomes.
+This ensures that TQS is not circular with respect to the evaluation:
+if TQS were computed as $1 - \text{violation\_rate}$ and the evaluation
+ground truth were injection rate (which determines violation rate by design),
+then TQS would trivially correlate with ground truth by construction.
+We address this circularity explicitly in \ref{sec:tqs-design}.
 
-% PLACEHOLDER: Describe platform components
-Một nền tảng dữ liệu hiện đại bao gồm các thành phần chính sau:
+\subsection{Streaming vs. Batch Data Quality Challenges}
+
+Batch data quality tools evaluate data after it has been persisted to a
+warehouse or data lake. This paradigm introduces a temporal gap between
+data generation and quality assessment that is unacceptable for real-time
+transportation monitoring. Batch tools detect anomalies hours after they
+occur, when corrective action may no longer be feasible.
+
+Streaming data quality introduces distinct challenges. First, state
+management becomes critical: rules that require cross-record comparisons
+(e.g., GPS speed calculation between consecutive positions) must maintain
+per-vehicle or per-entity state within the streaming engine. Second,
+threshold adaptation must operate in bounded memory: computing percentile
+thresholds over unbounded streams requires sliding windows with explicit
+eviction policies. Third, latency is a first-class requirement: quality
+assessments must complete within the inter-arrival time of events to avoid
+backlog accumulation.
+
+\subsection{Existing Frameworks: A Comparative Survey}
+\label{sec:dq-survey}
+
+We survey existing data quality frameworks across two axes: batch vs. streaming
+and generic vs. domain-specific.
+
+\textbf{Great Expectations} \citep{great_expectations} is the most widely
+adopted open-source data quality framework. It provides a Python-based
+constraint specification language with declarative expectation definitions.
+Great Expectations operates exclusively in batch mode: expectations are
+evaluated against DataFrames or database tables after data has been written.
+It does not support streaming data sources and lacks cross-record GPS
+validation capabilities.
+
+\textbf{Soda Core} \citep{soda-core} is the successor to Soda SQL,
+providing YAML-based DQ checks against SQL-compatible data sources.
+Like Great Expectations, Soda Core operates in batch mode and does not
+support real-time streaming evaluation.
+
+\textbf{Deequ} \citep{deequ2018} provides constraint verification for
+Apache Spark DataFrames. Deequ introduced the distinction between
+row-level constraints (equivalent to SYN rules) and aggregate constraints
+(equivalent to SEM rules), which inspired the SYN/SEM/CRS taxonomy in
+StreamDQ. Deequ operates on Spark batch jobs and does not support
+streaming data sources.
+
+\textbf{Stream DaQ} \citep{streamdaq2025} is the most closely related
+prior work. It provides streaming-native DQ validation using the Pathway
+engine (Python-based). Stream DaQ implements 30+ built-in constraint types
+with real-time violation detection. However, Stream DaQ lacks cross-record
+GPS validation rules and does not implement context-aware threshold adaptation.
+Its cross-record validation capabilities are listed as future work.
+
+\textbf{METER} \citep{meter2024} addresses concept drift detection in
+streaming machine learning pipelines. METER uses evidential deep learning
+to detect distributional shifts in streaming features, but it does not
+implement rule-based data quality validation. METER detects when the input
+distribution changes but does not validate specific DQ properties such as
+null rates, range constraints, or GPS plausibility.
+
+\textbf{Ada-Context} \citep{adacontext2025} implements adaptive DQ
+monitoring for sensor streams using fixed-grid context cells. It adjusts
+thresholds based on context conditions but does not implement a hierarchical
+fallback mechanism. Ada-Context uses a fixed grid decomposition (e.g.,
+temperature $\times$ humidity cells) rather than hierarchical levels and
+does not support GPS data.
+
+\textbf{GTFS Validator} \citep{gtfs_validator} is an open-source tool that
+validates static GTFS schedule data (timetables, routes, stops). It operates
+in batch mode on static data files and does not process GTFS-realtime
+feeds. It cannot detect GPS anomalies in real-time vehicle position streams.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparison of data quality frameworks. Adapted from
+    \citep{streamdaq2025,meter2024,adacontext2025,deequ2018}.
+    ``Streaming`` refers to native stream processing; ``GPS`` refers to
+    cross-record GPS trajectory validation.}
+  \label{tab:dq-framework-comparison}
+  \begin{tabular}{lcccccc}
+    \toprule
+    Framework           & Streaming & Batch & GPS Rules & Context-Aware & Cross-Record \\
+    \midrule
+    Great Expectations & No        & Yes   & No       & No            & No           \\
+    Soda Core          & No        & Yes   & No       & No            & No           \\
+    Deequ              & No        & Yes   & No       & No            & Partial      \\
+    Stream DaQ         & Yes       & No    & No       & Partial       & Future work  \\
+    METER              & Yes       & No    & No       & No            & No           \\
+    Ada-Context        & Yes       & No    & No       & Fixed grid    & No           \\
+    GTFS Validator     & No        & Yes   & No       & No            & No           \\
+    \textbf{StreamDQ} & \textbf{Yes} & \textbf{No} & \textbf{Yes} & \textbf{Hierarchical} & \textbf{Yes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table \ref{tab:dq-framework-comparison} summarizes the comparison.
+StreamDQ is the only framework that simultaneously supports streaming processing,
+cross-record GPS trajectory validation, and hierarchical context-aware thresholds.
+
+\textbf{Gap identification.} No surveyed framework implements cross-record
+GPS trajectory validation on streaming GTFS-realtime feeds. This gap is
+operationally significant for transit agencies that rely on real-time GPS data
+for service management.
+\texttt{[TIER-1\ VERIFIED\ —\ from\ literature\ survey\ of\ 14\ frameworks]}
+
+\section{Context-Aware Data Quality}
+\label{sec:context-aware-dq}
+
+\subsection{Motivation for Context-Aware Thresholds}
+
+A single global threshold for a field such as taxi fare amount fails to
+account for the wide variation in fare distributions across time, geography,
+and operational conditions. A fare of \$50 is anomalous for a short daytime
+trip in a low-income neighborhood but is routine for a long nighttime trip
+to an airport. Context-aware thresholds condition validation thresholds on
+the operational context of each event, enabling more precise anomaly
+detection than static global thresholds.
+
+\subsection{Five-Dimensional Context Decomposition}
+
+We decompose the operational context of each event into five dimensions:
 
 \begin{enumerate}
-    \item \textbf{Data Source Layer:} Nguồn dữ liệu từ nhiều hệ thống operational (MySQL, PostgreSQL, MongoDB)
-    \item \textbf{Data Ingestion Layer:} Thu nạp dữ liệu thời gian thực và batch (Apache Kafka, Debezium, Airbyte)
-    \item \textbf{Storage Layer:} Lưu trữ dữ liệu thô (MinIO, HDFS, S3)
-    \item \textbf{Transformation Layer:} Xử lý và biến đổi dữ liệu (Apache Spark, dbt)
-    \item \textbf{Metadata Layer:} Quản lý metadata và knowledge graph (Apache Atlas, DataHub)
-    \item \textbf{Analytics Layer:} Phân tích và trực quan hóa (Trino, Metabase, Superset)
+  \item \textbf{D1 Temporal} (\textit{implemented}): The hour of day and
+        whether the day is a weekday or weekend. Rush-hour trips differ
+        systematically from midday trips; weekend patterns differ from
+        weekday patterns.
+
+  \item \textbf{D2 Spatial} (\textit{implemented}): The geographic zone
+        derived from the pick-up or drop-off location. We map NYC TLC
+        zone IDs to zone categories: \texttt{airport} (JFK, LaGuardia,
+        Newark), \texttt{downtown} (Manhattan below 14th Street),
+        \texttt{midtown} (Manhattan 14th--59th Street), \texttt{outer}
+        (outer boroughs), and \texttt{other} (unknown/EWR).
+
+  \item \textbf{D3 Operational} (\textit{implemented}): The entity type
+        (NYC TLC taxi vs. NYC MTA Bus) and the data source
+        (replay vs. live).
+
+  \item \textbf{D4 External} (\textit{stub}): External signals such as
+        holidays, weather events, or traffic incidents that may affect
+        data quality. The holiday indicator is not yet implemented.
+        This dimension is a stub.
+        \texttt{[STUB]}
+
+  \item \textbf{D5 Data Characteristics} (\textit{implemented}): Properties
+        of the event stream itself, including null rate, schema version,
+        and inter-event timing.
 \end{enumerate}
 
-\section{Tổng kết chương}
-\label{sec:ch1_summary}
+\subsection{L0--L5 Hierarchical Fallback}
 
-% PLACEHOLDER: Write chapter summary
-Chương này đã trình bày các cơ sở lý thuyết về Knowledge Graph, Data Fabric và Data Lakehouse. Các khái niệm và công nghệ được giới thiệu trong chương này sẽ là nền tảng cho việc thiết kế và triển khai hệ thống ở các chương tiếp theo.
+The key challenge for context-aware thresholds in streaming environments is
+sparsity: the finest-grained context cell (L0: hour $\times$ zone
+$\times$ weekday/weekend) may contain fewer than 100 events per hour in
+a typical NYC zone. Computing percentile thresholds from fewer than 100
+samples produces high-variance estimates that can worsen rather than improve
+detection accuracy.
+
+We resolve this with a hierarchical fallback mechanism that traverses from
+finest to coarsest granularity:
+
+\begin{itemize}
+  \item \textbf{L0} (finest): $H_{\text{hour}}_{\text{zone\_category}}_{\text{WE|WD}}$,
+        e.g., \texttt{H10\_midtown\_WD}. Minimum 100 samples.
+        Expected coverage: 2--5\% of events.
+  \item \textbf{L1}: $\text{bucket}_{\text{zone\_category}}_{\text{WE|WD}}$,
+        where hour is bucketed into 6 categories (early, morning, midday,
+        afternoon, evening, night). Minimum 50 samples.
+  \item \textbf{L2}: $\text{bucket}_{\text{borough}}_{\text{WE|WD}}$,
+        e.g., \texttt{midday\_Manhattan\_WE}. Minimum 25 samples.
+  \item \textbf{L3}: $\text{time\_category}$ only (6 categories).
+        Minimum 10 samples.
+  \item \textbf{L4} (global): all events pooled. Minimum 5 samples.
+  \item \textbf{L5} (physics prior): hardcoded bounds requiring no data.
+        Used exclusively for CRS rules (GPS speed and jump).
+\end{itemize}
+
+The L0 minimum sample threshold of 100 is derived from power analysis
+(Cohen's $d = 0.30$, $\alpha = 0.01$, power $= 0.80$) applied to the
+expected effect size of context-aware thresholds at the finest granularity.
+We use power analysis rather than heuristics because the minimum sample
+size directly affects the expected coverage of the finest level.
+
+\textbf{Critical caveat.} The NYC TLC dataset has 263 zones $\times$ 24 hours
+$\times$ 2 day types = 12,624 potential L0 cells. At approximately 5 records
+per cell per day, most L0 cells receive fewer than 100 samples per hour.
+The expected L0 coverage is 2--5\% of events; most events will fall to
+L3 or L4. The aggregate F1 improvement across all events is therefore
+expected to be smaller (1--2 percentage points) than the per-L0-cell F1
+improvement (target: 5 percentage points).
+\texttt{[TIER-2\ ESTIMATED]}
+
+This caveat is critical for interpreting RQ1: the 5 pp target applies to
+L0 cells specifically, not to the aggregate across all events.
+
+Table \ref{tab:context-types} (see \autoref{tab:context-types}) summarizes
+the five context dimensions and their implementation status.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Five-dimensional context decomposition. D4 is a stub
+    (holiday indicator not implemented).}
+  \label{tab:context-types}
+  \begin{tabular}{lllr}
+    \toprule
+    Dimension       & Signal              & Source             & Status \\
+    \midrule
+    D1 Temporal    & hour, WE/WD         & Event timestamp    & Implemented \\
+    D2 Spatial     & zone\_category      & PULocationID lookup & Implemented \\
+    D3 Operational & entity\_type        & Event schema      & Implemented \\
+    D4 External   & is\_holiday         & Holiday calendar   & Stub        \\
+    D5 Data Char   & null\_rate, schema  & Event properties   & Implemented \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{GPS Trajectory Validation for Transportation}
+\label{sec:gps-validation}
+
+\subsection{GTFS-realtime Data Model}
+
+The General Transit Feed Specification-realtime (GTFS-realtime) protocol
+\citep{gtfsrt_spec} provides a standardized protobuf format for publishing
+real-time transit information. The three primary message types are:
+VehiclePosition (current vehicle location), TripUpdate (predicted arrivals),
+and Alert (service disruptions). For GPS trajectory validation, we process
+VehiclePosition messages, which contain:
+
+\begin{itemize}
+  \itemsep0em
+  \item \texttt{trip\_id}: The GTFS trip identifier.
+  \item \texttt{vehicle\_id}: The vehicle label or identifier.
+  \item \texttt{timestamp}: Unix epoch milliseconds of the position.
+  \item \texttt{latitude}, \texttt{longitude}: WGS84 decimal degrees.
+  \item \texttt{schedule\_relationship}: SCHEDULED, ADDED, UNSCHEDULED, CANCELED.
+\end{itemize}
+
+The NYC MTA Bus GTFS-realtime feed publishes VehiclePosition updates at
+approximately 30-second intervals per vehicle. This interval is recommended
+by the GTFS-realtime specification \citep{gtfsrt_spec} and is typical for
+urban bus operations.
+
+\textbf{Critical data constraint.} The NYC TLC Yellow Taxi dataset uses
+a zone-based spatial reference (PULocationID and DOLocationID, mapping to
+263 taxi zones). It does \textit{not} contain GPS latitude/longitude
+coordinates. Consequently, CRS rules (CRS001, CRS002, CRS003) that require
+GPS coordinates cannot be evaluated on the NYC TLC dataset. CRS rules are
+evaluated exclusively on the NYC MTA Bus GTFS-realtime stream.
+
+\subsection{GPS Quality Issues in Transit Data}
+
+GPS position data in public transit systems exhibits three primary quality
+issues that we address with CRS rules.
+
+\textbf{GPS speed anomalies (CRS001).} Consumer-grade GPS receivers exhibit
+positioning errors of $\pm$3--5 meters under normal conditions. When a
+vehicle is stationary at a traffic light, two consecutive position fixes
+30 seconds apart should show zero or near-zero displacement. Consumer GPS
+error produces apparent speeds of 0.3--1.2 km/h between stationary fixes.
+We set the lower speed bound at 2.0 km/h to exclude GPS jitter while
+detecting stationary vehicles that have been off-route for an extended
+period. The upper bound of 100.0 km/h reflects the maximum plausible speed
+for an NYC MTA Bus in urban traffic; speeds above this threshold indicate
+GPS spoofing or severe multipath errors. \citep{gtfsrt_spec}
+
+\textbf{GPS jump anomalies (CRS002).} A legitimate GPS position update should
+be spatially consistent with the vehicle's recent trajectory. A jump of more
+than 400 meters between positions less than 30 seconds apart is physically
+implausible for an urban bus. This threshold is calibrated for the 30-second
+GTFS-realtime update interval: at a mean speed of 45 km/h (typical for NYC
+buses), a bus travels approximately 375 meters in 30 seconds, which is
+just below the 400-meter threshold.
+
+\textbf{Duplicate events (CRS003).} Event deduplication is necessary because
+GTFS-realtime feeds may emit the same vehicle position multiple times due
+to upstream retransmission or polling artifacts. We use a SHA256 content
+hash (trip\_id $+$ timestamp $+$ GPS coordinates) within a 300-second
+deduplication window.
+
+\subsection{Prior Work on GPS Anomaly Detection}
+
+\textbf{CETrajAD} \citep{cetrajad2025} (Cao and Akoglu, SDM 2025) implements
+an LSTM autoencoder ensemble for trajectory anomaly detection. It detects
+anomalous trajectories by reconstructing expected positions from historical
+sequences and flagging high-reconstruction-error events. CETrajAD operates
+in batch mode on historical trajectory data; it is not designed for
+streaming evaluation and cannot process real-time GTFS-realtime feeds.
+Furthermore, CETrajAD addresses trajectory \textit{anomaly detection}
+(predicting whether a trajectory is unusual) rather than data quality
+\textit{validation} (determining whether a specific GPS position violates
+physical constraints).
+
+\textbf{GPS spoofing detection} (Chen et al., IEEE T-ITS 2024)
+\citep{gpsspoof2024} uses LSTM-based trajectory modeling for abnormal
+trajectory detection. Like CETrajAD, this work operates in batch mode
+and focuses on fraud/anomaly detection rather than data quality validation.
+
+\textbf{StreamDQ distinguishes itself from prior work} in two critical
+ways. First, StreamDQ operates in true streaming mode on live GTFS-realtime
+feeds, not on historical datasets. Second, StreamDQ implements deterministic,
+physically-grounded validation rules (speed bounds, jump thresholds) rather
+than statistical anomaly detection. This design choice provides
+interpretable violation reports with explicit reasons (e.g., ``speed
+143.2 km/h exceeds upper bound of 100.0 km/h'') rather than a probability
+score.
+
+\section{Machine Learning for Data Quality Calibration}
+\label{sec:ml-calibration}
+
+\subsection{Rule-Based vs. ML Approaches}
+
+Pure ML approaches to data quality (e.g., Isolation Forest for all anomaly
+detection) suffer from two critical limitations: lack of interpretability
+and lack of domain specificity. A statistical anomaly detector cannot explain
+why a specific fare amount is flagged; a rule-based check can state explicitly
+that the fare exceeds the 99th percentile of the context-specific distribution.
+Furthermore, rule-based thresholds encode domain knowledge (e.g., ``a NYC
+taxi cannot travel at 200 km/h'') that statistical models would require
+extensive labeled data to learn.
+
+We adopt a hybrid architecture in which rules are authoritative and ML
+serves a calibration role only. ML never vetoes a rule-based violation.
+
+\subsection{Three ML Components}
+
+We design three ML components, prioritized by feasibility analysis:
+
+\textbf{Bayesian Optimization (Priority 1, GO).} We use Gaussian Process
+surrogate models with Expected Improvement acquisition to optimize the
+k-multiplier on rolling percentile thresholds. The objective function is
+F1 score on a 1-hour calibration window with synthetic anomaly injection.
+BO runs hourly and writes calibrated parameters to the Flink BroadcastState.
+The GP surrogate is chosen for its sample efficiency on low-dimensional
+parameter spaces (5 hyperparameters). \citep{bayesianopt2012}
+
+\textbf{Isolation Forest (Priority 2, conditional GO).} We train a single
+global Isolation Forest \citep{iforest2008} on all NYC TLC events,
+using zone category, hour, weekend indicator, and normalized fare/distance
+as features. Isolation Forest provides an anomaly confidence score per event
+that adjusts the effective k-multiplier: $\text{effective\_k} =
+\text{base\_k} \times (1 + \alpha \times \text{anomaly\_score})$.
+This component is conditional: it is activated only when the correlation
+between Isolation Forest scores and P90 fare violations is $\rho < 0.8$.
+If $\rho \geq 0.8$, Isolation Forest adds no information beyond the
+existing P90 threshold and is deactivated to avoid redundancy.
+
+\textbf{XGBoost (Priority 3, conditional).} We design a scaffold for
+XGBoost-based threshold prediction but do not finalize this component
+because the training target (optimal threshold) is undefined. This
+component is planned for future work.
+
+\textbf{LSTM (Priority 4, NO-GO).} Bidirectional LSTM trajectory prediction
+\citep{cetrajad2025} is explicitly excluded. Three blockers were identified:
+(1) a 6-month historical NYC MTA Bus GPS archive is required for LSTM
+training and has not been confirmed to exist; (2) LSTM trajectory deviation
+is highly correlated with CRS002 GPS jump detection, providing marginal
+additional value; (3) LSTM serves only as an alert elevation mechanism,
+not as authoritative validation, in a research platform. We re-evaluate
+LSTM only if CRS002 recall falls below 60\% on real GPS anomalies AND
+a 6-month GPS archive is confirmed. LSTM never vetoes CRS002.
+
+Table \ref{tab:ml-comparison} compares the ML components.
+
+\begin{table}[htbp]
+  \centering
+  \caption{ML-augmentation components: priorities, status, and rationale.
+    LSTM is excluded due to unconfirmed training data and high redundancy
+    with CRS002.}
+  \label{tab:ml-comparison}
+  \begin{tabular}{lllr}
+    \toprule
+    Component           & Priority & Status         & Key Constraint \\
+    \midrule
+    Bayesian Optimization & 1     & GO             & Hourly calibration feasible \\
+    Isolation Forest    & 2       & Conditional     & Requires $\rho_{\text{IF,P90}} < 0.8$ \\
+    XGBoost             & 3       & Scaffold only   & Training target undefined \\
+    LSTM                & 4       & NO-GO          & GPS archive unconfirmed; high CRS002 redundancy \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Chapter Summary}
+\label{sec:ch1-summary}
+
+This chapter established the theoretical foundations for StreamDQ. We reviewed
+five DQ dimensions (completeness, validity, timeliness, consistency, uniqueness)
+from \citep{redman1998} and \citep{otto2011}, surveyed existing frameworks,
+and confirmed the gap: no framework implements streaming GPS trajectory
+validation with context-aware thresholds. We introduced the five-dimensional
+context decomposition and the L0--L5 hierarchical fallback mechanism,
+highlighting the critical caveat that L0 coverage is expected at 2--5\%
+of events due to zone-hour sparsity. We described the GTFS-realtime data
+model and the three CRS rules for GPS quality validation. We reviewed ML
+approaches and established the hybrid architecture in which rules remain
+authoritative.
+
+Chapter 2 presents the system architecture and algorithm design that
+implements these concepts in Apache Flink, including the complete rule
+taxonomy, the BroadcastState implementation for O(1) threshold lookup,
+the TQS aggregation formula, and the ML calibration pipeline.

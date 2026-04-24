@@ -1,360 +1,513 @@
-% ============================================================
-% CHAPTER 2: PROPOSED SYSTEM / ARCHITECTURE
-% Trích xuất từ: 2 thesis mẫu tại thes_template/
-% Cấu trúc: Related Work → Core Layers → Technology Architecture → Summary
-% ============================================================
+% =============================================================================
+% CHAPTER 2: PROPOSED SYSTEM ARCHITECTURE
+% =============================================================================
+% COMPLETELY REWRITTEN — Old Knowledge Graph / Data Fabric content removed
+% Project: A Context-Aware Framework for Streaming Data Quality Monitoring
+% Date: April 24, 2026
+% =============================================================================
 
-\chapter{Proposed System Architecture}
-\label{ch:architecture}
+\section{Introduction to Chapter}
+\label{sec:ch2-intro}
 
-% ============================================================
-% SECTION 2.1: RELATED WORK AND BASE ARCHITECTURE
-% ============================================================
-\section{Related Work and Base Architecture}
-\label{sec:related_work}
+This chapter describes the StreamDQ system architecture and algorithm design.
+We begin with a high-level system overview (\ref{sec:system-overview}),
+describing the data sources, processing pipeline, and architectural principles.
+\ref{sec:rule-taxonomy} presents the three-layer rule taxonomy (syntactic,
+semantic, cross-record) with implementation details for each rule.
+\ref{sec:threshold-hierarchy} describes the hierarchical context-aware
+threshold system with the L0--L5 fallback mechanism and the BroadcastState
+implementation. \ref{sec:tqs-design} presents the Trajectory Quality Scoring
+mechanism, including the five intrinsic quality dimensions and the composite
+formula. \ref{sec:ml-augmentation} details the ML-augmented threshold
+calibration pipeline. Throughout, we reference figures created in Phase B:
+\autoref{fig:system-architecture} (F1), \autoref{fig:l05-hierarchy} (F2),
+\autoref{fig:rule-pipeline} (F3), and \autoref{fig:crs-grpc-sequence} (F4).
 
-% ==========================================================
-% SUBSECTION 2.1.1: Reference Architecture
-% ==========================================================
-\subsection{Reference Architecture}
-\label{sec:reference_arch}
+\section{System Overview}
+\label{sec:system-overview}
 
-% PLACEHOLDER: Giới thiệu kiến trúc tham chiếu
-% Tham khảo thesis 2023: vDFKM framework
-% Tham khảo thesis 2026: mở rộng vDFKM
+Figure \ref{fig:system-architecture} illustrates the overall StreamDQ
+architecture. Two data sources feed into Apache Kafka: the NYC TLC Yellow
+Taxi trip record dataset \citep{nyc_tlc} and the NYC MTA Bus GTFS-realtime
+feed \citep{nyc_mta_bus}.
 
-Our system architecture is referenced by a framework called [Reference Framework Name]~\citep{framework2023}. This is a standard platform based on [architecture type] applied in enterprise and organizational environments when it is necessary to build a centralized, secure, and fast data platform for in-depth analysis purposes.
-
-\Cref{fig:reference_arch} shows the architecture of the reference framework.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}
-[Insert reference architecture diagram here]\\
-Architecture diagram showing layers: Data Source → Ingestion → Storage → Transformation → Metadata → Analytics
-\vspace{2cm}}}
-\caption{Reference framework architecture.}
-\label{fig:reference_arch}
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F1: System Architecture — see
+    \texttt{figures/F1\_System\_Architecture.excalidraw.md}]}
+    \par\smallskip
+    \begin{minipage}{0.90\linewidth}
+      \textbf{StreamDQ Architecture}\par
+      {\small
+      NYC TLC Parquet $\xrightarrow{\text{Kafka}}$ Apache Flink\par
+      $\downarrow$\par
+      SYN/SEM Rules (Python) $\parallel$ CRS Rules (Java/gRPC)\par
+      $\downarrow$ $\downarrow$\par
+      PostgreSQL (violations) \quad Prometheus (metrics)\par
+      $\downarrow$\par
+      Grafana Dashboard
+      }
+    \end{minipage}
+  }}
+  \caption{StreamDQ overall system architecture. Events flow from NYC TLC Yellow
+    Taxi (parquet replay, zone-level) and NYC MTA Bus GTFS-realtime (live GPS,
+    30s updates) through Apache Kafka into Apache Flink. SYN/SEM rules (Python)
+    evaluate all events; CRS rules (Java, gRPC) evaluate GPS events. Violations
+    are stored in PostgreSQL with ground-truth labels, metrics exported to
+    Prometheus, and ML inference (Phase 3) runs as async gRPC. Grafana provides
+    real-time dashboards.}
+  \label{fig:system-architecture}
 \end{figure}
 
-% ==========================================================
-% SUBSECTION 2.1.2: Proposed Architecture Overview
-% ==========================================================
-\subsection{Proposed High-Level Architecture}
-\label{sec:proposed_arch}
+\textbf{NYC TLC Yellow Taxi} \citep{nyc_tlc} provides approximately
+3 million trip records for January 2024, stored as Parquet files.
+These records contain zone-level location data (PULocationID and DOLocationID,
+mapping to 263 taxi zones) but \textbf{no GPS coordinates}. This dataset
+is replayed through Kafka for streaming evaluation. Because it lacks GPS,
+only SYN and SEM rules apply; CRS rules cannot be evaluated on TLC data.
 
-% PLACEHOLDER: Mô tả kiến trúc đề xuất cao cấp
-% 5 tầng chính + mô tả từng tầng
+\textbf{NYC MTA Bus GTFS-realtime} \citep{nyc_mta_bus} provides a live
+public feed of VehiclePosition messages for NYC MTA buses, updated at
+approximately 30-second intervals per vehicle. This feed requires no API
+key and is publicly accessible. Because it includes GPS latitude/longitude
+coordinates, all three rule layers (SYN, SEM, and CRS) apply to this
+stream.
 
-Based on the reference architecture, the proposed platform consists of five major layers that work together to support [goal]. At the base, the [Layer 1] leverages [technology] to [capability]. These changes are [processed/stored] into the platform and passed along to the next layer.
+The Flink streaming engine \citep{apache_flink} processes events in
+event time with watermarks and idle stream detection. A watermark strategy
+with a 60-second bounded out-of-orderness and a 5-minute idle timeout
+ensures that late events are handled gracefully and idle streams do not
+block progress.
 
-The [Layer 2] integrates [technologies] for [capability]. This layer enables both [capability 1] and [capability 2] access to raw and curated data.
+\textbf{Design principles.} StreamDQ follows three design principles.
+First, \textit{rules are authoritative}: ML never overrides a rule-based
+violation. Second, \textit{no silent failures}: every rule evaluation
+produces either a violation or a confirmation; there is no fallback to
+silence. Third, \textit{context-aware thresholds are adaptive}: thresholds
+evolve with the data distribution, with a hierarchical fallback mechanism
+that ensures graceful degradation when context cells are sparse.
 
-Above this, the [Layer 3] utilizes [technologies] for [capability]. [Orchestration tool] orchestrates the entire pipeline, ensuring automated, reliable data workflows.
+\textbf{What StreamDQ is not.} StreamDQ is not a production-grade system.
+It is a research and education platform that demonstrates the feasibility of
+streaming GPS trajectory validation. StreamDQ is not batch-oriented;
+it processes events in real time as they arrive. It is not an ML-only
+anomaly detection system; rule-based validation is the primary detection
+mechanism. It does not claim fault tolerance, horizontal scalability, or
+operational readiness.
 
-The semantic context and governance of the data are managed in the [Layer 4]. [Tool] plays a central role by [capability]. [Validation tool] enhances this layer with data validation and profiling.
+\section{Rule Taxonomy: SYN / SEM / CRS}
+\label{sec:rule-taxonomy}
 
-At the top, the [Layer 5] enables end-users to interact with the data through [tools]. Integrated [technology] allows users to pose natural language questions, which are translated into executable queries.
+StreamDQ implements three layers of data quality rules, illustrated in
+\autoref{fig:rule-pipeline}. Each layer addresses a different scope of
+quality defects.
 
-\Cref{fig:proposed_arch} illustrates the proposed high-level architecture.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}
-[Insert proposed architecture diagram here]\\
-Show all 5 layers with arrows indicating data flow
-\vspace{2.5cm}}}
-\caption{Proposed high-level architecture.}
-\label{fig:proposed_arch}
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F3: Rule Pipeline — see
+    \texttt{figures/F3\_Rule\_Pipeline.excalidraw.md}]}
+    \par\smallskip
+    \begin{minipage}{0.90\linewidth}
+      \textbf{Three-Layer Rule Pipeline}\par
+      {\small
+      Raw Event $\rightarrow$ Context Extraction $\rightarrow$ Threshold Lookup\par
+      $\searrow$ SYN Rules (Python) $\rightarrow$ Violation \checkmark\par
+      $\downarrow$ SEM Rules (Python) $\rightarrow$ Violation \checkmark\par
+      $\swarrow$ CRS Rules (Java/gRPC) $\rightarrow$ Violation \checkmark
+      }
+    \end{minipage}
+  }}
+  \caption{StreamDQ rule evaluation pipeline. Events flow through context
+    extraction, threshold lookup, and three parallel rule layers (SYN/SEM in
+    Python, CRS in Java via gRPC). CRS rules require GPS coordinates and apply
+    to NYC MTA Bus only. TQS aggregates five quality dimensions per context
+    cell. Violations are emitted with metadata and routed to PostgreSQL.}
+  \label{fig:rule-pipeline}
 \end{figure}
 
-% ============================================================
-% SECTION 2.2: CORE LAYERS OF THE DATA PLATFORM
-% ============================================================
-\section{Core Layers of the Data Platform}
-\label{sec:core_layers}
+Table \ref{tab:rule-taxonomy} presents all 10 rules organized by layer.
 
-% ==========================================================
-% 2.2.1 Data Source Layer
-% ==========================================================
-\subsection{Data Source Layer}
-\label{sec:data_source_layer}
-
-The Data Source Layer is where all the platform's data sources are centered. It can include a variety of different sources, ranging from relational databases to APIs, IoT sensors, web logs, or enterprise applications. These data sources can be structured, semi-structured, or unstructured.
-
-\textbf{Structured data} is organized in a specific format (tables, columns), with predefined constraints, and easy to manage through traditional database management systems.
-
-\textbf{Semi-structured data} has some organization but not enough to be considered structured. Formats such as XML, JSON, and HTML are common.
-
-\textbf{Unstructured data} typically lacks any rules or organization and can be in various formats such as social media posts, image files, audio files, or unstructured text.
-
-\Cref{tab:data_sources} summarizes the data sources used in this thesis.
-
-\begin{table}[tbp]
-\centering
-\caption{Data sources used in the platform.}
-\label{tab:data_sources}
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Source} & \textbf{Type} & \textbf{Format} \\
-\midrule
-Source A & Relational DB & Structured \\
-Source B & API & Semi-structured \\
-Source C & File Storage & Unstructured \\
-\bottomrule
-\end{tabular}
+\begin{table}[htbp]
+  \centering
+  \caption{StreamDQ rule taxonomy: 3 SYN, 4 SEM, 3 CRS rules.
+    CRS rules require GPS coordinates and apply to NYC MTA Bus only.}
+  \label{tab:rule-taxonomy}
+  \begin{tabular}{lllr}
+    \toprule
+    Layer     & Rule    & Description                              & Dataset          \\
+    \midrule
+    \multirow{3}{*}{SYN (Syntactic)}
+              & SYN001  & NULL/NaN check on required fields        & Both             \\
+              & SYN002  & Fare amount $\geq 0$                     & NYC TLC          \\
+              & SYN003  & Lat/lon in bounds; zone IDs valid       & Both             \\
+    \midrule
+    \multirow{4}{*}{SEM (Semantic)}
+              & SEM001  & Fare amount > rolling P90 (context-aware) & NYC TLC      \\
+              & SEM002  & Trip distance in rolling bounds (ctx)    & NYC TLC          \\
+              & SEM003  & Passenger count $\in [1, 6]$            & NYC TLC          \\
+              & GTFSSem002 & Vehicle position stale $>$ 5 min    & NYC MTA Bus      \\
+    \midrule
+    \multirow{3}{*}{CRS (Cross-Record)}
+              & CRS001  & GPS speed $\in [2.0,\ 100.0]$ km/h     & NYC MTA Bus      \\
+              & CRS002  & GPS jump $> 400$ m in $\leq 30$ s       & NYC MTA Bus      \\
+              & CRS003  & Event deduplication, 300 s window        & Both             \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
-% ==========================================================
-% 2.2.2 Data Ingestion Layer
-% ==========================================================
-\subsection{Data Ingestion Layer}
-\label{sec:data_ingestion_layer}
+\subsection{SYN Layer: Syntactic Record-Level Validation}
 
-The Data Ingestion Layer is the bridge between the Data Source Layer and downstream systems. This layer performs the process of importing, acquiring data from various sources for further analysis.
+SYN rules operate on individual event records without cross-record state.
+They implement hard constraints that reject events with obvious structural
+defects.
 
-Data Ingestion tasks can be divided into two types:
+\textbf{SYN001} checks that all required fields are non-null and non-NaN.
+For float fields, it uses \texttt{math.isnan()} to detect NaN values, guarding
+against silent NaN pass-through (known blocker B1 in the codebase).
 
-\begin{description}
-    \item[\textbf{Batch ingestion:}] Processes large volumes of data at once, typically on a scheduled basis. This method is useful when large amounts of data need to be ingested.
-    \item[\textbf{Streaming ingestion:}] Processes data as it is generated, in real-time. This method is useful when data needs to be analyzed in real-time, such as in fraud detection or sensor monitoring.
-\end{description}
+\textbf{SYN002} checks that \texttt{fare\_amount} $\geq 0$. Negative fares
+are structurally invalid and cannot represent legitimate transactions.
 
-Tools for data ingestion include open-source solutions like [Tool A], [Tool B], and commercial offerings from vendors like [Vendor A] and [Vendor B].
+\textbf{SYN003} checks spatial validity: for GTFS-realtime events, latitude
+must be in $[-90, 90]$ and longitude in $[-180, 180]$; for NYC TLC events,
+PULocationID and DOLocationID must be in $[1, 263]$.
 
-% ==========================================================
-% 2.2.3 Data Storage and Lakehouse Layer
-% ==========================================================
-\subsection{Data Storage and Lakehouse Layer}
-\label{sec:storage_layer}
+All SYN rules emit violations immediately upon detection, without waiting for
+additional events.
 
-The Data Storage and Lakehouse Layer is the foundational component of any modern data platform. This layer is responsible for storing and managing data, including raw, semi-structured, and processed datasets.
+\subsection{SEM Layer: Semantic Plausibility with Context-Aware Thresholds}
 
-There are two popular types of storage architecture: \textbf{block storage} (used for high-performance transactional systems) and \textbf{object storage} (designed for scalable, distributed data access).
+SEM rules use context-aware thresholds computed from rolling windows.
+Unlike SYN rules (hard constraints), SEM rules allow values outside
+context-specific ranges when the range itself is unusual.
 
-Object storage stores data in individual units at the same level. It does not use folders or subdirectories to organize data. Each object includes metadata, which provides information about the file and helps with its processing and usability.
+\textbf{SEM001} and \textbf{SEM002} use rolling P10/P90 percentiles
+computed from a 1-hour sliding window per context key. These thresholds
+are looked up from the BroadcastState at evaluation time (O(1) amortized).
+For example, a fare of \$45 in midtown Manhattan on a weekday morning may
+be within the L0 context bounds but the same fare in a low-fare outer
+borough zone at midnight would violate the tighter L0 threshold.
 
-\textbf{Data lake}, \textbf{data warehouse}, and \textbf{data lakehouse} are three different approaches to managing and processing large amounts of data:
+\textbf{GTFSSem002} checks for stale vehicle positions. A GTFS-realtime
+position is considered stale if it is more than 5 minutes old relative to
+the current processing time. Stale positions indicate pipeline delays or
+upstream system failures.
 
-\begin{itemize}
-    \item \textbf{Data lake:} Storage repository for large amounts of raw data in any format.
-    \item \textbf{Data warehouse:} Centralized repository optimized for querying and reporting.
-    \item \textbf{Data lakehouse:} Hybrid architecture combining the best of both data lakes and data warehouses, enabling ACID transactions.
-\end{itemize}
+All SEM rules use thresholds from the hierarchical fallback system
+(\ref{sec:threshold-hierarchy}). If no threshold is available (all levels
+sparsity-exhausted), the event passes SEM evaluation.
 
-% ==========================================================
-% 2.2.4 Data Transformation Layer
-% ==========================================================
-\subsection{Data Transformation Layer}
-\label{sec:transformation_layer}
+\subsection{CRS Layer: Cross-Record Stateful Validation}
 
-The Data Transformation Layer plays a critical role in the data stream by converting raw data into clean and structured formats suitable for analytics and downstream processing.
+CRS rules maintain per-entity state across events. Because PyFlink's JVM-Python
+serialization overhead is prohibitively expensive for stateful operations
+\citep{apache_flink}, CRS rules are implemented in Java as
+\texttt{KeyedProcessFunction} operators invoked via gRPC from the Flink
+Python operator.
 
-Transformation involves:
+Figure \ref{fig:crs-grpc-sequence} illustrates the CRS evaluation sequence.
 
-\begin{itemize}
-    \item \textbf{Data cleaning:} Removing unwanted or irrelevant data, dropping unused columns, filtering duplicate values.
-    \item \textbf{Data normalization:} Ensuring values are represented in consistent units and formats.
-    \item \textbf{Data aggregation:} Calculating metrics such as averages, sums, and counts.
-    \item \textbf{Schema alignment:} Mapping varying structures into unified formats.
-\end{itemize}
-
-Modern transformation workflows may also incorporate real-time streaming capabilities to enable continuous updates of data lakes.
-
-% ==========================================================
-% 2.2.5 Metadata and Knowledge Graph Layer
-% ==========================================================
-\subsection{Metadata and Knowledge Graph Layer}
-\label{sec:metadata_layer}
-
-Metadata and knowledge graph layer is one of the most important layers in data platforms by organizing and contextualizing metadata with meaningful links. This layer integrates with all the other layers to aggregate metadata throughout the system and visualize them into a knowledge graph.
-
-This layer will recognize entities such as datasets, jobs, dashboards, and the relationships between them. Advanced properties of entities such as owners or tags will also need to be carefully configured.
-
-From a practical standpoint, the Metadata and Knowledge Graph Layer supports advanced capabilities such as data discovery, impact analysis, and recommendation systems. It provides access to information about datasets, including schemas, data quality, update frequency, business definitions, ownership, and lineage.
-
-\Cref{fig:kg_layer} shows the knowledge graph structure in the platform.
-
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{2cm}
-[Insert knowledge graph diagram here]\\
-Nodes: datasets, jobs, dashboards; Edges: lineage, ownership, uses
-\vspace{2cm}}}
-\caption{Knowledge graph structure in the platform.}
-\label{fig:kg_layer}
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F4: CRS Java Integration Sequence — see
+    \texttt{figures/F4\_CRS\_Java\_Integration.excalidraw.md}]}
+    \par\smallskip
+    \begin{minipage}{0.90\linewidth}
+      \textbf{CRS gRPC Sequence}\par
+      {\small
+      Kafka Event $\rightarrow$ SYN/SEM (Python, $\sim$5ms)\par
+      $\xrightarrow{\text{gRPC async}}$ Java CRS Service ($\sim$50ms timeout)\par
+      CRS001: speed $[2,100]$ km/h $\parallel$ CRS002: jump $>400$m/30s\par
+      Result $\rightarrow$ PostgreSQL / Prometheus
+      }
+    \end{minipage}
+  }}
+  \caption{Sequence diagram for CRS rule evaluation via gRPC. GPS events trigger
+    an async gRPC call to the Java CRS service (~50ms timeout). On timeout,
+    the system degrades gracefully: the event passes without CRS evaluation.
+    ML Phase 3 (dashed) calibrates thresholds asynchronously every hour.}
+  \label{fig:crs-grpc-sequence}
 \end{figure}
 
-% ==========================================================
-% 2.2.6 Analytics and Visualization Layer
-% ==========================================================
-\subsection{Analytics and Visualization Layer}
-\label{sec:analytics_layer}
+\textbf{CRS001: GPS Speed Bounds.} We compute the Haversine great-circle
+distance between the current and previous position:
 
-This layer includes visualization tools that allow users to explore and comprehend their data visually. These technologies help users uncover trends, patterns, and anomalies in their data and efficiently communicate insights to stakeholders.
+\begin{equation}
+d = 2R \cdot \arcsin\!\left(
+\sqrt{\sin^{2}\!\frac{\phi_{2}-\phi_{1}}{2}
++ \cos\phi_{1}\cos\phi_{2}\sin^{2}\!\frac{\lambda_{2}-\lambda_{1}}{2}}
+\right)
+\end{equation}
 
-An important aspect in this layer supporting analytics tasks is the [LLM module], which helps translate user questions into queries and commands to generate visualizations. Instead of queries like ``SELECT SUM(...) FROM...'', users can simply ask the module to perform specific analytical tasks.
+where $R = 6{,}371$ km (Earth mean radius), $\phi$ is latitude,
+and $\lambda$ is longitude in radians. Speed is
+$s = d / \Delta t \times 3{,}600{,}000$ km/h.
 
-This approach makes it easier for people to get started and allows more people across the organization to access data. These approaches work best when paired with strong semantic storage that provides aggregated metrics.
+A violation is emitted if $s < 2.0$ km/h \textbf{or} $s > 100.0$ km/h.
+An additional guard condition detects sustained low speed ($s < 0.5$ km/h
+for $\Delta t > 60$ s), which may indicate a stuck GPS or off-route vehicle.
+The primary threshold is $[2.0,\ 100.0]$ km/h; the secondary condition
+is a GPS-jitter guard only.
 
-% ==========================================================
-% 2.2.7 Data Flow in the Platform
-% ==========================================================
-\subsection{Data Flow in the Platform}
-\label{sec:data_flow}
+CRS001 is evaluated on every GTFS-realtime VehiclePosition event for which
+a prior position exists in the per-vehicle state. The first position for
+each vehicle initializes the state without producing a violation.
 
-\Cref{fig:data_flow} illustrates the complete data flow within the platform.
+\textbf{CRS002: GPS Jump Detection.} For every pair of positions of the
+same vehicle within a 30-second window, we compute the Haversine distance.
+If the distance exceeds 400 meters, a GPS jump violation is emitted.
+This rule detects instantaneous position teleportation that is physically
+impossible for an urban bus traveling at 30-second update intervals.
+At a mean speed of 45 km/h, a bus travels approximately 375 meters in
+30 seconds, just below the 400-meter threshold.
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.9\textwidth}{\centering\vspace{2cm}
-[Insert data flow diagram here]\\
-Show: Source → Ingestion → Storage → Transformation → Analytics → Visualization
-\vspace{2cm}}}
-\caption{Data flow in the platform.}
-\label{fig:data_flow}
+\textbf{CRS003: Event Deduplication.} We compute a content hash
+SHA256(trip\_id $+$ timestamp $+$ GPS coordinates) for each event.
+If the hash is already present in the per-trip deduplication state (a
+RoaringBitmap with 300-second TTL), a duplicate violation is emitted.
+CRS003 is the only CRS rule applicable to NYC TLC (where deduplication
+is performed on trip\_id $+$ timestamp $+$ zone IDs).
+
+\textbf{CRS003 limitation (NG-4).} CRS003 recall cannot be measured
+because the replay suppression gate in the current code tags synthetic
+duplicate events as \texttt{is\_replay=True}, which triggers the gate
+and suppresses violation emission. CRS003 precision is measurable;
+recall is labeled \texttt{[TIER-3\ UNMEASURABLE]} until NG-4 is fixed.
+See \ref{sec:ch3-limitations}.
+
+\section{Hierarchical Context-Aware Thresholds: L0--L5}
+\label{sec:threshold-hierarchy}
+
+Figure \ref{fig:l05-hierarchy} illustrates the hierarchical threshold
+fallback mechanism.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F2: L0--L5 Hierarchy — see
+    \texttt{figures/F2\_L0\_L5\_Hierarchy.excalidraw.md}]}
+    \par\smallskip
+    \begin{minipage}{0.90\linewidth}
+      \textbf{L0--L5 Fallback Chain}\par
+      {\small
+      Event $\rightarrow$ L0: $H_{10\_\text{midtown}\_WD}$ (min 100)\par
+      $\searrow$ NO $\rightarrow$ L1 (min 50) $\rightarrow$ L2 (min 25)\par
+      $\rightarrow$ L3 (min 10) $\rightarrow$ L4: global (min 5)\par
+      $\rightarrow$ L5: physics priors (no data required)
+      }
+    \end{minipage}
+  }}
+  \caption{L0--L5 hierarchical context-aware threshold fallback. For each event
+    the system extracts five context dimensions (D1--D5), constructs the L0
+    context key, and traverses L0--L4 until sufficient samples are found.
+    Each level provides P10/P90 bounds from rolling windows. L5 physics priors
+    are the hard fallback. L0 covers only 2--5\% of events due to zone-hour
+    sparsity. D4 (External) is a stub.}
+  \label{fig:l05-hierarchy}
 \end{figure}
 
-The data flow within the proposed platform embodies a cohesive pipeline that transforms raw, heterogeneous data into structured, semantically rich insights. It begins at the Data Source Layer, where data is ingested from multiple origins. The data then traverses the Data Ingestion Layer, which standardizes and streams the inputs. Upon ingestion, data is persisted in the Data Storage Layer. The Data Transformation Layer applies cleansing, normalization, and enrichment logic. Finally, insights propagate to the Analytics Layer where dashboards and reports are generated.
+The context key function $ck(e, L)$ maps an event to a string key at fallback
+level $L$:
 
-% ============================================================
-% SECTION 2.3: TECHNOLOGY ARCHITECTURE
-% ============================================================
-\section{Technology Architecture}
-\label{sec:tech_architecture}
+\begin{equation}
+\begin{aligned}
+ck(e, L0) &= f"H{e.hour:02d}_{\text{zone\_cat}(e)}_{\text{WE|WD}(e)}" \\
+ck(e, L1) &= f"{bucket(e.hour)}_{\text{zone\_cat}(e)}_{\text{WE|WD}(e)}" \\
+ck(e, L2) &= f"{bucket(e.hour)}_{\text{borough}(e)}_{\text{WE|WD}(e)}" \\
+ck(e, L3) &= bucket(e.hour) \\
+ck(e, L4) &= \text{"global"} \\
+ck(e, L5) &= \text{"physics"}
+\end{aligned}
+\end{equation}
 
-% ==========================================================
-% SUBSECTION 2.3.1: Data Source Technologies
-% ==========================================================
-\subsection{Data Source Technologies}
-\label{sec:tech_source}
+The threshold retrieval function evaluates levels L0 through L4 in order,
+returning the first level with sufficient samples:
 
-% PLACEHOLDER: MySQL, SQL Server
-% Tham khảo thesis 2023/2026: mô tả chi tiết 2 DBMS
+\begin{equation}
+\text{get\_threshold}(e, f) \Rightarrow
+\begin{cases}
+\text{BroadcastState}[L0][ck(e,L0)][f] & \text{if } count \geq 100 \\
+\text{BroadcastState}[L1][ck(e,L1)][f] & \text{if } count \geq 50 \\
+\text{BroadcastState}[L2][ck(e,L2)][f] & \text{if } count \geq 25 \\
+\text{BroadcastState}[L3][ck(e,L3)][f] & \text{if } count \geq 10 \\
+\text{BroadcastState}[L4][ck(e,L4)][f] & \text{if } count \geq 5 \\
+\text{physics\_prior}(f)                 & \text{always}
+\end{cases}
+\end{equation}
 
-\textbf{MySQL:} MySQL is an open-source database management system. It is widely used due to its ease of deployment, speed, and compatibility across various systems. MySQL supports a wide range of storage engines and replication techniques, making it suitable for distributed environments and data-driven applications.
+The minimum sample thresholds are derived from power analysis: at L0,
+Cohen's $d = 0.30$, $\alpha = 0.01$, power $= 0.80$ requires $n \geq 100$
+samples per cell for the context-specific threshold to outperform the global
+threshold by a detectable margin.
 
-\textbf{Microsoft SQL Server:} Microsoft SQL Server is a relational database engine designed to retrieve, store, and manage data for structured querying, transactional processing and business intelligence features. SQL Server integrates seamlessly with enterprise tools such as Power BI and Azure Synapse.
+BroadcastState provides O(1) amortized lookup for threshold retrieval.
+The state is updated hourly by the calibration job; the update is
+broadcast to all TaskManagers atomically. State size is estimated at
+approximately 25 MB for 10,000 context cells $\times$ 5 fields $\times$
+500 bytes per cell.
 
-% ==========================================================
-% SUBSECTION 2.3.2: Data Ingestion Technologies
-% ==========================================================
-\subsection{Data Ingestion Technologies}
-\label{sec:tech_ingestion}
+\textbf{CRS rules use L5 physics priors exclusively.} CRS001 and CRS002
+thresholds (GPS speed bounds, jump distance) are physical constraints that
+do not vary with context. They are implemented as hardcoded L5 values
+with no data dependency. CRS003 (deduplication) similarly has no context
+dependency.
 
-% PLACEHOLDER: Debezium + Kafka / Airbyte
-% Tham khảo thesis 2023: Airbyte
-% Tham khảo thesis 2026: Debezium + Kafka
+\section{Trajectory Quality Scoring}
+\label{sec:tqs-design}
 
-\textbf{[Tool A, e.g., Debezium or Airbyte]:} [Tool] is an open-source [type of tool] that helps [what it does]. One of the key advantages of [tool] is its capacity to manage a wide range of data sources and formats, including databases, APIs, and flat files.
+We design TQS as a composite score from five \textit{stream-intrinsic}
+quality dimensions: dimensions that are computed directly from raw event
+properties, without referencing rule violation outcomes.
 
-\Cref{fig:ingestion_arch} shows the architecture of [tool].
+The five dimensions are:
 
-\begin{figure}[tbp]
-\centering
-\fbox{\parbox{0.7\textwidth}{\centering\vspace{2cm}
-[Insert tool architecture diagram here]
-\vspace{2cm}}}
-\caption{[Tool] architecture.}
-\label{fig:ingestion_arch}
+\begin{itemize}
+  \item \textbf{Tm (Timeliness)}: $\text{Tm} = \exp(-\lambda \sigma^{2}_{\Delta t})
+        \cdot (1 - \text{stale\_rate})$, where $\Delta t$ is the inter-event
+        time delta, $\sigma^{2}_{\Delta t}$ is its population variance,
+        $\lambda = 10^{-8}$ ms$^{-2}$, and $\text{stale\_rate}$ is the
+        fraction of events older than 300 seconds. Tm $\in [0, 1]$.
+  \item \textbf{Cn (Completeness)}: fraction of non-null, non-NaN required
+        fields. $C_n = 1 - n_{\text{missing}} / (N \cdot |F|)$.
+  \item \textbf{Ac (Accuracy)}: raw field plausibility (fixed bounds, not
+        context-adaptive). For NYC TLC: fare $\in [0, 1000]$ USD, distance
+        $\in [0, 500]$ miles, passengers $\in [0, 9]$, zones $\in [1, 263]$.
+  \item \textbf{Cs (Consistency)}: GPS coherence from raw positions (not
+        from CRS001 violations). Uses a 150 km/h bound (wider than
+        CRS001's 100 km/h) to detect only physically impossible measurements.
+  \item \textbf{Uv (Uniqueness)}: $U_v = 1 - |\{h(e) : e \in \text{window}\}| / N$,
+        where $h(e)$ is the content hash. Computed from raw event hashes,
+        not from CRS003 violations.
+\end{itemize}
+
+The composite TQS V2 formula is:
+
+\begin{equation}
+\text{TQS} = \omega_{\text{Tm}} \cdot \text{Tm}
+            + \omega_{\text{Cn}} \cdot \text{Cn}
+            + \omega_{\text{Ac}} \cdot \text{Ac}
+            + \omega_{\text{Cs}} \cdot \text{Cs}
+            + \omega_{\text{Uv}} \cdot \text{Uv}
+\end{equation}
+
+with weights $\omega_{\text{Tm}} = 0.20$, $\omega_{\text{Cn}} = 0.25$,
+$\omega_{\text{Ac}} = 0.20$, $\omega_{\text{Cs}} = 0.25$, $\omega_{\text{Uv}} = 0.10$
+(domain-prioritized, V2). These weights are design choices; V1 (equal) and
+V3 (consistency-heavy) are pre-registered variants. TQS is non-circular:
+all five dimensions are computed from raw event properties without referencing
+rule violation counts. This design is distinct from and draws from the
+approach described in T-Assess \citep{tassess2025}, adapted for streaming
+GPS data and the SYN/SEM/CRS taxonomy.
+
+Table \ref{tab:tqs-weights} presents the TQS weights.
+
+\begin{table}[htbp]
+  \centering
+  \caption{TQS V2 weights: domain-prioritized composite. Inspired by
+    \citep{tassess2025}. V1 (equal) and V3 (consistency-heavy) are
+    pre-registered variants.}
+  \label{tab:tqs-weights}
+  \begin{tabular}{lcc}
+    \toprule
+    Dimension & Symbol & Weight ($\omega$) \\
+    \midrule
+    Timeliness     & Tm & 0.20 \\
+    Completeness   & Cn & 0.25 \\
+    Accuracy       & Ac & 0.20 \\
+    Consistency    & Cs & 0.25 \\
+    Uniqueness     & Uv & 0.10 \\
+    \midrule
+    Total          &    & 1.00 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{ML-Augmented Threshold Calibration}
+\label{sec:ml-augmentation}
+
+The ML augmentation pipeline runs asynchronously out-of-band, writing
+calibrated parameters to BroadcastState every hour. It never blocks
+real-time event processing.
+
+Figure \ref{fig:ml-architecture} shows the ML pipeline integration.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \textbf{[Figure F5: ML Hybrid Architecture — see
+    \texttt{figures/F5\_ML\_Architecture.excalidraw.md}]}
+    \par\smallskip
+    \begin{minipage}{0.90\linewidth}
+      \textbf{ML Augmentation Pipeline}\par
+      {\small
+      Calibration Window $\xrightarrow{\text{1h}}$ BO: GP surrogate $\rightarrow$ BroadcastState\par
+      Isolation Forest: anomaly\_score $\rightarrow$ effective\_k $\times (1 + \alpha \times s)$\par
+      Rules remain AUTHORITATIVE --- ML never overrides violations
+      }
+    \end{minipage}
+  }}
+  \caption{ML-augmented threshold calibration pipeline. Bayesian Optimization
+    (Priority 1) runs hourly on a calibration window, tuning k-multiplier,
+    IF alpha, and weekend discount. Isolation Forest (Priority 2, conditional)
+    scores anomaly confidence per event. Rules remain authoritative at all times.
+    LSTM (Priority 4, NO-GO) is excluded.}
+  \label{fig:ml-architecture}
 \end{figure}
 
-\textbf{Apache Kafka:} Apache Kafka is a distributed event streaming platform that serves as the backbone in real-time data pipelines and streaming applications. Kafka is increasingly adopted in real-time analytics applications and event-driven architectures due to its ability to handle large volumes of data with high throughput.
+\textbf{Bayesian Optimization (Priority 1, GO).} We use a Gaussian Process
+surrogate with Expected Improvement acquisition to maximize F1 on a 1-hour
+calibration window with known injection. The 5 hyperparameters tuned are:
+k\_multiplier $\in [1.5, 5.0]$, IF\_alpha $\in [0.0, 0.5]$,
+weekend\_discount $\in [0.0, 0.5]$, context\_weight $\in [0.0, 1.0]$,
+and LSTM\_threshold\_m $\in [50, 250]$ (for LSTM, kept for completeness
+though LSTM is NO-GO). The BO loop runs for up to 30 iterations with
+10 initial random points; it converges in approximately 15--30 minutes.
+If calibration exceeds 15 minutes, the parameters are considered stale
+and are not broadcast. BO runs hourly, leaving a sufficient safety margin.
 
-Key components of Kafka include:
-\begin{itemize}
-    \item \textbf{Producers:} Clients that publish data to Kafka topics.
-    \item \textbf{Topics:} Logical channels to which records are written.
-    \item \textbf{Brokers:} Kafka servers that handle incoming data and client requests.
-    \item \textbf{Consumers:} Applications that subscribe to topics and process messages.
-\end{itemize}
+\textbf{Isolation Forest (Priority 2, conditional).} A single global
+Isolation Forest \citep{iforest2008} is trained on all NYC TLC events
+with 11 features: normalized fare and distance (Z-scores from ThresholdStats),
+passenger count, hour (sine/cosine encoding), zone category (one-hot, 4
+categories), weekend indicator, and payment type. Isolation Forest scores
+each event with anomaly confidence $s \in [0, 1]$. The effective k-multiplier
+becomes $\text{effective\_k} = \text{base\_k} \times (1 + \alpha \cdot s)$,
+making context thresholds tighter for statistically anomalous events.
+This component is activated only if the correlation between Isolation Forest
+scores and P90 violations is $\rho < 0.8$. The single global model avoids
+the computational cost of maintaining separate models for 6,000+ context cells.
 
-% ==========================================================
-% SUBSECTION 2.3.3: Storage and Lakehouse Technologies
-% ==========================================================
-\subsection{Storage and Lakehouse Technologies}
-\label{sec:tech_storage}
+\textbf{XGBoost (Priority 3, conditional).} A scaffold exists for
+XGBoost-based threshold prediction, but the training target (optimal
+threshold) is undefined. This component will be developed after Phase 3
+when BO and Isolation Forest are benchmarked.
 
-% PLACEHOLDER: MinIO + Delta Lake / Apache Hudi
+\textbf{LSTM (Priority 4, NO-GO).} LSTM trajectory prediction is excluded
+for three documented reasons: (1) 6-month historical NYC MTA Bus GPS
+archive has not been confirmed to exist; (2) LSTM trajectory deviation
+is highly correlated with CRS002 GPS jump detection; (3) LSTM provides
+only alert elevation (not authoritative validation) in a research platform.
+We re-evaluate only if CRS002 recall falls below 60\% on real GPS anomalies
+AND a 6-month GPS archive is confirmed.
 
-\textbf{MinIO:} MinIO is an open-source object storage system ideal for data storage applications such as data lakes and lakehouses. MinIO's distributed architecture enables it to scale horizontally, adding storage space and throughput as required.
-
-\textbf{[Format Framework, e.g., Delta Lake or Apache Hudi]:} [Format] is a [description]. It brings database-like functionalities to large-scale data lakes, introducing capabilities such as record-level insert/update/delete (upsert), change data capture (CDC), and time travel queries.
-
-% ==========================================================
-% SUBSECTION 2.3.4: Data Transformation and Orchestration
-% ==========================================================
-\subsection{Data Transformation and Orchestration}
-\label{sec:tech_transformation}
-
-% PLACEHOLDER: Apache Spark + Apache Airflow
-
-\textbf{Apache Spark:} Apache Spark is a widely used data processing engine particularly well-suited for large-scale data transformation use cases. Spark provides a fast and flexible platform for processing data in parallel across distributed clusters.
-
-Key components of Spark:
-\begin{itemize}
-    \item \textbf{Driver Program:} The central coordinator that translates user code into tasks.
-    \item \textbf{Cluster Manager:} Allocates resources across Spark applications.
-    \item \textbf{Executors:} Distributed agents responsible for executing tasks.
-\end{itemize}
-
-\textbf{Apache Airflow:} Apache Airflow is an open-source platform for developing, scheduling, and monitoring batch workflows. It provides a Python-based framework where complex processes are expressed as Directed Acyclic Graphs (DAGs).
-
-% ==========================================================
-% SUBSECTION 2.3.5: Metadata and Knowledge Graph Management
-% ==========================================================
-\subsection{Metadata and Knowledge Graph Management}
-\label{sec:tech_metadata}
-
-% PLACEHOLDER: Datahub + Great Expectations
-
-\textbf{DataHub:} DataHub is a modern data catalog designed to streamline metadata management, data discovery, and data governance. It enables efficient exploration of organizational data, lineage tracking, and enforcement of data contracts. DataHub models metadata as a graph of interconnected entities (datasets, dashboards, users) and relationships (schema, ownership, lineage).
-
-\textbf{Great Expectations:} Great Expectations is an open-source data validation, documentation, and profiling tool designed to help teams maintain data quality throughout the data pipeline. It offers a declarative framework where users define expectations---assertions about data characteristics---that are automatically checked during data ingestion, transformation, and serving.
-
-% ==========================================================
-% SUBSECTION 2.3.6: Querying and Analytics
-% ==========================================================
-\subsection{Querying and Analytics}
-\label{sec:tech_querying}
-
-% PLACEHOLDER: Trino + Metabase / Superset
-
-\textbf{Trino:} Trino, formerly known as PrestoSQL, is an open-source distributed SQL query engine designed for running fast, interactive analytic queries across heterogeneous data sources. It allows querying data directly where it lives---whether on object storage systems like S3, distributed file systems like HDFS, or in traditional relational databases---without requiring prior data movement.
-
-The Trino architecture follows a distributed design based on a coordinator-worker model:
-\begin{itemize}
-    \item \textbf{Coordinator:} Parses SQL statements, optimizes query plans, schedules tasks.
-    \item \textbf{Workers:} Execute parts of the query in parallel.
-    \item \textbf{Catalogs:} Provide mappings to external data sources.
-\end{itemize}
-
-\textbf{[BI Tool, e.g., Metabase or Superset]:} [Tool] is an open-source business intelligence and data visualization platform designed to make data exploration accessible to non-technical users through an intuitive, low-code interface.
-
-% ==========================================================
-% SUBSECTION 2.3.7: LLM-Powered Analytics (Optional)
-% ==========================================================
-\subsection{LLM-Powered Intelligent Analytics (Optional)}
-\label{sec:tech_llm}
-
-The emergence of Large Language Models (LLMs) has fundamentally transformed the way users interact with data systems, introducing natural language interfaces that enable intuitive and dynamic data exploration.
-
-In the context of intelligent analytics platforms, LLMs play a pivotal role by interpreting user prompts, automatically generating SQL queries, recommending visualizations, and providing narrative summaries of analytical results.
-
-The architecture for LLM-powered intelligent analytics integrates LLMs into the data platform via a specialized interaction layer:
-\begin{itemize}
-    \item \textbf{Large Language Models:} Serve as the core natural language understanding and generation engine.
-    \item \textbf{Integration Layer:} Acts as a bridge between the LLM and backend services.
-\end{itemize}
-
-% ============================================================
-% SECTION 2.4: CHAPTER SUMMARY
-% ============================================================
 \section{Chapter Summary}
-\label{sec:ch2_summary}
+\label{sec:ch2-summary}
 
-This chapter introduced the core layers and technology stack underpinning the proposed [Knowledge Graph-based / Data Fabric-based] Data Platform for [Intelligent Analytics / Modern Data Management]. We explored each component's role from data storage and transformation, to metadata management, intelligent querying, and LLM-powered analytics.
+This chapter described the StreamDQ system architecture. We presented the
+overall pipeline (Kafka $\rightarrow$ Flink $\rightarrow$ PostgreSQL/Prometheus)
+with two data sources: NYC TLC (zone-level, SYN/SEM only) and NYC MTA Bus
+(GPS, all rules). We described the three-layer rule taxonomy (SYN/SEM in
+Python, CRS in Java/gRPC), the hierarchical L0--L5 threshold fallback
+mechanism, the non-circular TQS design from five stream-intrinsic dimensions,
+and the ML calibration pipeline. We emphasized that rules are authoritative,
+CRS rules require Java for performance, and L0 coverage is sparse (2--5\%).
 
-The proposed architecture consists of [5-7] major layers that work together to provide [capabilities]. The technology stack includes open-source tools such as [list of tools], which were selected based on their [criteria: scalability, flexibility, integration capability, community support].
-
-Together, these technologies form an integrated ecosystem that enables efficient, scalable, and intelligent data workflows, providing a strong foundation for building advanced analytics capabilities within modern data-driven organizations. The following chapter will present the experimental setup and evaluation results.
+Chapter 3 presents the evaluation methodology and benchmark results.

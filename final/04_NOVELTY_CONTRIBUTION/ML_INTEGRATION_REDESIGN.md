@@ -65,9 +65,9 @@ The revised pipeline places ML as a calibration layer between the raw event stre
 │  │    Threshold ← L0–L5 lookup × (1 + α × IF_anomaly_score)  │  ← ML calibration  │
 │  │                                                           │                     │
 │  │  NYC MTA Bus branch:                                     │                     │
-│  │    CRS001: Speed bounds [2, 120] km/h (Java Flink)        │                     │
-│  │    CRS002: GPS jump > 100m/30s (Java Flink)               │                     │
-│  │      + LSTM deviation > 100m → elevated severity           │  ← ML pre-filter   │
+│  │    CRS001: Speed bounds [2, 100] km/h (Java Flink)        │                     │
+│  │    CRS002: GPS jump > 400m/30s (Java Flink)               │                     │
+│  │      + LSTM deviation > 400m → elevated severity           │  ← ML pre-filter   │
 │  │    CRS003: Dedup (RoaringBitmap, 300s window)             │                     │
 │  │                                                           │                     │
 │  └──────────────────────────┬───────────────────────────────┘                     │
@@ -253,7 +253,7 @@ EXAMPLE:
 - **Location**: Python gRPC service (separate process from Flink JVM)
 - **Flink integration**: `AsyncDataStream.unorderedWait` with timeout=50ms
 - **Fallback on timeout/error**: `anomaly_score = 0.0` (no ML calibration, rule-only)
-- **State isolation**: Each NYC TLC zone-hour cell maintains its own IF model (10,000+ models). This is computationally expensive — acceptable for LocalPipeline; for distributed Flink, models are aggregated at L1 level (zone category × time category), reducing to ~100 models.
+- **Architecture fix**: ~~Per-cell IF models (10,000+)~~ → **Single global IF model** with zone/hour as features. Per-cell models are computationally infeasible (ML_MODEL_ANALYSIS.md §1.4). A single global model is trained on all contexts and uses zone/hour as categorical features, capturing distributional variation across contexts without maintaining separate model instances. Profile after implementation; multi-cell only if single-model latency exceeds budget.
 
 #### 3.1.5 Unit Test Specifications
 
@@ -275,7 +275,7 @@ TEST IF4: Feature vector correctness — INPUT: NYC TLC event with PULocationID=
 
 #### 3.2.1 Method
 
-A bidirectional LSTM predicts the next vehicle position from the last 10 GPS positions. Events with high LSTM prediction deviation (> 100m) are pre-flagged as high-risk for CRS002/CRS001 evaluation. This is analogous to the complementary detector ensemble in CETrajAD (Cao & Akoglu, SDM 2025), where multiple specialized detectors each capture different anomaly modalities.
+A bidirectional LSTM predicts the next vehicle position from the last 10 GPS positions. Events with high LSTM prediction deviation (> 400m) are pre-flagged as high-risk for CRS002/CRS001 evaluation. This is analogous to the complementary detector ensemble in CETrajAD (Cao & Akoglu, SDM 2025), where multiple specialized detectors each capture different anomaly modalities.
 
 #### 3.2.2 Input Representation
 
@@ -420,11 +420,14 @@ def violation_rate_objective(params: dict) -> float:
     n_events = count(calibration_stream)
     violation_rate = n_violations / n_events
 
-    # 4. Return (minimize violation rate on clean data → optimize threshold tightness)
-    return violation_rate
+    # 4. Return: F1 on injected calibration data (requires ground truth)
+    # NOTE: ML_MODEL_ANALYSIS.md analysis identifies F1 as correct objective.
+    # violation_rate (FPR) can diverge from F1 — optimizing FPR may worsen F1.
+    # Requires synthetic anomaly injection during calibration window.
+    return compute_f1_score(violations, ground_truth_injections)
 ```
 
-**Note**: The calibration window uses `injection_rate=0.0` (clean data). The objective is to **minimize false positive rate** on clean data, not to maximize detection rate. Detection rate is measured separately on injected data during the ablation study (Section 5).
+**Critical fix**: The calibration window uses synthetic anomaly injection (injection_rate > 0.0). The objective is **F1 on injected data**, not violation_rate. ML_MODEL_ANALYSIS.md §2 identifies that violation_rate (FPR) can diverge from F1 — a threshold optimized for low FPR may have poor recall. The correct objective is `F1 = 2·P·R/(P+R)` on calibration data with known ground truth.
 
 #### 3.3.4 Optimization Configuration
 
@@ -492,8 +495,8 @@ The revised timeline integrates ML as a **core Phase 3** with concrete deliverab
 | **1–2** | **Phase 1** | Build `ground_truth_tracker.py` (PostgreSQL: injected_events, detected_violations) | Ground-truth correlation table |
 | **1–2** | **Phase 1** | Build `metrics.py` (precision, recall, F1, bootstrap CI with 1,000 iterations) | Metrics module |
 | **1–2** | **Phase 1** | Build `run_evaluation.py` (CLI orchestrator: warmup, measurement, seed logging) | Reproducibility script |
-| **3–4** | **Phase 1** | Fix B2 (CRS003 duplicate injection): emit original + duplicate | CRS003 recall measurable |
-| **3–4** | **Phase 1** | Fix CRS002 threshold: 100m → 250m (address B3 speed range gap) | CRS002 precision ≥ 0.70 |
+| **3–4** | **Phase 1** | Fix NG-4 (CRS003 replay suppression): tag synthetic duplicates is_replay=False | CRS003 recall measurable |
+| **3–4** | **Phase 1** | Fix CRS002 threshold: 100m → 400m (address B3 speed range gap) | CRS002 precision ≥ 0.70 |
 | **3–4** | **Phase 1** | Fix TQS architecture: rewrite DATA_STRUCTURES.md, verify Tm formula unit scale | TQS dimensions validated |
 | **3–4** | **Phase 1** | Run baseline evaluation (rule-only F1) on NYC TLC + NYC MTA Bus | Primary results (Tier 1) |
 | **5–6** | **Phase 2** | Java warmup: Maven project setup, Flink CRS skeleton, basic `KeyedProcessFunction` | Java Flink build pipeline |
@@ -520,6 +523,8 @@ The revised timeline integrates ML as a **core Phase 3** with concrete deliverab
 ### 5.1 Research Question
 
 **RQ6**: Does ML-augmented threshold calibration improve F1 over rule-only thresholds?
+
+**Implementation priority**: BO (1st) → IF (2nd, conditional on IF↔P90 correlation < 0.8) → XGBoost (3rd, training target undefined) → LSTM (4th, GPS data unconfirmed) → ~~LightGBM~~ (REMOVED — no confirmed use case)
 
 ### 5.2 Hypotheses
 
@@ -654,6 +659,10 @@ The following documents must be updated to reflect ML as a core contribution:
 | **BO converges to local minimum**: GP surrogate finds suboptimal parameters | MEDIUM | MEDIUM | Use 10 random initial points; cap iterations at 30; reset if no improvement for 5 consecutive iterations |
 | **gRPC latency overhead**: IF (~2ms) + LSTM (~10ms) async calls add ~12ms per event | MEDIUM | LOW | AsyncDataStream.unorderedWait with 50ms timeout; fallback to rule-only on timeout |
 | **IF score threshold sensitivity**: Contamination parameter (0.01) is a design choice not validated on NYC TLC | HIGH | MEDIUM | Sweep contamination ∈ {0.005, 0.01, 0.02, 0.05}; select by F1 on calibration window |
+| **Per-cell IF model scalability**: 10,000+ models is computationally infeasible | HIGH | HIGH | Use single global IF model with zone/hour as features; profile before multi-model |
+| **BO objective mismatch**: Minimizing violation_rate (FPR) may reduce F1 | HIGH | HIGH | Use F1 as BO objective, not violation_rate; requires injected calibration data |
+| **XGBoost training target undefined**: Cannot train without defining "optimal threshold" label | HIGH | HIGH | Define training target: maximize F1 on backtest with synthetic injection |
+| **LightGBM use case absent**: "Duplicate confidence scoring" maps to no real problem in CRS003 | MEDIUM | HIGH | Remove from architecture; no confirmed use case per ML_MODEL_ANALYSIS.md |
 | **LSTM training data quality**: NYC MTA Bus historical GPS data may contain authentic anomalies | HIGH | MEDIUM | Filter training data using CRS rules to remove obvious anomalies before training |
 | **Model versioning**: Mismatch between IF/LSTM model version and evaluation run | LOW | LOW | Broadcast model version alongside thresholds; log version in every violation record |
 | **BO on wrong objective**: Optimizing violation rate (FPR on clean data) may reduce recall | HIGH | HIGH | Run ablation study with injected data; verify F1, not just FPR, improves |
@@ -734,4 +743,13 @@ The following documents must be updated to reflect ML as a core contribution:
 
 ---
 
-*Document classification*: **Tier 2 (Estimated)** for all ML performance claims. All F1 improvement projections are hypotheses requiring empirical validation. ML augmentation is a **measured contribution** — the contribution claim is the evaluation methodology and the honest reporting of results, positive or negative.
+*Document classification*: **Tier 2 (Estimated)** for all ML performance claims. All F1 improvement projections are hypotheses requiring empirical validation. ML augmentation is a **measured contribution** — the contribution claim is the evaluation methodology and the honest reporting of results, positive or negative.*
+
+**Key architectural decisions from ML_MODEL_ANALYSIS.md**:
+- BO = Priority 1 (genuine gap: k calibration)
+- IF = Priority 2 (conditional: IF↔P90 correlation must be ρ < 0.8)
+- XGBoost = Priority 3 (conditional: training target must be defined)
+- LSTM = Priority 4 (NO-GO: GPS training data unconfirmed, HIGH redundancy)
+- **LightGBM = REMOVED** (no confirmed use case)
+- **IF = single global model** (per-cell 10,000+ models unscalable)
+- **BO objective = F1** (not violation_rate/FPR)

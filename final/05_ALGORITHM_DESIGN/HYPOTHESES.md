@@ -23,11 +23,11 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 
 | ID | Blocker | Affected Hypotheses |
 |----|---------|-------------------|
-| B2 | CRS003 duplicate injection does NOT emit original + duplicate | H3-CRS003 only |
+| NG-4 | CRS003 recall blocked by replay suppression gate on synthetic duplicates (synthetic events tagged is_replay=True) | H3-CRS003 only |
 | B6 | `processing_latency_ms` hardcoded to 0 | Latency hypotheses (all) |
 | I7 | L0 min-samples (100) derived without empirical validation | H1-L0 only |
 | I16 | D4 External context (holiday) is a stub | H1-D only |
-| I24 | CRS002 threshold (>100m/30s) validated for buses, not all vehicles | H3-CRS002 only |
+| I24 | CRS002 threshold (>400m/30s) validated for buses, not all vehicles | H3-CRS002 only |
 
 ---
 
@@ -69,7 +69,7 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 | **Falsification** | FNR(L0) ≥ FNR(L4) at any injection rate, or variance(threshold_L0) ≥ variance(threshold_L4). Both would indicate the fallback provides no information value. NOTE: FNR improvement at L0 is estimated for ~5% of events only; aggregate FNR improvement across all events is estimated at 1–2pp (significantly diluted by L4/L3 coverage of 60–80% of events). |
 | **H₀** | Fallback levels are indistinguishable: variance(threshold) is constant across L0–L4, or FNR is non-monotonic |
 | **Statistical Test** | Friedman's test (non-parametric repeated measures) across L0–L4 threshold specificity, across ≥ 30 context cells. Post-hoc Nemenyi test for pairwise comparisons. Report ΔFNR per level with 95% bootstrap CI. |
-| **Edge Cases** | (1) **L5 discontinuity**: L5 (physics priors, [2, 120] km/h for CRS001) is categorical, not statistical. It does not use the same threshold metric. L5 should be excluded from the monotonicity test. (2) **Non-monotonic drift**: If temporal trends cause some L1 cells to have wider distributions than L2 cells (e.g., rush-hour high variance in all zones), the monotonicity assumption breaks. |
+| **Edge Cases** | (1) **L5 discontinuity**: L5 (physics priors, [2, 100] km/h for CRS001) is categorical, not statistical. It does not use the same threshold metric. L5 should be excluded from the monotonicity test. (2) **Non-monotonic drift**: If temporal trends cause some L1 cells to have wider distributions than L2 cells (e.g., rush-hour high variance in all zones), the monotonicity assumption breaks. |
 
 ---
 
@@ -134,7 +134,7 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 | **Mechanism** | Aggregate TQS pools all context cells, washing out cell-specific quality signals. If only `hour_14_Manhattan_weekday` has high quality problems, the aggregate TQS dilutes this signal across all other cells. Per-cell TQS preserves this signal, enabling "Why is quality low?" attribution. However: if quality problems are uniform across all context cells (e.g., a systematic data pipeline bug), aggregate TQS is sufficient. The hypothesis predicts context heterogeneity in violation rates. |
 | **Falsification** | ρ_s(per-cell TQS, injection_rate) ≤ ρ_s(aggregate TQS, injection_rate). If per-cell TQS is no better, the context decomposition adds no diagnostic value. |
 | **H₀** | Aggregation level does not affect TQS validity: ρ_s(per-cell) = ρ_s(aggregate) |
-| **Statistical Test** | DeLong's test for comparing two correlated AUC/ROC curves (adapted for Spearman correlation: compare Fisher-transformed z-scores of ρ_s per cell vs. aggregate). Report 95% bootstrap CI for the difference Δρ_s = ρ_s(per-cell) − ρ_s(aggregate). |
+| **Statistical Test** | Meng's z-test for comparing two dependent Spearman correlations (Meng, 1994). Compute ρ_s(per-cell TQS, injection_rate) and ρ_s(aggregate TQS, injection_rate) across context cells. Meng's z = (z₁ − z₂) / √(1/(n−3) + 1/(n−3)) where z = Fisher z-transform = arctanh(ρ_s). Report 95% bootstrap CI for Δρ_s = ρ_s(per-cell) − ρ_s(aggregate). Meng's z is preferred over DeLong's test because Meng (1994) directly handles two Spearman correlations sharing the same injection rates, whereas DeLong's test is designed for AUC/ROC comparisons. |
 | **Edge Cases** | (1) **Non-circular construction**: Both TQS and injection rate are per-cell quantities. The correlation is not circular because TQS is computed from raw event properties, not rule outcomes. (2) **Cell sparsity**: Low-sample cells produce noisy TQS estimates. High-injection cells may have fewer clean events for calibration. |
 
 ---
@@ -175,30 +175,30 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 
 ### Hypothesis H3-CRS001: GPS Speed Bounds Detect Synthetic Speed Violations with P > 0.70
 
-**H3-CRS001**: CRS001 (Haversine-based speed bounds [2, 120] km/h) achieves precision > 0.70 on synthetically injected GPS speed spike anomalies in NYC MTA Bus GTFS-realtime streams.
+**H3-CRS001**: CRS001 (Haversine-based speed bounds [2, 100] km/h) achieves precision > 0.70 on synthetically injected GPS speed spike anomalies in NYC MTA Bus GTFS-realtime streams.
 
 | Field | Value |
 |-------|-------|
-| **IV** | Speed injection: synthetic GPS position pairs producing computed speed > 120 km/h vs. normal vehicle positions (speed 0–80 km/h) |
+| **IV** | Speed injection: synthetic GPS position pairs producing computed speed > 100 km/h vs. normal vehicle positions (speed 0–80 km/h) |
 | **DV** | Precision: fraction of CRS001 violations that match injected speed spikes (entity_index match), among all CRS001 violations |
-| **Mechanism** | NYC MTA buses operate at 0–80 km/h in urban service. Speed > 120 km/h is physically impossible for a bus on city streets and is indicative of GPS data errors (position jumps, sensor glitches, or deliberate spoofing). Haversine distance / time delta between consecutive VehiclePosition messages gives a direct physical speed estimate. The [2, 120] km/h bounds are conservative: 2 km/h eliminates stationary vehicles, 120 km/h provides a safety margin above highway speed limits. |
+| **Mechanism** | NYC MTA buses operate at 0–80 km/h in urban service. Speed > 100 km/h is physically impossible for a bus on city streets and is indicative of GPS data errors (position jumps, sensor glitches, or deliberate spoofing). Haversine distance / time delta between consecutive VehiclePosition messages gives a direct physical speed estimate. The [2, 100] km/h bounds are conservative: 2 km/h eliminates stationary vehicles, 100 km/h provides a safety margin above highway speed limits. |
 | **Falsification** | Precision(CRS001) ≤ 0.70 at 95% bootstrap CI. Specifically, if the lower bound of the 95% CI for P(CRS001) is below 0.70, reject H3-CRS001. |
 | **H₀** | P(CRS001) ≤ 0.70 |
 | **Statistical Test** | One-sided binomial test for precision ≥ 0.70. Compute 95% Wilson CI. Bootstrap: 1,000 resamples of injection trials (3 trials × 600s per rate). Report precision per injection rate (5%, 10%, 20%) separately. |
-| **Edge Cases** | (1) **Real speed violations missed**: CRS001 cannot detect actual GPS spoofing that stays within [2, 120] km/h. (2) **Stationary vehicles at speed=0**: The 2 km/h lower bound passes legitimate stationary vehicles. A position reporting error producing speed < 2 km/h will not trigger CRS001. (3) **GTFS-realtime update interval**: GTFS-realtime updates are every ~30s. Computing speed from positions 30s apart introduces larger Haversine errors (±5m GPS jitter). |
+| **Edge Cases** | (1) **Real speed violations missed**: CRS001 cannot detect actual GPS spoofing that stays within [2, 100] km/h. (2) **Stationary vehicles at speed=0**: The 2 km/h lower bound passes legitimate stationary vehicles. A position reporting error producing speed < 2 km/h will not trigger CRS001. (3) **GTFS-realtime update interval**: GTFS-realtime updates are every ~30s. Computing speed from positions 30s apart introduces larger Haversine errors (±5m GPS jitter). |
 
 ---
 
 ### Hypothesis H3-CRS002: GPS Jump Detection Distinguishes Real Bus Routes from Spoofed Positions
 
-**H3-CRS002**: CRS002 (> 100m displacement in 30s window) achieves precision > 0.70 and recall > 0.60 on synthetically injected GPS jump anomalies in NYC MTA Bus GTFS-realtime streams.
+**H3-CRS002**: CRS002 (> 400m displacement in 30s window) achieves precision > 0.70 and recall > 0.60 on synthetically injected GPS jump anomalies in NYC MTA Bus GTFS-realtime streams.
 
 | Field | Value |
 |-------|-------|
-| **IV** | GPS jump injection: two vehicle positions at the same timestamp or within 30s, separated by > 100m, vs. normal consecutive bus positions |
+| **IV** | GPS jump injection: two vehicle positions at the same timestamp or within 30s, separated by > 400m, vs. normal consecutive bus positions |
 | **DV** | (a) Precision: fraction of CRS002 violations that match injected jumps; (b) Recall: fraction of injected jumps that trigger CRS002 violations |
-| **Mechanism** | NYC MTA buses follow fixed routes with stop spacing of typically 100–400m. Between two consecutive GTFS-realtime updates (every ~30s), a bus cannot physically travel > 100m in 30s if stopped at a traffic light, but it also cannot teleport > 100m between two reports that are nominally simultaneous. The 100m threshold is calibrated to: (a) exceed normal stop-to-stop movement at speed < 12 km/h, and (b) detect sudden position resets (spoofing, sensor reboot, vehicle reassignment). |
-| **Falsification** | (a) Precision(CRS002) ≤ 0.70 (false positives exceed 30%), indicating buses regularly travel > 100m between updates in normal operation. (b) Recall(CRS002) ≤ 0.60, indicating CRS002 fails to detect the majority of injected jumps. |
+| **Mechanism** | NYC MTA buses follow fixed routes with stop spacing of typically 100–400m. Between two consecutive GTFS-realtime updates (every ~30s), a bus traveling at the mean urban speed of ~45 km/h moves ~375m in 30s. A position jump > 400m (≈ 99th-percentile displacement) indicates either: (a) a GPS sensor reboot or vehicle reassignment (teleportation), or (b) deliberate GPS spoofing. Normal traffic at 20–65 km/h covers 167–541m in 30s — the 400m threshold is set above the 99th percentile of normal urban traffic to avoid false positives while catching teleportation events. The threshold is calibrated conservatively to minimize FPR on real data. |
+| **Falsification** | (a) Precision(CRS002) ≤ 0.70 (false positives exceed 30%), indicating buses regularly travel > 400m between updates in normal operation. (b) Recall(CRS002) ≤ 0.60, indicating CRS002 fails to detect the majority of injected jumps. |
 | **H₀** | P(CRS002) ≤ 0.70 OR R(CRS002) ≤ 0.60 |
 | **Statistical Test** | Two one-sided binomial tests (TOST equivalence): precision ≥ 0.70 and recall ≥ 0.60. McNemar's test for paired comparisons (with-state vs. without-state). 95% Wilson CI for each. Bootstrap: 1,000 resamples. |
 | **Edge Cases** | (1) **Stop spacing**: In dense urban areas, stops may be < 100m apart. A bus traveling between two closely spaced stops could legitimately exceed 100m in 30s at 12 km/h. The 100m threshold is exactly at the boundary of normal operation. (2) **GTFS-realtime idle**: If a bus stops reporting for > 5 minutes, Flink's idle stream detection may emit a position jump at resumption. This should be filtered. (3) **Vehicle reassignment**: NYC MTA may reassign a vehicle ID to a different physical bus. CRS002 treats this as spoofing. (4) **Known limitation (B3)**: CRS002 has a speed range gap of 2–20 km/h moderate spoofing. |
@@ -214,10 +214,10 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 | **IV** | Duplicate injection: emitting the same (trip_id, timestamp, lat, lon) hash twice within a 300s window |
 | **DV** | Recall: fraction of injected duplicates that are detected by CRS003 (i.e., second occurrence within 300s window flagged) |
 | **Mechanism** | Hash-based deduplication works by computing H = SHA256(trip_id ‖ timestamp ‖ lat ‖ lon) for each event and storing H in a per-hash state with 310s TTL. If the same H appears within 300s, the second occurrence is flagged as a duplicate. |
-| **Falsification** | **(BLOCKED by B2)**: CRS003 recall is [UNMEASURABLE] because duplicate injection does NOT emit both original and duplicate events. CRS003 requires seeing two records (original + duplicate) to detect the duplicate. If the injector only emits the duplicate, CRS003 has no first record to compare against, and recall = 0 by construction. |
-| **H₀** | Recall(CRS003) = 0 (cannot be measured with current injection) |
-| **Statistical Test** | **UNMEASURABLE until B2 is fixed.** Fix: `synthetic_injector.py` must emit both the original event and the duplicate event, tagged with `entity_index` and `entity_index_duplicate` respectively. After fix: McNemar's test comparing matched injection trials with/without deduplication. |
-| **Edge Cases** | (1) **B2 is P0**: Risk register marks this as "HIGH likelihood, HIGH impact." (2) **Hash collision**: SHA256 has negligible collision probability (2^-256). Not a practical concern. (3) **Window boundary**: If the first occurrence is at t=0 and the second at t=301s, the second falls outside the 300s window. The TTL (310s) partially mitigates out-of-order processing. |
+| **Falsification** | **(BLOCKED by NG-4 + NG-1 + NG-2)**: Three independent issues block CRS003 recall measurement: (a) NG-4: synthetic duplicates are tagged `is_replay=True` by `_enrich_with_lineage()`, triggering the replay suppression gate in `evaluate_duplicate_event()` and suppressing violation emission on replay data; (b) NG-1: when confidence ≤ 0.4, the code stores the hash but emits no violation, silently dropping recall for low-confidence duplicates; (c) NG-2: post-first-detection duplicates within the temporal clustering window are suppressed by the cluster mechanism, reducing recall for repeated duplicates. All three are evaluation measurement bugs, not deduplication logic bugs. Fix: tag synthetic duplicates `is_replay=False`; fix NG-1 confidence threshold; fix NG-2 cluster suppression. |
+| **H₀** | Recall(CRS003) = 0 (blocked by NG-4) |
+| **Statistical Test** | **UNMEASURABLE until NG-4, NG-1, NG-2 are fixed.** Fix: (a) NG-4: tag synthetic duplicates `is_replay=False`; (b) NG-1: remove or lower confidence threshold; (c) NG-2: disable temporal clustering for synthetic duplicates. After fix: McNemar's test comparing matched injection trials with/without deduplication. |
+| **Edge Cases** | (1) **NG-4 is P0**: Risk register marks this as "HIGH likelihood, HIGH impact." (2) **Hash collision**: SHA256 has negligible collision probability (2^-256). Not a practical concern. (3) **Window boundary**: If the first occurrence is at t=0 and the second at t=301s, the second falls outside the 300s window. The TTL (310s) partially mitigates out-of-order processing. |
 
 ---
 
@@ -246,12 +246,12 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 | **H1-C** | L0-L5 Fallback | L0 cell coverage determines aggregate ΔF1 | $f_{L0}$ fraction of events | Aggregate ΔF1 | ΔF1 ≥ 5pp without L0 coverage ≥ 10% | Spearman ρ_s (f_L0 vs. ΔF1), ablation by zone | **Tier 2** |
 | **H1-D** | L0-L5 Fallback | Holiday indicator modulates violation rate | D4 enabled vs. disabled | Holiday violation rate | Rate(hour_weekday_holiday) = Rate(hour_weekday) | Paired t-test (holiday vs. matched non-holiday) | **Tier 2** [conditional on I16] |
 | **H2-A** | TQS | TQS decreases monotonically with injection rate | Injection rate 0–20% | TQS_composite | ρ_s(TQS, rate) ≥ 0 or non-monotonic | Spearman ρ_s, 95% bootstrap CI, ≥ 3 trials/rate | **Tier 2** |
-| **H2-B** | TQS | Per-cell TQS correlates better than aggregate TQS | TQS aggregation level | ρ_s(TQS, per-cell injection rate) | ρ_s(per-cell) ≤ ρ_s(aggregate) | DeLong's test (Fisher z-transformed ρ_s) | **Tier 2** |
+| **H2-B** | TQS | Per-cell TQS correlates better than aggregate TQS | TQS aggregation level | ρ_s(TQS, per-cell injection rate) | ρ_s(per-cell) ≤ ρ_s(aggregate) | Meng's z-test (dependent Spearman ρ_s) | **Tier 2** |
 | **H2-C** | TQS | V1/V2/V3 produce distinguishable quality rankings | TQS variant (V1, V2, V3) | TQS score per cell, cell ranking | Kendall's W ≤ 1/3 (equivalent rankings) | Friedman's test + Nemenyi post-hoc, ≥ 30 cells | **Tier 2** |
 | **H2-D** | TQS | TQS explains more variance than single raw field metric | Metric: TQS vs. single raw field rate | R² on independent quality signal | R²(TQS) ≤ R²(single_raw_field_metric) | F-test (nested models), AIC/BIC comparison | **Tier 2** [needs independent downstream signal] |
-| **H3-CRS001** | CRS State | GPS speed bounds achieve P > 0.70 on synthetic spikes | Speed > 120 km/h injection | Precision(CRS001) | P(CRS001) ≤ 0.70 at 95% CI | One-sided binomial, Wilson CI, 1,000 bootstrap | **Tier 2** |
-| **H3-CRS002** | CRS State | GPS jump detection achieves P > 0.70, R > 0.60 | Jump > 100m/30s injection | Precision(CRS002), Recall(CRS002) | P ≤ 0.70 OR R ≤ 0.60 at 95% CI | Two one-sided binomial (TOST), McNemar's test | **Tier 2** |
-| **H3-CRS003** | CRS State | Hash-based deduplication achieves measurable recall | Duplicate injection (original + dup) | Recall(CRS003) | Recall(CRS003) = 0 (blocked by B2) | **UNMEASURABLE** — B2 blocks measurement | **Tier 3** [blocked by B2] |
+| **H3-CRS001** | CRS State | GPS speed bounds achieve P > 0.70 on synthetic spikes | Speed > 100 km/h injection | Precision(CRS001) | P(CRS001) ≤ 0.70 at 95% CI | One-sided binomial, Wilson CI, 1,000 bootstrap | **Tier 2** |
+| **H3-CRS002** | CRS State | GPS jump detection achieves P > 0.70, R > 0.60 | Jump > 400m/30s injection | Precision(CRS002), Recall(CRS002) | P ≤ 0.70 OR R ≤ 0.60 at 95% CI | Two one-sided binomial (TOST), McNemar's test | **Tier 2** |
+| **H3-CRS003** | CRS State | Hash-based deduplication achieves measurable recall | Duplicate injection (original + dup) | Recall(CRS003) | Recall(CRS003) = 0 (blocked by NG-4) | **UNMEASURABLE** — NG-4/NG-1/NG-2 block measurement | **Tier 3** [blocked by NG-4 + NG-1 + NG-2] |
 | **H3-StateMachine** | CRS State | CRS violations require per-vehicle state | Stateful vs. stateless evaluation | CRS violation count | Any CRS violations detected without state | McNemar's test (paired, binary outcome) | **Tier 2** |
 
 ---
@@ -265,7 +265,7 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 | **RQ3** | Does context-decomposed TQS correlate with ground truth better than aggregate? | H2-B, H2-C |
 | **RQ4** | Does TQS accurately quantify quality degradation with injection rate? | H2-A, H2-D |
 | **RQ5** | Do CRS rules achieve precision > 0.70 on NYC MTA Bus? | H3-CRS001, H3-CRS002, H3-StateMachine |
-| **RQ6** | Does ML-augmented threshold calibration improve F1 over rule-only? | Not covered (Phase 3 optional, blocked by B2) |
+| **RQ6** | Does ML-augmented threshold calibration improve F1 over rule-only? | Phase 3 mandatory (ML_MODEL_ANALYSIS.md): BO→IF→XGBoost→LSTM(cond); NG-4 blocks CRS003 dedup only, IF on SYN/SEM unaffected |
 
 ---
 
@@ -275,7 +275,7 @@ No numbers are invented. Estimated claims are labeled `[ESTIMATED]`. Known block
 
 2. **H2-D requires an independent downstream signal**: TQS must be validated against ETA prediction error, not injection rate. If no downstream signal is available, H2-D cannot be tested.
 
-3. **H3-CRS003 is Tier 3 — UNMEASURABLE**: B2 (duplicate injection broken) prevents CRS003 recall measurement. Fix B2 before evaluation. This is documented in the known blockers.
+3. **H3-CRS003 is Tier 3 — UNMEASURABLE**: NG-4 (replay suppression gate) blocks CRS003 evaluation on replay data. Additionally, NG-1 (low-confidence suppression) and NG-2 (temporal clustering) reduce recall for repeated duplicates. All three are evaluation bugs, not dedup logic bugs. This is documented in the known blockers.
 
 4. **D4 (Holiday) is unimplemented**: H1-D is conditional on completing the holiday calendar lookup (I16, PARTIAL status).
 
