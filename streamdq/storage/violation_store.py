@@ -74,7 +74,11 @@ class ViolationStore:
                 record_snapshot TEXT,
                 detected_at TEXT,
                 processing_latency_ms REAL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                -- NG-eval-01: entity_index for ground-truth matching
+                -- Injected anomalies carry entity_index; violations are matched to ground truth
+                -- by joining violations.entity_index = ground_truth.entity_index
+                entity_index TEXT
             )
         """)
         self.conn.execute(
@@ -82,6 +86,9 @@ class ViolationStore:
         )
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_entity_id ON violations(entity_id)"
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entity_index ON violations(entity_index)"
         )
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_detected_at ON violations(detected_at)"
@@ -108,12 +115,14 @@ class ViolationStore:
                 record_snapshot JSONB,
                 detected_at TIMESTAMP,
                 processing_latency_ms REAL,
-                created_at TIMESTAMP DEFAULT NOW()
+                created_at TIMESTAMP DEFAULT NOW(),
+                -- NG-eval-01: entity_index for ground-truth matching
+                entity_index TEXT
             )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rule_id ON violations(rule_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_entity_id ON violations(entity_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_detected_at ON violations(detected_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_entity_index ON violations(entity_index)")
         self.conn.commit()
         cursor.close()
 
@@ -161,6 +170,7 @@ class ViolationStore:
                     json.dumps(v.record_snapshot),
                     v.detected_at.isoformat() if v.detected_at else None,
                     v.processing_latency_ms,
+                    getattr(v, "entity_index", None),  # NG-eval-01: ground-truth index
                 ))
 
         self._maybe_flush()
@@ -190,17 +200,19 @@ class ViolationStore:
                     INSERT INTO violations
                         (rule_id, rule_name, entity_id, entity_type, severity,
                          violation_type, details, expected, record_snapshot,
-                         detected_at, processing_latency_ms)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         detected_at, processing_latency_ms, entity_index)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, rows)
                 self.conn.commit()
             else:
+                # NG-eval-01: PostgreSQL uses JSONB for details/expected/snapshot
+                # entity_index is a plain TEXT column
                 self.conn.executemany("""
                     INSERT INTO violations
                         (rule_id, rule_name, entity_id, entity_type, severity,
                          violation_type, details, expected, record_snapshot,
-                         detected_at, processing_latency_ms)
-                    VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?)
+                         detected_at, processing_latency_ms, entity_index)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s)
                 """, rows)
                 self.conn.commit()
 

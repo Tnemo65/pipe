@@ -1,37 +1,87 @@
 ---
-description: Master rules for StreamDQ — always apply
+description: MASTER RULES — StreamDQ/ContextAware-DQ research project. Single source of truth for all agent behavior. Always apply.
 alwaysApply: true
 ---
 
-# StreamDQ Master Rules
+# StreamDQ Master Rules — Single Source of Truth
 
-## Project Identity
+This file is the **only rule file** for the StreamDQ project. All other rule files are deprecated.
+
+---
+
+## SECTION 1: PROJECT IDENTITY
 
 **StreamDQ** = "A Context-Aware Framework for Streaming Data Quality Monitoring"
+
 - Validates streaming data quality in real-time with context-aware thresholds and full explainability.
-- Not a batch tool. Not a ML anomaly detection system. Not a production-grade product.
-- Research & education platform.
+- **NOT** a batch tool. **NOT** a ML anomaly detection system. **NOT** a production-grade product.
+- **IS** a research & education platform.
 
 **Tech stack**: Python 3.10+, Apache Spark Structured Streaming, Kafka, SQLite/PostgreSQL, Prometheus, Grafana, dbt.
-**Data sources**: NYC TLC Yellow Taxi (replayed), GTFS Malaysia Realtime (live).
+**Data sources**: NYC TLC Yellow Taxi (replayed), NYC MTA Bus GTFS-realtime (live, public).
 **Rule taxonomy**: SYN (syntactic), SEM (semantic), CRS (cross-record).
-**9 rules**: SYN001, SYN002, SYN003, SEM001, SEM002, SEM003, CRS001, CRS002, CRS003.
+**10 rules**: SYN001, SYN002, SYN003, SEM001, SEM002, SEM003, GTFSSem002, CRS001, CRS002, CRS003.
 
-## Work Principles
+**Streaming Engine**: Apache Flink (migrated from Spark).
+**Dataset constraint**: CRS001/CRS002 require GPS coordinates — evaluated on NYC MTA Bus GTFS-realtime only. NYC TLC has no GPS (zone-level only).
+**CRS rules**: **MUST be implemented in Java** (PyFlink serialization overhead). Not optional.
 
-### WP1 — Prototype First, Validate, Then Productionize
+---
+
+## SECTION 2: WORK PRINCIPLES
+
+### WP1 — Think Before Coding
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### WP2 — Simplicity First
+**Minimum code or analysis that solves the problem. Nothing speculative.**
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- If you write 200 lines and it could be 50, rewrite it.
+- If your task involves research: no claim beyond what the evidence supports.
+
+### WP3 — Surgical Changes
+**Touch only what you must. Clean up only your own mess.**
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- If you notice unrelated dead code, mention it — don't delete it.
+- Don't expand scope without asking first.
+- Every changed line should trace directly to the user's request.
+
+### WP4 — Goal-Driven Execution
+**Define success criteria. Loop until verified.**
+- Transform tasks into verifiable goals: "Fix bug" → "Write test that reproduces it, then make it pass"
+- For multi-step tasks, state a brief plan with verification at each step:
+  ```
+  1. [Step] → verify: [check]
+  2. [Step] → verify: [check]
+  3. [Step] → verify: [check]
+  ```
+- Strong success criteria let you loop independently.
+
+### WP5 — Prototype First, Validate, Then Productionize
 Write minimal working version first. Validate it works (unit test or manual check). Then refactor to production quality. **Never** write production-quality code without validating the concept first.
 
-### WP2 — Fail Fast, Diagnose Before Iterating
-When blocked: (1) use research skills to investigate, (2) try 1-2 approaches, (3) if still stuck after 10-15 minutes — STOP and tell the user with: the specific problem, what was tried, remaining options. **Do NOT** blindly iterate without diagnosing.
+### WP6 — Fail Fast, Diagnose Before Iterating
+When blocked: (1) use research skills, (2) try 1-2 approaches, (3) if still stuck after 10-15 minutes — **STOP** and tell user with: specific problem, what was tried, remaining options. **Do NOT** blindly iterate without diagnosing.
 
-### WP3 — Incremental Milestones
+### WP7 — Incremental Milestones
 Deliver small milestones: implement → test → report. **Do NOT** write 500+ lines before showing results.
 
-### WP4 — Research First, Then Ask
-Before asking the user a research question, use available skills (`research-lookup`, `paper-lookup`, `literature-review`, `scientific-critical-thinking`, `statistical-analysis`). Only ask when you have a clear problem statement and options.
+### WP8 — Research First, Then Ask
+Before asking a research question, use skills (`research-lookup`, `paper-lookup`, `literature-review`, `scientific-critical-thinking`). Only ask when you have a clear problem statement and options.
 
-## Scientific Honesty
+### WP9 — No Lite
+Scope must fully cover the feature. If hard → ask user immediately.
+
+---
+
+## SECTION 3: SCIENTIFIC HONESTY
 
 ### SH1 — Every Claim Needs a Citation
 Every factual claim needs a citation (DOI/URL). Every result needs implementation + tests + reproducibility doc. **Do NOT** write "X%" without noting it needs measurement or citing a source.
@@ -39,42 +89,67 @@ Every factual claim needs a citation (DOI/URL). Every result needs implementatio
 ### SH2 — Acknowledge Uncertainty
 Say "uncertain about X, reason: Y, suggest verification." **Do NOT** hallucinate data or results.
 
-### SH3 — Know the Known Blockers
-The codebase has documented issues that must not be re-researched or re-flagged as new discoveries:
+### SH3 — Three Tiers of Claims
+Every claim must be classified:
+- **Tier 1 — Verified**: Code inspection, prior published results, established domain knowledge
+- **Tier 2 — Estimated** (note: needs measurement): "82% recall" — mark as ESTIMATED, not verified
+- **Tier 3 — Unmeasurable** (cite bug/limitation): CRS003 recall — duplicate injection broken
 
+### SH4 — Fabricated Metrics Are Forbidden
+PURGE immediately: "94.2%", "13x GE", "91.8%", "245K events/sec", etc. Mark as TIER-2 or TIER-3.
+
+### SH5 — Know the Known Blockers
+These documented issues must NOT be re-discovered:
 | ID | Blocker | Status |
 |----|---------|--------|
 | B1 | SYN001 NaN silent pass-through (no `math.isnan()` guard) | Fixed in code |
 | B2 | Duplicate injection no-op (CRS003 recall unmeasurable) | Needs proper fix |
 | B3 | CRS002 speed range gap (2-20 km/h moderate spoofing) | Known limitation |
-| B4 | `foreachBatch` driver bottleneck (no Pandas UDF) | Known limitation |
-| B5 | SQLite no WAL mode (per-commit fsync overhead) | Known limitation |
-| B6 | `processing_latency_ms` hardcoded to 0 | Known limitation |
+| B4 | `foreachBatch` driver bottleneck | **N/A — Flink has no foreachBatch** |
+| B5 | SQLite no WAL mode | Known limitation |
+| B6 | `processing_latency_ms` hardcoded to 0 | Fixed in Flink (event-time timers) |
 
-### SH4 — Verified Claims vs. Estimates
-Distinguish between:
+### SH6 — Verified vs. Estimated vs. Unmeasurable
 - **Verified**: SYN001-003 on synthetic data with known ground truth
 - **Estimated**: 82% recall, 85% precision, P99=890ms — all need real benchmark runs
 - **Unmeasurable**: CRS003 recall — duplicate injection is broken
 
-## Code Quality
+---
+
+## SECTION 4: CODE QUALITY
 
 ### CQ1 — Test + Reproducibility for Every Deliverable
-Every rule, pipeline component, and evaluation script must include: implementation + unit tests + reproducibility doc (how to run). **Do NOT** deliver "works on my machine."
+Every rule, pipeline component, and evaluation script: implementation + unit tests + reproducibility doc. **Do NOT** deliver "works on my machine."
 
 ### CQ2 — Dependencies Must Be Pinned
-All libraries need pinned versions (e.g., `pyspark==3.5.0`). If user lacks a dependency, report it and provide install instructions.
+All libraries need pinned versions (e.g., `pyspark==3.5.0`). Missing dep → report + install instructions.
 
 ### CQ3 — No Magic Numbers
-Config = constants with explanatory comment. `THRESHOLD = 0.05  # from experiment`, not `if value > 0.05`. Thresholds must come from config, adaptive engine, or cited sources.
+Constants with explanatory comment: `THRESHOLD = 0.05  # from power analysis`. Thresholds must come from config, adaptive engine, or cited sources.
 
 ### CQ4 — Full Error Handling, No "Lite"
-Full error handling, logging, type hints, config management. No "prototype-only", "demo-only", or "lite" shortcuts. Every Python file needs `from __future__ import annotations` and proper type hints.
+Full error handling, logging, type hints, config. Every Python file: `from __future__ import annotations` + proper type hints.
 
 ### CQ5 — Dataclass-First for Data Models
-Use `@dataclass` for `RuleContext`, `Violation`, `AnomalyRecord`, `DetectedViolation`, `FieldStats`. No raw dicts for structured data. Typed fields only.
+Use `@dataclass` for `RuleContext`, `Violation`, `AnomalyRecord`, `DetectedViolation`, `FieldStats`. No raw dicts for typed data.
 
-## Rule Authoring Standards
+### CQ6 — Python Imports
+```python
+from __future__ import annotations
+from typing import Optional, Any
+```
+Use absolute imports: `from streamdq.rules.base import DataQualityRule`. Never star imports.
+
+### CQ7 — Type Hints
+Every function/method: type hints for parameters and return value. Use `Optional[X]`, not `X | None`.
+
+### CQ8 — Error Handling
+- Rule `evaluate()` methods: return `Violation` on bad input, never raise exceptions.
+- Try/except only for operations that can legitimately fail (parse, network). Never wrap entire evaluate() in try/except.
+
+---
+
+## SECTION 5: RULE AUTHORING STANDARDS
 
 ### RA1 — Rule Structure
 Every rule must:
@@ -88,105 +163,298 @@ Every rule must:
 ### RA2 — Violation Object Completeness
 Every `Violation` must include:
 - `rule_id`, `rule_name`, `entity_id`, `entity_type`, `severity`, `violation_type`
-- `details` dict with: field name, actual value, reason code, and any relevant computed values
-- `expected` dict with: what was expected
+- `details` dict: field name, actual value, reason code, computed values
+- `expected` dict: what was expected
 - `record_snapshot`: the full event dict
 - `detected_at`: timestamp
-- `processing_latency_ms`: latency (not hardcoded 0 — compute it)
+- `processing_latency_ms`: latency (NOT hardcoded 0 — compute from event-time)
 
 ### RA3 — No Silent Pass-Through
-Every field access in a rule must have explicit guards:
-- `None` → return Violation (NULL reason)
-- NaN → return Violation (NAN reason) using `math.isnan()` or equivalent
-- Wrong type → return Violation (TYPE_MISMATCH reason)
-- Parse error → return Violation (PARSE_ERROR reason)
-**Do NOT** let invalid values silently pass through.
+Every field access must have explicit guards:
+- `None` → `Violation(reason="NULL")`
+- NaN → `Violation(reason="NAN")` via `math.isnan()`
+- Wrong type → `Violation(reason="TYPE_MISMATCH")`
+- Parse error → `Violation(reason="PARSE_ERROR")`
 
-## Evaluation Standards
+### RA4 — Edge Case Test Pattern
+Every rule test class must have: `test_valid_*`, `test_null_*`, `test_nan_*`, `test_type_mismatch_*`, `test_out_of_range_*`, `test_edge_case_*`.
+
+### RA5 — Haversine for GPS
+Use `haversine_distance()` from `cross_record.py` for GPS distance. Do NOT approximate with Euclidean.
+
+---
+
+## SECTION 6: EVALUATION STANDARDS
 
 ### EV1 — Ground Truth Must Be Tracked
-Every evaluation run must:
-- Track every injected anomaly with its `anomaly_type` and `entity_index`
-- Track every detected violation with its `rule_id` and matched `entity_index`
+- Track every injected anomaly with `anomaly_type` and `entity_index`
+- Track every detected violation with `rule_id` and matched `entity_index`
 - Compute precision, recall, F1 per anomaly type
-- Measure latency from event arrival to violation stored (not internal-only timing)
+- Measure latency from event arrival to violation stored
 
-### EV2 — Anomaly Injection Must Be Correct
-The `duplicate` anomaly type must emit TWO records (original + duplicate), not just one. CRS003 requires seeing both records to detect the duplicate.
+### EV2 — Duplicate Injection Must Emit TWO Records
+CRS003 requires seeing both original AND duplicate. The `duplicate` injection MUST emit two records within the deduplication window.
 
 ### EV3 — Report CI, Not Point Estimates
-Report 95% confidence intervals via bootstrap resampling (1,000 iterations minimum) for all metrics. **Do NOT** report single numbers without uncertainty bounds.
+Report 95% confidence intervals via bootstrap resampling (1,000 iterations minimum).
 
-### EV4 — Local vs. Distributed Benchmark Distinction
-LocalPipeline (in-process) and SparkPipeline (distributed) have different characteristics. Report which was used. Do not claim Spark-level latency/throughput from LocalPipeline results.
+### EV4 — Local vs. Distributed Distinction
+LocalPipeline and SparkPipeline/FlinkPipeline have different characteristics. Report which was used. Do not claim Flink-level latency from LocalPipeline results.
 
-## Paper Writing Standards
+### EV5 — Warmup Before Measurement
+At least 10,000 warmup events before measuring to stabilize adaptive thresholds and populate state.
 
-### PW1 — Supported vs. Unsupported Claims
-Clearly separate:
-- **Claims supported by evidence**: taxonomy structure, Haversine validation, rule engine design, evaluation methodology
-- **Claims requiring benchmarks**: 82% recall, 85% precision, P99=890ms, 5,000+ events/sec throughput
-- **Known limitations**: no drift detection, no distributed adaptive thresholds, Layer 2 state not checkpointed
+### EV6 — Structured Report Format
+Every evaluation run must produce a structured JSON report with: n_events, n_anomalies_injected, anomaly_rate, precision (with CI), recall (with CI), F1 (with CI), detection_rate_by_type, seed, warmup_events.
 
-### PW2 — Positioning vs. Competitors
-- StreamDQ is a **research and education platform**, not a production competitor to Stream DaQ or Great Expectations
-- Do NOT claim production-readiness, fault tolerance, or scalability
-- StreamDQ's differentiation: domain-specific GTFS GPS validation, NYC taxi domain rules, three-layer rule taxonomy, evaluation framework
+### EV7 — Evaluation Module Build Order
+Build one at a time, verify each before moving on:
+1. `synthetic_injector.py` (ground truth labels)
+2. `ground_truth_tracker.py` (tracks injected by entity_index)
+3. `metrics.py` (P/R/F1 + bootstrap CI)
+4. `run_evaluation.py` (CLI orchestrator)
 
-### PW3 — Compare Frameworks Transparently
-When comparing StreamDQ to Stream DaQ, GE, Soda, dbt: use a structured comparison table covering architecture, adaptive thresholds, cross-record detection, latency, and maturity.
+---
+
+## SECTION 7: PAPER WRITING STANDARDS
+
+### PW1 — Claim Classification
+Every claim: Tier 1 (verified), Tier 2 (estimated+label), or Tier 3 (unmeasurable+label). Never present Tier 2 as Tier 1.
+
+### PW2 — Positioning
+StreamDQ is a **research and education platform**, not a production competitor to Stream DaQ or Great Expectations. Do NOT claim production-readiness, fault tolerance, or scalability.
+
+### PW3 — Transparent Comparisons
+Structured comparison table: architecture, adaptive thresholds, cross-record detection, latency, maturity. Compare against GE, Soda, dbt, Stream DaQ, AutoDQM.
 
 ### PW4 — Section Completeness
-Every paper section must include: (1) clear problem statement, (2) approach description, (3) implementation details, (4) evaluation results (with CI), (5) limitations, (6) related work. **Do NOT** skip the limitations section.
+Every section must have: (1) problem statement, (2) approach, (3) implementation, (4) results with CI, (5) limitations, (6) related work.
 
-## Security
+### PW5 — Active Voice for Contributions
+"We implement X" not "X is proposed." "StreamDQ validates" not "validation is achieved."
+
+### PW6 — Cite Before Claiming
+Every claim about prior work must have a citation. Remove numbers that can't be cited.
+
+### PW7 — Tables Over Prose
+Use structured tables for framework comparisons, rule summaries, benchmark results.
+
+### PW8 — Honest Limitations
+- Adaptive thresholds only work on driver (not distributed)
+- Layer 2 state not checkpointed
+- Benchmark numbers are estimates until measured
+- Duplicate injection bug affects CRS003 recall
+- Single dataset (NYC TLC + NYC MTA Bus) — may not generalize
+
+---
+
+## SECTION 8: SECURITY
 
 ### SEC1 — Zero Secrets
-Never commit: API keys, DB credentials, JWT tokens, .pem/.key files, .env files. If detected → tell user immediately.
+Never commit: API keys, DB credentials, JWT tokens, .pem/.key files, .env files. If detected → **tell user immediately**.
 
 ### SEC2 — Credential Protocol
-Need credentials: ask user to choose: (a) env var, (b) direct input (session only), (c) placeholder for user to replace later. Never create .env or hardcode secrets.
+Need credentials: ask user to choose: (a) env var, (b) direct input (session only), (c) placeholder. Never create .env or hardcode.
 
 ### SEC3 — .gitignore Required
 Every new project needs .gitignore covering: `.env`, `credentials.json`, `*.key`, `*.pem`, `__pycache__`, `.venv`, `node_modules/`, `*.log`, `data/raw/*`, `*.parquet`, `duckdb`.
 
-## File Organization
+---
 
-Follow this structure:
+## SECTION 9: STREAMDQ-SPECIFIC GUARDRAILS
+
+### Before claiming novelty:
+Check `final/04_NOVELTY_CONTRIBUTION/` and GAP analysis first. If claimed "no prior work on X", verify with research-lookup.
+
+### Before citing venue/year:
+- **T-Assess** = VLDB 2025 (PVLDB Vol.18, No.3, pp.666-674) — NOT arXiv
+- **METER** = VLDB 2024 (doi:10.14778/3636218.3636233) — NOT 2023
+- **CETrajAD** = SDM 2025, authors: Cao & Akoglu — NOT Liu
+- **Martin et al.** = PVLDB 2025 (doi:10.14778/3748191.3748209)
+- **Stream DaQ** = uses Pathway (Python), NOT Flink
+
+### Before adding a new rule:
+Verify it doesn't duplicate existing SYN/SEM/CRS taxonomy. Update the taxonomy table and evaluation plan.
+
+### Before modifying `final/` documents:
+A change in one document may contradict another. Check for consistency across all `final/` files.
+
+### Before implementing CRS rules:
+CRS001 and CRS002 MUST be in Java. PyFlink JVM↔Python serialization is a critical bottleneck for stateful operations. Implement one rule at a time, test each in isolation.
+
+### Before changing thresholds:
+Update L0-L5 min_samples and the power analysis justification. Don't change without both.
+
+---
+
+## SECTION 10: EXECUTION ORDER
+
 ```
-streamdq/
-  rules/        base.py, syntactic.py, semantic.py, cross_record.py, adaptive.py, registry.py
-  pipeline/     spark_pipeline.py, local_pipeline.py
-  producers/    nyc_taxi_replay.py, gtfs_live.py
-  evaluation/   metrics.py, comparison.py, case_study.py, run_evaluation.py
-  storage/      violation_store.py
-tests/          test_*.py (one file per rule category)
-scripts/        download_nyc_taxi.py, run_demo.sh
-PAPER_SECTIONS/ Introduction.md, RelatedWork.md, Evaluation.md, Limitations.md
+Research task      → research-lookup → paper-lookup → literature-review → gap-identification
+Code task          → Prototype → Validate → Professional (no 500+ lines before showing results)
+Evaluation task    → synthetic_injector → ground_truth_tracker → metrics → run_evaluation
+Paper task         → scientific-writing → peer-review → scientific-critical-thinking
+Kafka task         → user-kafka MCP (read schema first)
+DuckDB task        → user-duckdb MCP
 ```
 
-## Execution Order
+### When Blocked:
+1. Research (use skills)
+2. Try 1-2 approaches
+3. Still stuck > 10-15 min → **STOP** and tell user with: problem, what was tried, options
 
+### When Finding a New Bug:
+Classify: **CRITICAL / MAJOR / MINOR**. Describe: what, where, impact. Propose: fix or document.
+
+### When Finding Security Issue:
+**TELL USER IMMEDIATELY**
+
+### When Expanding Scope:
+**ASK USER FIRST**
+
+---
+
+## SECTION 11: MCP SERVERS & SKILLS
+
+### MCP Servers
+| Task | Server ID | Tools |
+|------|-----------|-------|
+| Browser/web | `cursor-ide-browser` | navigate, snapshot, tabs, click, fill, type, scroll, canvas |
+| Kafka streaming | `user-kafka` | produce/consume topics, manage offsets, inspect schema |
+| DuckDB analytics | `user-duckdb` | query, attach DB, read/write tables |
+
+### Key Skills
+| Task | Skill ID |
+|------|----------|
+| Research | `research-lookup`, `paper-lookup`, `literature-review` |
+| Writing | `scientific-writing`, `peer-review`, `scientific-critical-thinking` |
+| Stats | `statistical-analysis`, `matplotlib`, `scikit-learn` |
+| Hypothesis | `hypothesis-generation`, `scientific-brainstorming` |
+| Architecture | `system-architecture`, `code-reviewer` |
+
+### How to Use Skills
+Read the SKILL.md file first with the Read tool, then follow its instructions.
+
+---
+
+## SECTION 12: VERIFICATION CRITERIA
+
+| Task | Success Criteria |
+|------|-----------------|
+| Implement CRS001 (Java) | Unit tests pass; Haversine correct for known coordinates |
+| Fix B1 (NaN guard) | `math.isnan()` returns True for injected NaN; test passes |
+| Fix B2 (duplicate injection) | Two events emitted; CRS003 detects both as duplicate |
+| New literature claim | DOI/URL verified; venue + year confirmed; marked TIER-1/2/3 |
+| TQS dimension added | Non-circular: computed from raw fields only, not from rule outcomes |
+| New rule added | Rule + unit tests + taxonomy table + FORMULATION.md updated |
+
+---
+
+## SECTION 14: FIVE-DIMENSION COVERAGE CHECK
+
+Every output document must substantively cover ALL 5 dimensions of the project title:
+
+| Dimension | Must Appear In |
+|-----------|----------------|
+| **Streaming** | Real-time, micro-batch, latency-sensitive, event-driven, Flink, Kafka |
+| **Data Quality** | Rule taxonomy (SYN/SEM/CRS), validation, violation detection, thresholds |
+| **Framework** | Modular architecture, `PipelineBackend` interface, extensible rule registry, reproducible |
+| **Context-Aware** | Adaptive thresholds (L0-L5), domain knowledge (NYC TLC, GTFS), situational thresholds |
+| **Monitoring** | Real-time alerting, Prometheus metrics, Grafana dashboards, violation store, TQS scoring |
+
+If a document covers fewer than 5 dimensions, it is incomplete. Flag it.
+
+---
+
+## SECTION 15: KHÓA LUẬN A+ PAPER QUALITY STANDARD
+
+Every paper section must meet these criteria:
+
+### A+ Criteria
+- **IMRAD structure**: Introduction, Methods, Results, And Discussion — all present
+- **Active voice**: "We implement X" not "X is proposed"
+- **Concrete numbers with 95% CI**: "Detection rate: 82% (95% CI: 79-85%)" not "high detection rate"
+- **Novelty claims substantiated**: Compared against GE, Soda, dbt, Stream DaQ, AutoDQM
+- **Limitations section mandatory + honest**: Every weakness explicitly stated, not buried
+- **Related work coverage**: GE, Soda, dbt, Stream DaQ, AutoDQM, T-Assess, METER, CETrajAD
+- **Evaluation with CI + reproducibility**: Ground truth, baseline, bootstrap CI, how-to-run
+- **Claim-to-evidence ratio**: Every claim either verified (TIER-1) or labeled (TIER-2/3)
+- **Tables over prose**: Structured comparisons, not paragraphs of bullet lists
+
+### Anti-A+ Patterns (Flag These)
+- "The framework achieves high accuracy" (vague, no number)
+- "Our approach is novel" (unsupported)
+- "Results are promising" (no CI)
+- "We outperform existing tools" (no baseline comparison)
+- Listing features without evidence
+- Comparison table that doesn't actually compare
+
+---
+
+## SECTION 16: ORCHESTRATOR LEADERSHIP
+
+When running multi-step research tasks, follow this orchestrator pattern:
+
+### Orchestrator Protocol
 ```
-BEFORE EVERY TASK:
-  1. These rules auto-apply
-  2. Research task → use skills (research-lookup, paper-lookup, literature-review)
-  3. Code task → Prototype → Validate → Professional
-  4. Paper task → Follow PW1-PW4
-
-WHEN BLOCKED:
-  1. Research (use skills)
-  2. Try 1-2 approaches
-  3. Still stuck > 10-15 min → TELL USER NOW
-
-WHEN FINDING A NEW BUG:
-  → Classify: CRITICAL / MAJOR / MINOR
-  → Describe: what, where, impact
-  → Propose: fix or document as known limitation
-
-WHEN FINDING SECURITY ISSUE:
-  → TELL USER IMMEDIATELY
-
-WHEN EXPANDING SCOPE:
-  → ASK USER FIRST
+Orchestrator = [STEP_EXPERT_SKILL] is the LEAD for the current step.
+Subagents = domain specialists invoked by orchestrator.
+Orchestrator SYNTHESIZES, does NOT do specialist work.
+Parallel agents for independent critical steps.
 ```
+
+### Step Tagging Convention
+- `[research-lookup]` — lead for literature search
+- `[literature-review]` — lead for systematic review
+- `[scientific-writing]` — lead for paper drafting
+- `[peer-review]` — lead for review simulation
+- `[statistical-analysis]` — lead for hypothesis testing
+- `[code-reviewer]` — lead for implementation review
+- `[system-architecture]` — lead for design review
+
+### Orchestrator Rules
+- Orchestrator assigns [STEP_EXPERT_SKILL] to each step based on task type
+- Orchestrator synthesizes all subagent outputs — do NOT just list
+- Orchestrator tracks progress across steps — don't lose context
+- Subagents report to orchestrator, orchestrator reports to user
+
+---
+
+## SECTION 17: PROJECT IDENTITY ENFORCEMENT
+
+Verify at the start of every task:
+
+| Check | Rule |
+|-------|------|
+| Project name | Always use: **"A Context-Aware Framework for Streaming Data Quality Monitoring"** |
+| NOT batch | StreamDQ is streaming-first. Do not describe as batch. |
+| NOT ML-only | ML can collaborate with rules but is NOT the core. |
+| NOT production | This is a research platform. Never claim production-readiness. |
+| IS research | Frame every contribution as research contribution, not product feature. |
+| No self-praise | Cite evidence, don't say "our framework is excellent." |
+| Hardcoded constants | **EXCEPTION**: Baseline comparisons with competing frameworks (GE, Soda) are allowed to cite their published numbers without re-deriving. |
+
+---
+
+## SECTION 18: NO-LITE DELIVERY STANDARD
+
+Every deliverable must have ALL THREE:
+
+| Component | Requirement |
+|-----------|-------------|
+| **Implementation** | Concrete algorithm or pseudocode. Not vague ideas. Code that runs. |
+| **Tests** | Unit tests or evaluation protocol. Not "would test." Tests that pass. |
+| **Reproducibility** | How to run, what data, what parameters, expected output. |
+
+If a deliverable is missing any of the three, it is incomplete. Flag it.
+
+---
+
+## SECTION 13: STREAMDQ ANTI-PATTERNS (FORBIDDEN)
+
+- **No Auto-Delete**: NEVER delete any file without user permission.
+- **No Hardcode**: Constants must come from config, env var, function parameter, or adaptive engine. No source → ask user.
+- **No Temp Leak**: Delete temp files immediately. Don't litter `examples/` or `scripts/`.
+- **No Silent Fallback**: Data fails (403, timeout, missing) → **STOP and notify user**. Build/test fails → ask user.
+- **No Scope Creep**: User asks A → do only A. Want more → ask first.
+- **No Silent Edits**: Want to modify code → read it → ask "I plan to change X to Y, OK?" Only proceed when approved.

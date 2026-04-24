@@ -654,7 +654,7 @@ Based on: Fan & Geerts (PVLDB 2014), T-Assess (under review at VLDB 2025)
 
 #### IDEA-04 (GTFS-RT Cross-Entity Validator)
 
-**Engineering Attack**: "Protobuf parsing in Spark streaming is non-trivial. The `gtfs_live.py` producer must be extended to emit typed events per entity. Multi-stream entity correlation state grows with active trips."
+**Engineering Attack**: "Protobuf parsing in Flink streaming is non-trivial. The `gtfs_live.py` producer must be extended to emit typed events per entity. Multi-stream entity correlation state grows with active trips."
 
 **Defense**: Protobuf parsing is solvable (gtfs-realtime-bindings on pip). Entity correlation state is bounded by active trips (GTFS Malaysia has limited routes). State eviction via TTL prevents unbounded growth.
 
@@ -847,7 +847,7 @@ Based on: Fan & Geerts (PVLDB 2014), T-Assess (under review at VLDB 2025)
 
 **Key Risks**:
 1. **CUTR audit required**: Must prove CUTR lacks cross-entity checks before claiming "first."
-2. **Protobuf expertise**: `gtfs-realtime-bindings` parsing in Spark streaming is non-trivial.
+2. **Protobuf expertise**: `gtfs-realtime-bindings` parsing in Flink streaming is non-trivial.
 3. **GTFS CRS**: GTFS Malaysia coordinate reference system must be verified before Haversine calculations.
 
 **Required Pre-Conditions**:

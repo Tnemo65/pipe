@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from streamdq.rules.base import Violation
+from streamdq.rules.base import Violation, make_violation
 from streamdq.rules.adjudicator import ContextAwareDuplicateAdjudicator
 
 
@@ -197,7 +197,8 @@ def evaluate_trajectory_anomaly(
 
             # Check 1: Impossible speed
             if speed_kmh > max_speed_kmh:
-                violations.append(Violation(
+                violations.append(make_violation(
+                    event,
                     rule_id="CRS001",
                     rule_name="Trajectory anomaly — impossible speed",
                     entity_id=str(vehicle_id),
@@ -237,7 +238,8 @@ def evaluate_trajectory_anomaly(
                 else:
                     severity = "MEDIUM"
                     reason = f"Moderate GPS anomaly: {speed_kmh:.1f} km/h with {distance_m:.0f}m jump"
-                violations.append(Violation(
+                violations.append(make_violation(
+                    event,
                     rule_id="CRS002",
                     rule_name="GPS spoofing — position jump anomaly",
                     entity_id=str(vehicle_id),
@@ -441,7 +443,8 @@ def evaluate_duplicate_event(
     if cluster_info is not None:
         violation_details["cluster_info"] = cluster_info
 
-    violation = Violation(
+    violation = make_violation(
+        event,
         rule_id="CRS003",
         rule_name="Duplicate event detection (confidence-scored)",
         entity_id=trip_id,

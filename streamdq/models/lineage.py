@@ -26,7 +26,7 @@ class LineageMetadata:
         source_id: Unique identifier for the source system/file
                    Examples: "nyc_taxi_parquet_2024_01", "gtfs_api_ktmb"
         source_type: Type of source system
-                     Values: "batch_replay" | "api_poll" | "cdc_stream" | "manual_upload"
+                    Values: "batch_replay" | "api_poll" | "cdc_stream" | "manual_upload"
         is_replay: Whether this is a replay of historical data (not live)
         batch_id: Batch identifier for grouped events (None for streaming)
         kafka_offset: Kafka message offset (for deduplication)
@@ -35,6 +35,9 @@ class LineageMetadata:
         ingestion_timestamp: When event entered the pipeline (ISO 8601)
         hop_count: Number of pipeline stages traversed (starts at 0)
         upstream_event_ids: Chain of event IDs from upstream systems
+        entity_index: NG-eval-01: Ground-truth index assigned by synthetic_injector.
+                     Used for precision/recall matching between injected anomalies and detected violations.
+                     Extracted from event and propagated to Violation.entity_index.
     """
 
     source_id: str
@@ -47,6 +50,8 @@ class LineageMetadata:
     ingestion_timestamp: Optional[str] = None
     hop_count: int = 0
     upstream_event_ids: list[str] = field(default_factory=list)
+    # NG-eval-01: Ground-truth index for precision/recall matching
+    entity_index: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Convert to dict for JSON serialization."""
@@ -66,6 +71,7 @@ class LineageMetadata:
             ingestion_timestamp=data.get("ingestion_timestamp"),
             hop_count=data.get("hop_count", 0),
             upstream_event_ids=data.get("upstream_event_ids", []),
+            entity_index=data.get("entity_index"),
         )
 
     @classmethod

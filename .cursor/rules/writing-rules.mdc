@@ -1,0 +1,108 @@
+---
+description: Scientific writing standards for StreamDQ paper sections. Applies to all PAPER_SECTIONS/ and final/ .md files. Part of streamdq-master.mdc — always apply together.
+alwaysApply: false
+globs: PAPER_SECTIONS/**/*.md, final/**/*.md, **/*.md
+---
+
+# Scientific Writing Standards — StreamDQ
+
+These standards are PART OF streamdq-master.mdc. Apply them when writing paper sections and research documents.
+
+## Claim Classification
+
+### WC1 — Three Tiers
+Every claim must be one of:
+- **Tier 1 — Verified**: Code inspection, prior published results, established domain knowledge
+- **Tier 2 — Estimated** (must label): "Estimated precision: 85%", not "precision: 85%"
+- **Tier 3 — Unmeasurable** (cite limitation): CRS003 recall — duplicate injection broken
+
+### WC2 — No Overstatement
+- "We achieve 82% recall" → "We target 80% recall, estimated from code analysis"
+- "StreamDQ is faster than batch tools" → "StreamDQ's architecture enables sub-second latency vs. minute-scale batch"
+- "StreamDQ is production-ready" → NEVER. This is a research platform.
+
+### WC3 — Cite Before Claiming
+Every claim about prior work must have a citation. Remove numbers that can't be cited.
+
+## Positioning
+
+### WP1 — Positioning Statement
+Use this positioning for StreamDQ:
+> StreamDQ is a **research and education platform** for streaming data quality monitoring. It provides a structured three-layer rule taxonomy, domain-specific validation for GTFS vehicle positions and NYC taxi data, and a comprehensive evaluation framework. For production stream-native deployments, consider Stream DaQ (Papastergios & Gounaris, 2025).
+
+### WP2 — Do NOT Claim
+- "Fault-tolerant" — unless empirically validated
+- "Production-ready" — NEVER
+- "Scalable to N events/sec" — unless benchmarked
+- "Enterprise-grade" — NEVER
+
+### WP3 — Genuine Differentiators
+1. **Domain-specific GTFS GPS validation with Haversine trajectory analysis** — not found in competing frameworks
+2. **Three-layer rule taxonomy** — pedagogically useful, explicit complexity distinction
+3. **Evaluation framework with ground-truth tracking** — injection-based methodology with reproducible protocol
+
+## Paper Sections
+
+### PS-INTRO — Introduction Must Establish
+1. The problem: batch DQ tools unsuitable for streaming pipelines
+2. The gap: no open-source streaming DQ framework with cross-record detection and adaptive thresholds
+3. The approach: StreamDQ — streaming-first, three-layer rules, context-aware
+4. The contribution: taxonomy, GTFS validation, evaluation framework
+
+### PS-REL — Related Work
+Include structured comparison table:
+
+| Dimension | StreamDQ | Stream DaQ | Great Expectations | Soda Core | dbt |
+|-----------|----------|------------|-------------------|-----------|-----|
+| Architecture | Flink | Pathway | Batch | Batch | Batch/ELT |
+| Adaptive thresholds | L0-L5 context | Dynamic+drift | None | ML-based | None |
+| Cross-record | GPS, dedup | Tumbling | Yes (batch) | Limited | No |
+| Latency | ~10-50ms | Sub-second | Minutes | Minutes | Minutes |
+| GTFS GPS validation | Yes | Unknown | No | No | No |
+| Evaluation framework | Ground-truth | Not specified | No | No | No |
+
+### PS-EVAL — Evaluation Section Must Include
+1. **Dataset**: NYC TLC, NYC MTA Bus GTFS-realtime, synthetic injection
+2. **Methodology**: anomaly injection + ground-truth correlation + metric computation
+3. **Metrics**: precision, recall, F1, latency, per-rule coverage, all with 95% CI
+4. **Protocol**: warmup, measurement window, reproducibility
+5. **Results**: with CI — not single point estimates
+6. **Discussion**: what results mean, what they don't, threats to validity
+
+### PS-LIM — Limitations Must Be Honest
+- Adaptive thresholds only work on driver (not distributed)
+- Layer 2 cross-record state not checkpointed
+- Benchmark numbers are estimates until measured
+- Duplicate injection bug affects CRS003 recall measurement
+- CRS001/CRS002 only on NYC MTA Bus (no GPS on NYC TLC)
+- Single dataset — may not generalize to other domains
+- CRS rules in Java required (not optional) — Flink overhead
+
+## Writing Style
+
+### WS1 — Active Voice
+"We implement X" not "X is proposed." "StreamDQ validates" not "validation is achieved."
+
+### WS2 — Tables Over Prose
+Use structured tables for framework comparisons, rule summaries, benchmark results.
+
+### WS3 — Number Everything Measurable
+- "Detection rate: 82% (95% CI: 79-85%)"
+- "P99 latency: ~890ms (estimated, not benchmarked)"
+- "Rule coverage: 10/10 rules implemented, 10/10 with unit tests"
+
+### WS4 — Avoid Hedging Without Reason
+Strong language for verified claims. Hedged language for estimates.
+- Verified: "SYN001 correctly identifies negative fare amounts"
+- Estimated: "StreamDQ is estimated to achieve >80% recall on syntactic anomalies"
+
+## Verified Citations (Key References)
+
+| Paper | Venue | Year | Citation |
+|-------|-------|------|----------|
+| T-Assess | VLDB | 2025 | PVLDB Vol.18, No.3, pp.666-674 |
+| METER | VLDB | 2024 | doi:10.14778/3636218.3636233 |
+| CETrajAD | SDM | 2025 | Cao & Akoglu |
+| Martin et al. (DC Discovery) | PVLDB | 2025 | doi:10.14778/3748191.3748209 |
+| Deequ | VLDB | 2018 | doi:10.14778/3229863.3229867 |
+| Stream DaQ | arXiv | 2025 | arXiv:2506.06147 |

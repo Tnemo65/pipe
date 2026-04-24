@@ -103,7 +103,7 @@
 
 **ContextAware-DQ position**: ✓✓ — Flink-native with event-time semantics, watermarks, idle stream detection (5 min timeout).
 
-**Differentiation**: Most streaming DQ tools use Flink SQL or Spark micro-batch. ContextAware-DQ's Flink DataStream API with Java `KeyedProcessFunction` provides finer-grained state management for cross-record GPS validation than SQL-based approaches.
+**Differentiation**: Most streaming DQ tools use Flink SQL or micro-batch processing. ContextAware-DQ's Flink DataStream API with Java `KeyedProcessFunction` provides finer-grained state management for cross-record GPS validation than SQL-based approaches.
 
 ---
 

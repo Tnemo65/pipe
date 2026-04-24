@@ -549,7 +549,7 @@ Data Stream → Windowing → Constraint Evaluation → Quality Meta-Stream
 
 | Dimension | ContextAware-DQ | Stream DaQ | GTFS Validator | CETrajAD |
 |-----------|----------|-----------|----------------|----------|
-| Architecture | Streaming (Spark) | Stream-native | Batch | Batch |
+| Architecture | Streaming (Flink) | Stream-native | Batch | Batch |
 | Domain-Specific | GTFS GPS | General | GTFS Static | General |
 | GPS Validation | Yes | No | Limited | Yes |
 | Cross-Record | Yes | Limited | No | No |

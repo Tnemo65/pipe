@@ -148,3 +148,53 @@ For research tasks, follow this 8-step pipeline:
 ## Bug Reporting
 
 Classify: **CRITICAL / MAJOR / MINOR**. Describe: what, where, impact. Propose: fix or document as known limitation.
+
+---
+
+## Research Invariant Rules — Apply to Every Prompt
+
+> **NGHIEM CAP KIEN TRUC**: Khong quan tam den folder khac ngoai `/final`. Ta dang research => propose method => chua co code. NGHIEM CA CHECK CODEBASE CU.
+
+### IR1 — Workspace Scope
+- Only operate in `/final` output directory
+- Do NOT reference, read, or modify existing codebase (`/streamdq`, `/tests`, `/scripts`, etc.) unless explicitly asked
+- Existing codebase = reference, NOT research output
+- Research phase = propose, design, evaluate; NOT implement production code
+
+### IR2 — 5-Title-Dimension Coverage
+Every output must cover all 5 dimensions of **"A Context-Aware Framework for Streaming Data Quality Monitoring"**:
+1. **Streaming** — real-time, micro-batch, latency-sensitive, event-driven
+2. **Data Quality** — rule taxonomy, validation, violation detection, thresholds
+3. **Framework** — modular, extensible, evaluation-driven, reproducible
+4. **Context-Aware** — adaptive thresholds, domain knowledge, situational adaptation
+5. **Monitoring** — real-time alerting, observability, dashboards, metrics
+
+### IR3 — Scientific Honesty (Anti-Hallucination)
+- Every claim = Tier 1 (verified), Tier 2 (estimated+label), or Tier 3 (unmeasurable+label)
+- Never present estimated as verified
+- Cite every factual claim with DOI/URL
+- No extrapolation from single dataset to general claims
+
+### IR4 — No-Lite Delivery Standard
+Every deliverable has ALL THREE:
+1. **Implementation** — concrete algorithm/pseudocode, not vague ideas
+2. **Tests** — unit tests or evaluation protocol, not "would test"
+3. **Reproducibility** — how to run, data, parameters, expected output
+
+### IR5 — Khóa Luận A+ / Paper Quality Standard
+- IMRAD structure, active voice, concrete numbers with 95% CI
+- Novelty claims substantiated with comparison to existing work
+- Limitations section mandatory + honest
+- Related work: GE, Soda, dbt, Stream DaQ, AutoDQM
+- Evaluation: ground truth, baseline, CI, reproducibility
+
+### IR6 — Orchestrator Leadership
+- `[STEP_EXPERT_SKILL]` = lead agent for current step
+- Orchestrator coordinates, does NOT do specialist work
+- Always parallel diverse agents for critical steps
+- Synthesize — do NOT just list agent outputs
+
+### IR7 — Project Identity
+- **NOT** batch | **NOT** ML-only | **NOT** production-ready
+- **IS** research platform | **NOT** "self-built, self-praised"
+- **No Hardcoded** constants (EXCEPTION: baseline comparisons with competing frameworks allowed)

@@ -15,7 +15,7 @@ import time
 from typing import Optional, Set
 from datetime import datetime
 
-from streamdq.rules.base import DataQualityRule, RuleContext, Violation
+from streamdq.rules.base import DataQualityRule, RuleContext, Violation, get_entity_index, make_violation
 
 
 class ReferentialIntegrityRule(DataQualityRule):
@@ -76,7 +76,8 @@ class ReferentialIntegrityRule(DataQualityRule):
             pass
 
         if value not in self.reference_set:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -152,7 +153,8 @@ class FormatConformityRule(DataQualityRule):
         value_str = str(value)
 
         if not self.pattern.match(value_str):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -231,7 +233,8 @@ class PrecisionValidationRule(DataQualityRule):
                 violation_reason = "PRECISION_MISMATCH"
 
         if violation_reason:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -301,7 +304,8 @@ class EnumerationConformityRule(DataQualityRule):
             return None  # Caught by completeness
 
         if value not in self.allowed_values:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -377,7 +381,8 @@ class TimelinessRule(DataQualityRule):
         if delay_seconds > self.max_delay_seconds:
             severity = "HIGH" if delay_seconds > 3600 else "MEDIUM"  # >1 hour = HIGH
 
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,

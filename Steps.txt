@@ -1,0 +1,284 @@
+# 14-Step Research Pipeline: Agent Orchestration Map
+
+**Orchestrator:** `research-orchestrator` — Master coordinator. Invokes child agents in parallel, synthesizes outputs, tracks pipeline progress, resolves conflicts.
+**Toolset:** Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Bash
+**Model:** opus
+
+---
+
+## Step 1: Problem Framing
+
+**Orchestrator's Role:** Initialize the pipeline. Infer or ask for research topic, then invoke 9 agents in parallel to cover problem framing from every angle. Synthesize into Problem Statement, Stakeholder Map, Constraints, and Research Direction.
+
+**Child Agents (9):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `scientific-critical-thinking` | Read, Grep, Glob | Decompose the research problem into core claims and assumptions. Identify which claims need evidence. Audit methodology potential. |
+| `system-architecture` | Read, Grep, Glob | Define domain boundaries. Map the system/data landscape. Identify integration points and constraints. |
+| `senior-data-engineer` | Read, Grep, Glob | Inventory available data sources, data quality, data access constraints. Identify data readiness. |
+| `competitive-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Benchmark competing research frameworks. Map the competitive landscape of approaches. Identify positioning opportunities. |
+| `trend-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Detect emerging technology and methodology trends. Identify timing opportunities. Assess whether the problem space is growing or shrinking. |
+| `project-idea-validator` | Read, Write, Edit, Glob, Grep, WebFetch, WebSearch | Brutally pressure-test the research idea. Hunt for fatal flaws, missing demand, or adoption barriers. Deliver go/no-go with evidence. |
+| `discovery-process` | Read, Grep, Glob | Framework for stakeholder interviews. Identify who benefits, who uses, and what constraints they impose. |
+| `company-research` | Read, Grep, Glob, WebFetch, WebSearch | Research competing products/projects in the space. Extract executive quotes, product strategy, and competitive intelligence. |
+| `proto-persona` | Read, Grep, Glob | Create user/stakeholder hypothesis profiles. Define target personas with pain points and decision-making authority. |
+
+**Synthesize into:** Problem Statement, Constraints List, Stakeholder Map, Research Direction
+
+---
+
+## Step 2: Literature Review
+
+**Orchestrator's Role:** Invoke 7 agents in parallel to conduct a comprehensive literature review. Synthesize into Taxonomy, Baselines, Evaluation Metrics Summary, and Related Work Structure.
+
+**Child Agents (7):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `literature-review` | Read, Grep, Glob, WebFetch, WebSearch | Systematic synthesis across academic databases (PubMed, arXiv, Semantic Scholar, etc.). Thematic grouping, citation priority tiers, gap extraction. |
+| `research-lookup` | Read, Grep, Glob, WebFetch, WebSearch | API-level paper search via Semantic Scholar, arXiv, OpenAlex, CrossRef. Deduplication by DOI. Quality thresholds by citation count. |
+| `paper-lookup` | Read, Grep, Glob, WebFetch, WebSearch | Deep-dive on specific DOIs. Citation tracking forward and backward. Retrieve metadata and abstracts from CrossRef. |
+| `scientific-writing` | Read, Grep, Glob | Apply IMRAD-related-work framing patterns. Group papers by theme, end with positioning. Identify writing structure. |
+| `peer-review` | Read, Grep, Glob | Critique baseline quality. Evaluate methodology of existing approaches. Identify strengths/weaknesses of published work. |
+| `competitive-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Benchmark frameworks by feature, evaluation methodology, and positioning. Identify which baselines are strongest and why. |
+| `trend-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Map research trends over time. Identify which sub-fields are growing, which are saturated. Detect emerging methodology trends. |
+
+**Synthesize into:** Literature Taxonomy, Baselines (with citations), Evaluation Metrics Used by Field, Related Work Structure
+
+---
+
+## Step 3: Gap Identification
+
+**Orchestrator's Role:** Invoke 6 agents in parallel to mine limitations from existing work and discover research opportunities. Synthesize into prioritized Gap List, Research Opportunities, and Gap-to-Hypothesis Mapping.
+
+**Child Agents (6):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `literature-review` | Read, Grep, Glob, WebFetch, WebSearch | Extract explicit limitations stated in papers. Mine the "Limitations" and "Future Work" sections systematically. |
+| `research-lookup` | Read, Grep, Glob, WebFetch, WebSearch | Find evidence supporting each gap. Search for papers that attempt to address the gap. Quantify the gap's severity. |
+| `scientific-brainstorming` | Read, Grep, Glob | Open-ended gap discovery via cross-domain analogies, assumption reversal, SCAMPER, and constraint removal. Generate novel gap hypotheses. |
+| `hypothesis-generation` | Read, Grep, Glob | Convert each gap into a structured testable hypothesis. Define independent variable, measurable dependent variable, and proposed mechanism. |
+| `competitive-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Analyze competitive gaps: what approaches work better and why. Identify which gaps matter most in practice. |
+| `trend-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Identify timing opportunity: which gaps are becoming more important as trends evolve. Assess gap urgency. |
+
+**Synthesize into:** Gap List (prioritized by severity + urgency), Research Opportunities, Gap-to-Hypothesis Mapping
+
+---
+
+## Step 4: Research Questions & Objectives
+
+**Orchestrator's Role:** Invoke 5 agents in parallel to formulate structured research questions with measurable objectives and success metrics. Synthesize into Research Questions, Measurable Objectives, and Success Metrics.
+
+**Child Agents (5):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `hypothesis-generation` | Read, Grep, Glob | Formulate structured research questions using the 6-phase hypothesis workflow. Define independent/dependent variables, falsification conditions, and proposed mechanisms. |
+| `statistical-analysis` | Read, Grep, Glob | Define measurable metrics for each research question. Specify statistical tests, confidence intervals, and significance thresholds (p < 0.05). |
+| `scikit-learn` | Read, Grep, Glob | Identify ML-based approaches if the research involves prediction/classification. Define evaluation metrics (accuracy, F1, AUC) and baseline models. |
+| `data-scientist` | Read, Write, Edit, Bash, Glob, Grep | Select appropriate model families. Define feature engineering requirements. Assess data requirements for each research question. |
+| `project-idea-validator` | Read, Write, Edit, Glob, Grep, WebFetch, WebSearch | Pressure-test each research question for feasibility. Assess whether the question is answerable with available resources and timeline. |
+
+**Synthesize into:** Research Questions (numbered, prioritized), Measurable Objectives, Success Metrics with thresholds
+
+---
+
+## Step 5: Brainstorm Candidate Methods
+
+**Orchestrator's Role:** Invoke 4 agents in parallel to generate diverse candidate methods spanning rule-based, ML-based, and hybrid approaches. Synthesize into Candidate Method List.
+
+**Child Agents (4):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `scientific-brainstorming` | Read, Grep, Glob | Creative ideation using cross-domain analogies, constraint removal, and assumption reversal. Generate novel method concepts beyond existing approaches. |
+| `scikit-learn` | Read, Grep, Glob | Library of ML algorithms applicable to the problem. Identify candidate models, their assumptions, and trade-offs. |
+| `data-scientist` | Read, Write, Edit, Bash, Glob, Grep | Model trade-off analysis: accuracy vs. interpretability, complexity vs. performance. Recommend model families suited to the data characteristics. |
+| `senior-data-engineer` | Read, Grep, Glob | Implementation pattern guidance. Identify data pipeline requirements for each candidate method. Assess scalability and deployment feasibility. |
+
+**Synthesize into:** Candidate Method List (rule-based, ML-based, hybrid) with trade-off summary
+
+---
+
+## Step 6: Compare and Select Best Direction
+
+**Orchestrator's Role:** Invoke 4 agents in parallel to evaluate and rank candidate methods. Synthesize into Decision Matrix, Selected Direction, and Trade-off Summary.
+
+**Child Agents (4):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `peer-review` | Read, Grep, Glob | Evaluate each method's strengths and weaknesses against published baselines. Apply PC-style scoring (novelty, correctness, significance). Critique methodology. |
+| `statistical-analysis` | Read, Grep, Glob | Quantitative trade-off analysis. Compare methods on measurable dimensions: complexity, data requirements, expected performance, statistical power. |
+| `competitive-analyst` | Read, Grep, Glob, WebFetch, WebSearch | Benchmark candidate methods against competitive approaches. Assess market/field readiness and differentiation potential. |
+| `project-idea-validator` | Read, Write, Edit, Glob, Grep, WebFetch, WebSearch | Go/no-go validation: does the selected method have fatal flaws? Is it better than existing approaches in a meaningful way? |
+
+**Synthesize into:** Decision Matrix (methods x criteria), Selected Direction (with justification), Trade-off Summary
+
+---
+
+## Step 7: Proposed System Design
+
+**Orchestrator's Role:** Invoke 5 agents in parallel to design the system architecture. Synthesize into System Architecture Diagram, Module Specifications, Data Flow, and Scalability Analysis.
+
+**Child Agents (5):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `system-architecture` | Read, Grep, Glob | Define module boundaries, data flow, and dependency direction. Apply layered architecture, microservices patterns where appropriate. Right-size complexity. |
+| `senior-data-engineer` | Read, Grep, Glob | Design data pipeline architecture. Specify data sources, sinks, processing patterns, and storage strategy. Identify scalability requirements. |
+| `llm-architect` | Read, Write, Edit, Bash, Glob, Grep | Design LLM/RAG/fine-tuning components if the system uses language models. Specify model selection, serving infrastructure, and safety mechanisms. |
+| `architect-reviewer` | Read, Write, Edit, Bash, Glob, Grep | Validate the architecture at macro level. Check SOLID principles, scalability, integration patterns, and technical debt. Identify architectural risks. |
+| `performance-engineer` | Read, Write, Edit, Bash, Glob, Grep | Assess scalability. Design load patterns and capacity planning. Identify potential bottlenecks in the architecture. |
+
+**Synthesize into:** System Architecture Diagram (text-based), Module Specifications, Data Flow, Scalability Analysis, Risk Register
+
+---
+
+## Step 8: Detailed Algorithm Design
+
+**Orchestrator's Role:** Invoke 5 agents in parallel to design algorithms in detail. Synthesize into Pseudocode, Mathematical Formulation, Complexity Analysis, and Implementation Plan.
+
+**Child Agents (5):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `hypothesis-generation` | Read, Grep, Glob | Frame each algorithm as a testable hypothesis with falsification conditions. Define expected behavior under edge cases. |
+| `senior-data-engineer` | Read, Grep, Glob | Specify data structures, data flow transformations, and state management. Design efficient data processing pipelines. |
+| `statistical-analysis` | Read, Grep, Glob | Define time/space complexity. Specify statistical properties of the algorithm (bias, variance, convergence). |
+| `llm-architect` | Read, Write, Edit, Bash, Glob, Grep | Design model architecture details: fine-tuning strategy, prompt templates, RAG retrieval strategy, inference optimization. |
+| `code-reviewer` | Read, Write, Edit, Bash, Glob, Grep | Validate implementation quality. Check SOLID, cyclomatic complexity, error handling, and testability. Identify code smells before implementation. |
+
+**Synthesize into:** Pseudocode, Mathematical Formulation, Complexity Analysis (Big-O), Implementation Plan, Test Strategy
+
+---
+
+## Step 9: Evaluation Plan Design
+
+**Orchestrator's Role:** Invoke 6 agents in parallel to design a rigorous evaluation methodology. Synthesize into Evaluation Methodology, Dataset, Baselines, Metrics, Ablation Design, and CI Strategy.
+
+**Child Agents (6):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `literature-review` | Read, Grep, Glob, WebFetch, WebSearch | Select baselines from the literature. Identify which baselines are strongest and which comparison settings are standard in the field. |
+| `peer-review` | Read, Grep, Glob | Critique the evaluation methodology before execution. Identify weaknesses, missing ablation, or unfair comparison settings. |
+| `statistical-analysis` | Read, Grep, Glob | Design hypothesis tests, bootstrap confidence intervals (1,000+ iterations), and power analysis. Define statistical significance thresholds. |
+| `scikit-learn` | Read, Grep, Glob | Define evaluation metrics (precision, recall, F1, AUC, latency). Specify cross-validation strategy and metric computation methods. |
+| `data-scientist` | Read, Write, Edit, Bash, Glob, Grep | Design ablation study: which components to ablate, in what order, and how to measure marginal contribution. Define ground truth tracking. |
+| `performance-engineer` | Read, Write, Edit, Bash, Glob, Grep | Design benchmark methodology: latency measurement, throughput measurement, resource profiling. Define hardware configuration and reproducibility protocol. |
+
+**Synthesize into:** Evaluation Methodology, Dataset Description, Baseline List (with citations), Metrics Table, Ablation Study Design, CI Strategy, Reproducibility Doc
+
+---
+
+## Step 10: Novelty and Contribution Statement
+
+**Orchestrator's Role:** Invoke 3 agents in parallel to frame the contribution. Synthesize into Contribution Statement, Novelty Claims, and Positioning vs. Baselines.
+
+**Child Agents (3):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `scientific-writing` | Read, Grep, Glob | Frame contribution using contribution framing templates. Position the work relative to baselines. Define the "so what" factor. |
+| `peer-review` | Read, Grep, Glob | Score novelty on a standard PC scale. Identify which novelty claims are credible vs. overstated. Flag reviewer objections before submission. |
+| `statistical-analysis` | Read, Grep, Glob | Quantify significance: how much improvement over baselines? Statistical significance vs. practical significance. Effect size with confidence intervals. |
+
+**Synthesize into:** Contribution Statement (1 paragraph), Novelty Claims (bullet list), Positioning Table (vs. baselines), Significance Summary
+
+---
+
+## Step 11: Paper/Thesis Outline
+
+**Orchestrator's Role:** Invoke 4 agents in parallel to create the full paper structure. Synthesize into IMRAD Outline, Figure Specifications, and Table Designs.
+
+**Child Agents (4):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `scientific-writing` | Read, Grep, Glob | Draft IMRAD structure. Define section content, paragraph structure, transition logic. Apply writing quality standards (active voice, concrete numbers). |
+| `peer-review` | Read, Grep, Glob | Review outline quality before writing. Check logical flow, section completeness, reviewer expectations, and gap between sections. |
+| `matplotlib` | Read, Grep, Glob | Design data figures: comparison bar charts, latency distributions, ablation results. Specify figure format (PDF/SVG, 300 DPI), color palette, and caption structure. |
+| `excalidraw-diagram` | Read, Grep, Glob | Design system architecture figures, data flow diagrams, and concept illustrations. Apply the "diagrams should argue" principle. Multi-zoom design (summary + detail). |
+
+**Synthesize into:** Full Paper Outline (IMRAD sections), Figure Specifications (with captions), Table Designs, Writing Assignments
+
+---
+
+## Step 12: Implementation Roadmap
+
+**Orchestrator's Role:** Invoke 4 agents in parallel to build the implementation plan. Synthesize into Implementation Roadmap with Milestones, Dependencies, and Timeline.
+
+**Child Agents (4):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `statistical-analysis` | Read, Grep, Glob | Define milestone metrics: what "done" means for each milestone. Specify quantitative acceptance criteria. |
+| `senior-data-engineer` | Read, Grep, Glob | Identify milestone patterns from similar implementations. Define data pipeline milestones, testing checkpoints, and integration points. |
+| `code-reviewer` | Read, Write, Edit, Bash, Glob, Grep | Define code quality gates at each milestone. Specify coverage targets, cyclomatic complexity limits, and security checkpoints. |
+| `performance-engineer` | Read, Write, Edit, Bash, Glob, Grep | Define latency/throughput targets per milestone. Specify benchmark runs, profiling checkpoints, and optimization milestones. |
+
+**Synthesize into:** Implementation Roadmap (Gantt-style table), Milestones with Dependencies, Risk Register, Resource Estimate
+
+---
+
+## Step 13: Advisor/Peer Feedback Integration
+
+**Orchestrator's Role:** Invoke 3 agents in parallel to process feedback and prepare rebuttals. Synthesize into Feedback Triage, Rebuttal Draft, and Revision Plan.
+
+**Child Agents (3):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `peer-review` | Read, Grep, Glob | Simulate PC reviewer objections. Categorize feedback by severity (major/minor). Prepare point-by-point rebuttal templates. |
+| `scientific-writing` | Read, Grep, Glob | Draft rebuttal responses to reviewer comments. Revise paper sections based on feedback. Maintain consistent voice throughout revisions. |
+| `scientific-critical-thinking` | Read, Grep, Glob | Integrate critiques from multiple reviewers. Identify conflicting feedback and resolve. Distinguish valid concerns from reviewer bias. |
+
+**Synthesize into:** Feedback Triage (by severity), Rebuttal Draft (point-by-point), Revision Plan (prioritized), Consistency Check
+
+---
+
+## Step 14: Finalize Proposed Method
+
+**Orchestrator's Role:** Invoke 5 agents in parallel for final quality gate. Synthesize into Final Paper, Consistency Report, and Submission Readiness.
+
+**Child Agents (5):**
+
+| Agent | Toolset | Purpose |
+|-------|---------|---------|
+| `scientific-writing` | Read, Grep, Glob | Polish all sections for consistency, clarity, and style. Check citation format, figure numbering, and table formatting. Final language review. |
+| `peer-review` | Read, Grep, Glob | Final quality gate: score overall paper. Check completeness of all sections. Verify evaluation meets claims. Flag any remaining red flags. |
+| `scientific-critical-thinking` | Read, Grep, Glob | Full pipeline audit: do claims match evidence? Are methods consistent with objectives? Any remaining logical fallacies or unsupported claims? |
+| `matplotlib` | Read, Grep, Glob | Finalize all data figures: check consistency of colors, fonts, labels. Verify all figures have captions and are referenced in text. Export at correct resolution. |
+| `excalidraw-diagram` | Read, Grep, Glob | Polish all diagrams: check consistency of icons, arrows, labels. Verify diagrams match the final architecture. Final visual consistency check. |
+
+**Synthesize into:** Final Paper (all sections), Consistency Report (claims vs. evidence), Submission Readiness Checklist, Supplementary Materials List
+
+---
+
+## Pipeline Summary
+
+```
+Step  Expert  Key Output
+----  ------  ----------
+  1      9   Problem Statement + Constraints + Stakeholder Map
+  2      7   Taxonomy + Baselines + Related Work Structure
+  3      6   Gap List (prioritized) + Gap-to-Hypothesis Mapping
+  4      5   Research Questions + Measurable Objectives + Metrics
+  5      4   Candidate Method List (rule/ML/hybrid)
+  6      4   Decision Matrix + Selected Direction
+  7      5   System Architecture + Module Specs + Data Flow
+  8      5   Pseudocode + Math Formulation + Complexity
+  9      6   Evaluation Methodology + Baselines + CI Strategy
+ 10      3   Contribution Statement + Novelty Claims
+ 11      4   Paper Outline + Figure Specs + Table Designs
+ 12      4   Implementation Roadmap + Milestones + Timeline
+ 13      3   Feedback Triage + Rebuttal + Revision Plan
+ 14      5   Final Paper + Consistency Report + Readiness
+
+Total unique agents: 26
+Total expert-invocations: 63
+Average experts per step: 4.5
+```

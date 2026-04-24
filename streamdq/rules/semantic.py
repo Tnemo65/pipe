@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from streamdq.rules.base import DataQualityRule, RuleContext, Violation
+from streamdq.rules.base import DataQualityRule, RuleContext, Violation, get_entity_index, make_violation
 from streamdq.rules.syntactic import _isnan
 
 
@@ -41,7 +41,8 @@ class FareRangeRule(DataQualityRule):
             return None  # Caught by SYN001
 
         if _isnan(fare):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=str(ctx.event.get("trip_id", "unknown")),
@@ -101,7 +102,8 @@ class FareRangeRule(DataQualityRule):
             fare_max = fare_max * (1 + (trip_distance - 20) * 0.05)
 
         if fare < fare_min or fare > fare_max:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -186,7 +188,8 @@ class TripDurationSanityRule(DataQualityRule):
             max_dur = max_dur * 1.2   # Weekend: different trip patterns
 
         if duration_sec < self.min_duration_sec:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -209,7 +212,8 @@ class TripDurationSanityRule(DataQualityRule):
             )
 
         if duration_sec > max_dur:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -279,7 +283,8 @@ class AverageSpeedSanityRule(DataQualityRule):
 
         # Guard against NaN values (SYN001 handles None; NaN needs explicit check)
         if _isnan(trip_distance):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -308,7 +313,8 @@ class AverageSpeedSanityRule(DataQualityRule):
             return None  # Duration too short — caught by SEM002
 
         if trip_distance <= 0:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -341,7 +347,8 @@ class AverageSpeedSanityRule(DataQualityRule):
             max_speed -= 5.0
 
         if avg_speed_mph > max_speed:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -424,7 +431,8 @@ class FitnessScoreRule(DataQualityRule):
 
         severity = "HIGH" if score < 0.25 else "MEDIUM"
 
-        return Violation(
+        return make_violation(
+            event,
             rule_id=self.rule_id,
             rule_name=self.name,
             entity_id=str(event.get("trip_id", event.get("vehicle_id", "unknown"))),

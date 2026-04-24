@@ -160,6 +160,54 @@ class Violation:
     record_snapshot: dict[str, Any]  # Full event data
     detected_at: datetime
     processing_latency_ms: float
+    # NG-eval-01: entity_index for ground-truth precision/recall matching.
+    # Injected anomalies carry a unique entity_index; violations inherit it
+    # so that ground_truth_tracker can match detected → injected via index join.
+    entity_index: Optional[str] = None
+
+    def with_entity_index(self, idx: Optional[str]) -> "Violation":
+        """Return a copy with entity_index set. NG-eval-01."""
+        self.entity_index = idx
+        return self
+
+
+def get_entity_index(event: dict) -> Optional[str]:
+    """Extract entity_index from event lineage. NG-eval-01."""
+    return event.get("_lineage", {}).get("entity_index")
+
+
+def make_violation(
+    event: dict,
+    rule_id: str,
+    rule_name: str,
+    entity_id: str,
+    entity_type: str,
+    severity: str,
+    violation_type: str,
+    details: dict,
+    expected: dict,
+    record_snapshot: dict,
+    detected_at: datetime,
+    processing_latency_ms: float,
+) -> Violation:
+    """
+    Factory for Violation with entity_index auto-extracted from event lineage.
+    NG-eval-01: All violations carry entity_index for ground-truth P/R matching.
+    """
+    return Violation(
+        rule_id=rule_id,
+        rule_name=rule_name,
+        entity_id=entity_id,
+        entity_type=entity_type,
+        severity=severity,
+        violation_type=violation_type,
+        details=details,
+        expected=expected,
+        record_snapshot=record_snapshot,
+        detected_at=detected_at,
+        processing_latency_ms=processing_latency_ms,
+        entity_index=get_entity_index(event),
+    )
 
 
 class DataQualityRule(ABC):

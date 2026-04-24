@@ -419,7 +419,7 @@
 
 - Core rules (SYN001-003, SEM001-003, CRS001-003) are ~70% implemented
 - Adaptive threshold engine exists and is sound
-- Spark Structured Streaming is the correct tech stack choice
+- Apache Flink is the correct streaming engine choice
 - **Critical**: Distributed pipeline has semantic rule gap — SEM rules do not run in `run_distributed()`
 - **Critical**: Evaluation module does not exist — all metrics depend on this
 - **Critical**: GTFS anomaly injection is missing in `gtfs_live.py`
@@ -500,7 +500,7 @@
 │   on real public transit feeds                             │
 │                                                            │
 │ ARCHITECTURE OVERVIEW:                                     │
-│ - Streaming: Apache Spark Structured Streaming              │
+│ - Streaming: Apache Flink                                   │
 │ - Message bus: Apache Kafka                                │
 │ - Rules: SYN (single-record) + SEM (statistical) +        │
 │   CRS (cross-record stateful)                             │
@@ -513,7 +513,7 @@
 │     continuity, duplicate detection, coordinate validity,  │
 │     adaptive thresholds, ground-truth evaluation            │
 │ OUT: ML anomaly detection, drift detection, production     │
-│      alerting, distributed adaptive thresholds, Flink      │
+│      alerting, distributed adaptive thresholds              │
 │                                                            │
 │ EXPECTED CONTRIBUTION TYPE:                                │
 │ [X] New framework (full system contribution)              │
@@ -679,7 +679,7 @@
 - Ablation study (SYN-only vs. SYN+SEM vs. SYN+SEM+CRS)
 - Hierarchical context-aware adaptive thresholds (3D: temporal + spatial + operational)
 - Comparison with at least one competing framework (Great Expectations or Soda Core)
-- LocalPipeline and SparkPipeline (foreachBatch mode)
+- LocalPipeline (in-process) and Flink pipeline (distributed)
 
 ### OUT OF SCOPE (Documented)
 - ML-based anomaly detection
@@ -688,7 +688,7 @@
 - Flink pipeline
 - Production alerting infrastructure
 - Labeled GTFS benchmark dataset
-- Full distributed Spark semantic rule evaluation
+- Full distributed Flink semantic rule evaluation
 - Weather/external context (4D -> 3D scope reduction)
 
 ### NICE-TO-HAVE (If Time Permits)
@@ -713,8 +713,8 @@
 
 ### Data Engineer
 - **Verdict**: NEEDS WORK
-- **Strengths**: Syntactic rule edge case handling exemplary; cross-record state isolation correct; Spark streaming choice is right trade-off
-- **Critical Issues**: Spark distributed pipeline latency instrumentation incomplete (B6); evaluation module missing; external/weather context entirely unimplemented
+- **Strengths**: Syntactic rule edge case handling exemplary; cross-record state isolation correct; Apache Flink streaming engine choice is well-justified
+- **Critical Issues**: Distributed Flink pipeline latency instrumentation incomplete (B6); evaluation module missing; external/weather context entirely unimplemented
 
 ### Statistician
 - **Verdict**: NEEDS WORK

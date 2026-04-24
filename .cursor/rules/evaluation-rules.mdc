@@ -1,0 +1,112 @@
+---
+description: Evaluation framework standards for StreamDQ benchmarks. Applies to all files in evaluation/ and tests/. Part of streamdq-master.mdc — always apply together.
+alwaysApply: false
+globs: **/evaluation/*.py, **/tests/*.py
+---
+
+# Evaluation Standards — StreamDQ
+
+These standards are PART OF streamdq-master.mdc. Apply them when working on evaluation/ and tests/ files.
+
+## Ground Truth & Metrics
+
+### EV-GT1 — Track Every Injected Anomaly
+Every evaluation run MUST record ground truth for every injected anomaly:
+- `anomaly_type` (e.g., `fare_negative`, `fare_outlier`, `duplicate`)
+- `entity_index` (position in the stream)
+- `injected_at` (event index)
+
+### EV-GT2 — Track Every Detected Violation
+Every detected violation MUST record:
+- `rule_id` (e.g., `SYN001`)
+- `entity_index` (correlated with injected anomaly)
+- `latency_ms` (event arrival to violation stored — NOT internal-only timing)
+- `anomaly_type` (which injected anomaly this corresponds to, if any)
+
+### EV-GT3 — No Hardcoded Point Estimates
+Every metric must be MEASURED, not hardcoded:
+- Precision, recall, F1 scores
+- Latency percentiles (P50, P95, P99)
+- Throughput numbers (events/sec)
+- Rule coverage percentages
+
+If not measured, report as `null` or `TODO` with a note explaining what's needed.
+
+## Anomaly Injection
+
+### EV-INJ1 — Duplicate Must Emit TWO Records
+CRS003 requires seeing two identical records to detect a duplicate:
+1. Emit the original record
+2. Emit a second record with identical key fields
+3. Both must appear within the deduplication window (default: 300 seconds)
+
+### EV-INJ2 — Fixed Seed for Reproducibility
+Use `random.seed(42)` for anomaly type selection. Record the seed in the evaluation report.
+
+### EV-INJ3 — Anomaly Rate Configurable
+Anomaly injection rate must be configurable (default: 5%). Inject each type with equal probability.
+
+## Metric Computation
+
+### EV-MET1 — Precision = TP / (TP + FP)
+- TP: detected violation where `entity_index` matches an injected anomaly
+- FP: detected violation where `entity_index` does not match any injected anomaly
+
+### EV-MET2 — Recall = TP / (TP + FN)
+- TP: injected anomalies that have at least one corresponding detected violation
+- FN: injected anomalies with zero detected violations
+
+### EV-MET3 — Latency: End-to-End
+Measure from Kafka produce timestamp to violation stored. NOT internal-only timing.
+
+### EV-MET4 — Report 95% Confidence Intervals
+Compute bootstrap 95% CI with at least 1,000 resamples. Report: `mean ± CI_95`.
+
+## Evaluation Protocol
+
+### EV-PROTO1 — Warmup Before Measurement
+At least 10,000 warmup events before measurement to stabilize thresholds and populate state.
+
+### EV-PROTO2 — Minimum N = 100,000 Events
+For reliable metrics: N=10K provides 5x precision for 5% anomaly rates. N=100K provides 18x.
+
+### EV-PROTO3 — Separate Local vs. Distributed
+Report LocalPipeline and FlinkPipeline results separately. Do not conflate them.
+
+### EV-PROTO4 — Per-Rule and Per-Type Breakdown
+Report at three levels: (1) overall, (2) per anomaly type, (3) per rule.
+
+## Reporting
+
+### EV-REP1 — Structured Report Format
+```json
+{
+  "n_events": 100000,
+  "n_anomalies_injected": 5000,
+  "anomaly_rate": 0.05,
+  "anomaly_types": ["fare_negative", "fare_outlier", ...],
+  "precision": {"mean": 0.85, "ci_95": [0.82, 0.88]},
+  "recall_overall": {"mean": 0.82, "ci_95": [0.79, 0.85]},
+  "f1": {"mean": 0.83, "ci_95": [0.80, 0.86]},
+  "latency": {"p50_ms": 150, "p95_ms": 890, "p99_ms": 2100},
+  "detection_rate_by_type": {...},
+  "rule_coverage": {...},
+  "pipeline": "flink",
+  "seed": 42,
+  "warmup_events": 10000,
+  "timestamp": "ISO8601"
+}
+```
+
+### EV-REP2 — Comparison vs. Baselines
+Use the SAME dataset and SAME injected anomalies for all comparisons. Report same metrics for all tools.
+
+### EV-REP3 — Reproducibility Documentation
+Document how to reproduce every run with command-line arguments.
+
+## Build Order
+Build one at a time, verify each before moving on:
+1. `synthetic_injector.py`
+2. `ground_truth_tracker.py`
+3. `metrics.py`
+4. `run_evaluation.py`

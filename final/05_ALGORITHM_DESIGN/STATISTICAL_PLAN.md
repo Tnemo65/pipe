@@ -322,22 +322,22 @@ For latency distribution L with n samples:
 
 The framework has two execution modes. All results must be labeled with the mode used.
 
-| Dimension | LocalPipeline | SparkPipeline |
+| Dimension | LocalPipeline | FlinkPipeline |
 |-----------|:-------------:|:------------:|
-| **Architecture** | In-process Python | Apache Spark Structured Streaming |
+| **Architecture** | In-process Python | Apache Flink (Kafka + JVM) |
 | **State backend** | Python dict (in-memory) | RocksDB (persistent) |
 | **CRS state** | In-process | Per-JVM keyed state |
 | **Database** | SQLite (local file) | PostgreSQL (network) |
-| **Latency floor** | ~50–200ms (no micro-batch) | 500ms (Spark micro-batch default) |
+| **Latency floor** | ~50–200ms (no micro-batch) | ~10–50ms (Flink continuous processing) |
 | **Throughput** | ~1,000–5,000 events/sec (SQLite-bound) | ~10,000+ events/sec (Kafka-partitioned) |
 | **Evaluation mode** | Development, unit testing | Full benchmark runs |
 | **Reproducibility** | High (controlled env) | Medium (cluster variance) |
 
-**Rule**: Do NOT claim Spark-level latency/throughput numbers from LocalPipeline results. LocalPipeline results are labeled "development-mode estimates."
+**Rule**: Do NOT claim distributed Flink-level latency/throughput numbers from LocalPipeline results. LocalPipeline results are labeled "development-mode estimates."
 
 **Claim language**:
 - LocalPipeline: "Estimated P99 latency: ~200ms (LocalPipeline, development mode)" [Tier 2]
-- SparkPipeline: "P99 latency: Xms (SparkPipeline, distributed benchmark)" [Tier 1 after benchmark]
+- FlinkPipeline: "P99 latency: Xms (FlinkPipeline, distributed benchmark)" [Tier 1 after benchmark]
 
 ---
 
@@ -422,10 +422,10 @@ For each RQ, the power analysis provides:
 |-----------|---------------|
 | **Framework** | `streamdq/` — see project structure |
 | **Python version** | 3.10+ |
-| **Key dependencies** | pyspark==3.5.0, pandas, numpy, scipy, scikit-learn |
+| **Key dependencies** | `flink-connector-kafka`, pandas, numpy, scipy, scikit-learn |
 | **Random seed** | `SEED = 42` — all random number generators seeded identically |
 | **Seed logging** | Every evaluation run logs `SEED`, `run_id`, `timestamp` to `evaluation_metadata` table |
-| **Container** | `Dockerfile.spark` for reproducible execution environment |
+| **Container** | `Dockerfile.flink` for reproducible execution environment |
 
 ### Data
 
@@ -473,7 +473,7 @@ PROTOCOL: run_evaluation.sh
 | **Power analysis for RQ1** | Required | Aggregate ΔF1 is underpowered at n=90; increase to n≥700 or downgrade claim |
 | **B2 fix for CRS003** | Required | Must emit both original + duplicate before CRS003 recall is measurable |
 | **B6 fix for latency** | Required | `processing_latency_ms` must be measured end-to-end, not hardcoded to 0 |
-| **LocalPipeline ≠ SparkPipeline** | Required | Label all latency/throughput results with execution mode |
+| **LocalPipeline ≠ FlinkPipeline** | Required | Label all latency/throughput results with execution mode |
 | **L0 coverage measurement** | Required | Report actual L0 fraction, not just estimates; affects RQ1 interpretation |
 | **Bootstrap iterations** | Required | ≥ 1,000 iterations for all CIs; log iteration count in output |
 | **Bonferroni correction** | Required | α_adj = 0.01 for 5 RQs (0.05/5); report adjusted p-values |
@@ -489,7 +489,7 @@ PROTOCOL: run_evaluation.sh
 | **Sample size without power justification** | Underpowered → Type II error risk | Run power analysis; increase n or downgrade claim |
 | **"Statistically significant" without p-value** | Claim is unsubstantiated | Report exact p-value and CI |
 | **CRS003 recall reported without B2 fix** | Measurement is meaningless | Label Tier 3, document B2 blocker |
-| **LocalPipeline latency claimed as Spark result** | Architecture confusion | Add "LocalPipeline (development)" label |
+| **LocalPipeline latency claimed as Flink result** | Architecture confusion | Add "LocalPipeline (development)" label |
 | **Aggregate ΔF1 claimed at 5pp without n≥700** | Claim exceeds evidence | Report L0-specific ΔF1 only; aggregate ΔF1 labeled "underpowered" |
 | **P99 latency hardcoded to 0 (B6)** | Measurement is absent | Fix B6 before running latency evaluation |
 
@@ -517,7 +517,7 @@ PROTOCOL: run_evaluation.sh
 | CRS001/CRS002 recall | Mechanistic: physics bounds hardcoded | Medium — depends on injection quality |
 | TQS variants V1/V2/V3 ranking | T-Assess theoretical basis | Medium — weights are ad hoc |
 | Throughput (LocalPipeline) | SQLite write speed analysis | High — no distributed benchmark |
-| P99 latency (LocalPipeline) | Local profiling | Very high — LocalPipeline ≠ Spark |
+| P99 latency (LocalPipeline) | Local profiling | Very high — LocalPipeline ≠ distributed Flink |
 
 ### Tier 3 — Unmeasurable (Documented Limitations)
 
@@ -526,7 +526,7 @@ PROTOCOL: run_evaluation.sh
 | CRS003 recall | B2: duplicate injection broken | Fix `synthetic_injector.py` to emit original + duplicate |
 | ML augmentation ΔF1 | Phase 3 optional; CRS003 broken | Complete Phase 3; fix B2 |
 | Real-world GPS precision | No labeled authentic GTFS errors | Manual labeling of live feed |
-| Distributed Flink latency | Infrastructure not deployed | Deploy SparkPipeline cluster |
+| Distributed Flink latency | Infrastructure not deployed | Deploy FlinkPipeline cluster |
 | End-to-end throughput (distributed) | LocalPipeline only | Deploy distributed benchmark |
 
 ---

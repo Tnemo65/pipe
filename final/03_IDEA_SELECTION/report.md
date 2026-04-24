@@ -1,7 +1,7 @@
 # ContextAware-DQ: A Context-Aware Framework for Streaming Data Quality Monitoring
 
 **Project**: A Context-Aware Framework for Streaming Data Quality Monitoring
-**Streaming Engine**: Apache Flink (migrated from Spark Structured Streaming)
+**Streaming Engine**: Apache Flink
 **Domain**: Transportation — NYC TLC Yellow Taxi + NYC MTA Bus (GTFS-realtime)
 **Phase**: Final Proposal — Consolidated from Phases 0, 2, 3B, and 4
 **Date**: April 23, 2026
@@ -16,11 +16,11 @@
 
 ### The Decision
 
-**Selected Streaming Engine**: Apache Flink — replacing Spark Structured Streaming.
+**Selected Streaming Engine**: Apache Flink.
 
 **Selected Idea**: IDEA-NEW-2 + IDEA-05 Integration — *Integrated Trajectory Quality Scoring with Context-Aware Threshold Calibration*, implemented on Apache Flink.
 
-This document consolidates all research phases into a single authoritative proposal. The streaming engine migration (Spark → Flink) and the idea selection (T-Assess + Context-Aware) are independent decisions that compound: Flink provides the event-time infrastructure that makes context-aware thresholds and TQS evaluation more accurate and operationally valuable.
+This document consolidates all research phases into a single authoritative proposal. The idea selection (T-Assess + Context-Aware) and the Flink architecture are the core decisions: Flink provides event-time infrastructure (watermarks, idle detection, RocksDB state) that enables context-aware thresholds and TQS evaluation with fine-grained state management.
 
 ### Critical Discovery: Two Independent Breakthroughs
 
@@ -42,8 +42,8 @@ This document consolidates all research phases into a single authoritative propo
 
 | Stage | Grade | Rationale |
 |-------|:-----:|-----------|
-| Baseline (Spark, no new ideas) | B+ to A- | From Phase 0 verification |
-| Flink migration (architecture upgrade) | B+ to A- | Better event-time, no academic credit |
+| Baseline (no new ideas) | B+ to A- | From Phase 0 verification |
+| Flink architecture upgrade | B+ to A- | Better event-time, no academic credit |
 | IDEA-NEW-2 only | A- to A | T-Assess integration novel, context thin |
 | **IDEA-NEW-2 + IDEA-05 (full, Flink)** | **A to A+** | 12/12 name fit; Flink event-time validates context thresholds |
 | + ML layer (supplementary) | A+ | If resources permit |
@@ -198,11 +198,13 @@ Minimum sample sizes derived from power analysis for detecting 5pp F1 improvemen
 
 ---
 
-## Part III: Flink Migration — Phase 4 Analysis
+## Part III: Apache Flink Architecture
 
-### Why Flink Over Spark
+### Why Apache Flink
 
-| Aspect | Spark Structured Streaming | Apache Flink |
+Apache Flink is the streaming engine. The comparison below addresses the legacy Spark Structured Streaming architecture that was evaluated and rejected.
+
+| Aspect | Spark Structured Streaming (rejected) | Apache Flink |
 |--------|---------------------------|-------------|
 | Processing Model | Micro-batch (default 500ms) | Continuous (record-at-a-time) |
 | Minimum Latency | ~100-500ms | ~10-50ms |
@@ -213,9 +215,7 @@ Minimum sample sizes derived from power analysis for detecting 5pp F1 improvemen
 | Exactly-Once | Kafka + Spark checkpoint | Kafka + Flink checkpoint (cleaner) |
 | Python Support | Full (Pyspark, Pandas UDFs) | **Limited** — JVM↔Python serialization overhead for stateful ops |
 
-**Flink wins** on: event-time handling (GTFS 30s updates), idle stream detection, incremental checkpoints, and native state TTL.
-
-**Spark wins** on: Python ecosystem, team familiarity.
+**Flink wins** on: event-time handling (GTFS 30s updates), idle stream detection, incremental checkpoints, native state TTL, and record-at-a-time processing (not micro-batch).
 
 ### Recommended Architecture: CRS Rules in Java (REQUIRED, Not Optional)
 
@@ -255,7 +255,7 @@ Minimum sample sizes derived from power analysis for detecting 5pp F1 improvemen
 
 ### Migration Strategy: Strangler Fig + Facade Pattern
 
-Introduce `PipelineBackend` interface. Both Spark and Flink implement it. Risk = 0%.
+Introduce `PipelineBackend` interface. Only Flink implements it (Spark pipeline is archived).
 
 ```python
 class PipelineBackend(ABC):
@@ -632,7 +632,7 @@ The following from `StreamDQ v2.0` are explicitly **not adopted** for the resear
 | **RQ5** | Do CRS rules achieve precision > 0.70 on NYC MTA Bus (GTFS-realtime)? | GAP-06 | Ground truth injection on NYC MTA Bus GTFS-realtime (GPS coordinates available; public feed, no API key) | P > 0.70, 95% bootstrap CI |
 **RQ6** | Does ML-augmented threshold calibration (Isolation Forest + Bayesian Opt) improve F1 over rule-only thresholds? | GAP-03 | Ablation: rule-only vs. rule+ML on NYC TLC; Isolation Forest scores as confidence weights | ΔF1 ≥ 5pp, 95% bootstrap CI |
 
-**Scope rationale**: RQ1–RQ5 cover the core contributions (context-aware thresholds, hierarchical fallback, TQS evaluation, CRS validation). RQ6 adds ML augmentation as a core contribution. RQ7–RQ9 (cross-domain F1, Flink vs. Spark, concept drift) are deferred to future work.
+**Scope rationale**: RQ1–RQ5 cover the core contributions (context-aware thresholds, hierarchical fallback, TQS evaluation, CRS validation). RQ6 adds ML augmentation as a core contribution. RQ7–RQ9 (cross-domain F1, distributed Flink latency, concept drift) are deferred to future work.
 
 **Statistical Tests**: Wilcoxon signed-rank (paired), α = 0.05, Bonferroni α_adj = 0.01 (6 RQs); Pearson ρ + Spearman ρ_s with bootstrap 95% CI (1,000 iterations).
 ---
@@ -772,7 +772,7 @@ streamdq/pipeline/flink/
 | B5: PostgreSQL schema missing tables | Pending | Create 5 tables (violations, context_statistics, metrics_summary, ground_truth_events, evaluation_results) `PRAGMA journal_mode=WAL` |
 | B6: `processing_latency_ms` hardcoded to 0 | Pending | Compute from Flink timer |
 
-**Note**: B4 (Spark `foreachBatch` bottleneck) is **eliminated by the Flink migration** — Flink processes events one-by-one, not in micro-batches.
+**Note**: The Spark Structured Streaming `foreachBatch` bottleneck is **not applicable** — Flink processes events one-by-one, not in micro-batches. This eliminates the B4 bottleneck entirely.
 
 ---
 
@@ -792,7 +792,7 @@ streamdq/pipeline/flink/
 |----------|---------|----------|:------------:|
 | **A: T-Assess API fails** | GitHub audit incompatible | Custom TQS from ContextAware-DQ violations only | Minimal |
 | **B: Context-aware shows NO improvement** | Ablation ΔF1 < 5pp | Document as negative result; IDEA-NEW-2 only | B+ to A |
-| **C: Flink migration fails** | Java/Kotlin too complex | Stay on Spark; IDEA-NEW-2 + IDEA-05 on Spark | Minimal |
+| **C: Flink migration fails** | Java/Kotlin too complex | Switch to Kafka + FlinkSQL (simpler, no Java for CRS rules) | Significant — requires redesign |
 | **D: ML augmentation fails** | ρ(TQS+ML) ≤ ρ(TQS) | Document as negative result; rule-only TQS | Minimal |
 | **E: CRS003 fix fails** | Duplicate injection still broken | Document recall as unmeasurable | MINIMAL |
 | **F: Time overrun** | Deadline approaching | Deprioritize Phase 3 ML layer | Minimal if core is solid |
@@ -891,7 +891,7 @@ Round 2 verified that all 13 issues marked FIXED in Round 1 were actually resolv
 streamdq/
 ├── pipeline/
 │   ├── base.py              # PipelineBackend interface
-│   ├── spark_pipeline.py    # [ARCHIVED] Spark implementation
+│   ├── spark_pipeline.py    # [ARCHIVED] Original Spark implementation
 │   ├── flink_pipeline.py    # FlinkPipeline implementation
 │   └── local_pipeline.py    # Local testing (unchanged)
 ├── flink/                   # New Flink-specific code

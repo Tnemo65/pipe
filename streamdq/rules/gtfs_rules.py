@@ -19,7 +19,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 
-from streamdq.rules.base import DataQualityRule, RuleContext, Violation
+from streamdq.rules.base import DataQualityRule, RuleContext, Violation, get_entity_index, make_violation
 
 
 # ────────────────────────────────────────────────────────────────
@@ -45,7 +45,8 @@ class GTFSVehicleIDValidRule(DataQualityRule):
     def evaluate(self, ctx: RuleContext) -> Optional[Violation]:
         vehicle_id = ctx.event.get("vehicle_id")
         if vehicle_id is None or str(vehicle_id).strip() == "":
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=str(vehicle_id) if vehicle_id else "unknown",
@@ -94,7 +95,8 @@ class GTFSLatLongRangeRule(DataQualityRule):
             try:
                 lat_f = float(lat)
                 if lat_f < -90.0 or lat_f > 90.0:
-                    return Violation(
+                    return make_violation(
+                        ctx.event,
                         rule_id=self.rule_id,
                         rule_name=self.name,
                         entity_id=vehicle_id,
@@ -114,7 +116,8 @@ class GTFSLatLongRangeRule(DataQualityRule):
                         processing_latency_ms=(time.perf_counter() - ctx.start_time) * 1000,
                     )
             except (ValueError, TypeError):
-                return Violation(
+                return make_violation(
+                    ctx.event,
                     rule_id=self.rule_id,
                     rule_name=self.name,
                     entity_id=vehicle_id,
@@ -136,7 +139,8 @@ class GTFSLatLongRangeRule(DataQualityRule):
             try:
                 lon_f = float(lon)
                 if lon_f < -180.0 or lon_f > 180.0:
-                    return Violation(
+                    return make_violation(
+                        ctx.event,
                         rule_id=self.rule_id,
                         rule_name=self.name,
                         entity_id=vehicle_id,
@@ -156,7 +160,8 @@ class GTFSLatLongRangeRule(DataQualityRule):
                         processing_latency_ms=(time.perf_counter() - ctx.start_time) * 1000,
                     )
             except (ValueError, TypeError):
-                return Violation(
+                return make_violation(
+                    ctx.event,
                     rule_id=self.rule_id,
                     rule_name=self.name,
                     entity_id=vehicle_id,
@@ -203,7 +208,8 @@ class GTFSSpeedRangeRule(DataQualityRule):
         try:
             speed_f = float(speed)
         except (ValueError, TypeError):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -222,7 +228,8 @@ class GTFSSpeedRangeRule(DataQualityRule):
             )
 
         if speed_f < 0.0:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -242,7 +249,8 @@ class GTFSSpeedRangeRule(DataQualityRule):
             )
 
         if speed_f > self.MAX_SPEED_KMH:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -301,7 +309,8 @@ class GTFSImpossibleSpeedRule(DataQualityRule):
             return None
 
         if speed_f > self.IMPOSSIBLE_SPEED_KMH:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -357,7 +366,8 @@ class GTFSStaleDataRule(DataQualityRule):
 
         ts = self._parse_timestamp(ts_str)
         if ts is None:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -377,7 +387,8 @@ class GTFSStaleDataRule(DataQualityRule):
 
         age_seconds = (ctx.event_time - ts).total_seconds()
         if age_seconds > self.MAX_AGE_SECONDS:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=vehicle_id,
@@ -464,7 +475,8 @@ def evaluate_gtfs_trajectory_anomaly(event: dict, event_time: datetime, start_ti
         # Same or backward timestamp — check for teleport
         dist = _haversine_km(prev_lat, prev_lon, lat_f, lon_f)
         if dist > 1.0:  # > 1km jump in same/negative time
-            v = Violation(
+            v = make_violation(
+                event,
                 rule_id="GTFSCRS001",
                 rule_name="GTFS GPS position teleport",
                 entity_id=vehicle_id,
@@ -514,7 +526,8 @@ def evaluate_gtfs_trajectory_anomaly(event: dict, event_time: datetime, start_ti
         reason = "EXCEEDS_REASONABLE"
 
     if severity:
-        v = Violation(
+        v = make_violation(
+            event,
             rule_id="GTFSCRS001",
             rule_name="GTFS GPS speed anomaly",
             entity_id=vehicle_id,
@@ -565,7 +578,8 @@ def evaluate_gtfs_duplicate_event(event: dict, event_time: datetime, start_time:
         first_seen = _GTFS_DEDUP_STATES[dedup_key]
         if (event_time - first_seen).total_seconds() <= DEDUP_WINDOW_SECONDS:
             return [
-                Violation(
+                make_violation(
+                    event,
                     rule_id="GTFSCRS002",
                     rule_name="GTFS duplicate position",
                     entity_id=vehicle_id,

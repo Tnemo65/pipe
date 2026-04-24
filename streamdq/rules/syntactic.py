@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from streamdq.rules.base import DataQualityRule, RuleContext, Violation
+from streamdq.rules.base import DataQualityRule, RuleContext, Violation, get_entity_index, make_violation
 
 
 VALID_LOCATION_IDS = set(range(1, 264))  # NYC TLC zones 1-263
@@ -77,7 +77,8 @@ class CompletenessRule(DataQualityRule):
         if not missing_fields:
             return None
 
-        return Violation(
+        return make_violation(
+            event,
             rule_id=self.rule_id,
             rule_name=self.name,
             entity_id=str(event.get("trip_id", event.get("vehicle_id", "unknown"))),
@@ -120,7 +121,8 @@ class FareAmountRangeRule(DataQualityRule):
         trip_id = str(ctx.event.get("trip_id", "unknown"))
 
         if fare is None:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -135,7 +137,8 @@ class FareAmountRangeRule(DataQualityRule):
             )
 
         if _isnan(fare):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -155,7 +158,8 @@ class FareAmountRangeRule(DataQualityRule):
             )
 
         if not isinstance(fare, (int, float)):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -175,7 +179,8 @@ class FareAmountRangeRule(DataQualityRule):
             )
 
         if fare < 0:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -214,7 +219,8 @@ class PickupLocationValidRule(DataQualityRule):
         trip_id = str(ctx.event.get("trip_id", "unknown"))
 
         if location_id is None:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -231,7 +237,8 @@ class PickupLocationValidRule(DataQualityRule):
         try:
             location_int = int(location_id)
         except (ValueError, TypeError):
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -250,7 +257,8 @@ class PickupLocationValidRule(DataQualityRule):
             )
 
         if location_int not in VALID_LOCATION_IDS:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -309,7 +317,8 @@ class TimestampNotFutureRule(DataQualityRule):
         trip_id = str(ctx.event.get("trip_id", "unknown"))
 
         if ts_str is None:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -325,7 +334,8 @@ class TimestampNotFutureRule(DataQualityRule):
 
         ts_epoch = self._parse_timestamp(ts_str)
         if ts_epoch is None:
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
@@ -346,7 +356,8 @@ class TimestampNotFutureRule(DataQualityRule):
         future_cutoff = ctx.event_time.timestamp() + self.future_tolerance
         if ts_epoch > future_cutoff:
             offset_seconds = int(ts_epoch - future_cutoff)
-            return Violation(
+            return make_violation(
+                ctx.event,
                 rule_id=self.rule_id,
                 rule_name=self.name,
                 entity_id=trip_id,
